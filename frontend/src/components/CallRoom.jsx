@@ -13,12 +13,12 @@ import {
   Download,
   X,
   Radio,
-  Subtitles
+  Subtitles,
+  Sparkles
 } from 'lucide-react';
 import VoiceBridgeLogo from './VoiceBridgeLogo';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useAudioQueue } from '../hooks/useAudioQueue';
-import { useWebRTCAudio } from '../hooks/useWebRTCAudio';
 import { SUPPORTED_LANGUAGES } from './Lobby';
 
 export default function CallRoom({ 
@@ -43,10 +43,6 @@ export default function CallRoom({
   const [isSpeakingLocal, setIsSpeakingLocal] = useState(false);
   const [isSpeakingRemote, setIsSpeakingRemote] = useState(false);
 
-  const [isInitiator, setIsInitiator] = useState(false);
-  const [duckingPercentage, setDuckingPercentage] = useState(15);
-  const [originalVoiceVolume, setOriginalVoiceVolume] = useState(100);
-
   const socketRef = useRef(null);
 
   const { enqueueAudio, isPlaying: isQueuePlaying, volume, setVolume, stopAll } = useAudioQueue({
@@ -60,21 +56,8 @@ export default function CallRoom({
     }
   });
 
-  const { p2pStatus, hasRemoteAudio } = useWebRTCAudio({
-    socket,
-    enabled: connectionStatus === 'connected' && Boolean(peerInfo),
-    isInitiator,
-    isMuted,
-    isTranslationPlaying: isSpeakingRemote || isQueuePlaying,
-    duckingPercentage,
-    originalVoiceVolume
-  });
-
-  const isAutoMuted = isSpeakingRemote || isQueuePlaying;
-  const isEffectivelyMuted = isMuted || isAutoMuted;
-
   const handleSpeechFinal = useCallback((phrase) => {
-    if (!socketRef.current || isEffectivelyMuted || !phrase.trim()) return;
+    if (!socketRef.current || isMuted || !phrase.trim()) return;
 
     setSpeechStatus('Translating phrase...');
     setIsSpeakingLocal(true);
@@ -83,8 +66,9 @@ export default function CallRoom({
       originalText: phrase.trim(),
       sourceLang: language
     });
-  }, [isEffectivelyMuted, language]);
+  }, [isMuted, language]);
 
+  // Dedicated speech recognition: never interrupted or aborted by incoming audio playback
   const { 
     isListening, 
     isSupported: isSTTSupported, 
@@ -94,7 +78,7 @@ export default function CallRoom({
     retry: retrySpeech 
   } = useSpeechRecognition({
     language,
-    isMuted: isEffectivelyMuted,
+    isMuted,
     onSpeechFinal: handleSpeechFinal,
     onSpeechStart: () => {
       setIsSpeakingLocal(true);
@@ -127,18 +111,17 @@ export default function CallRoom({
     }
   }, [language, voiceGender]);
 
-  // Ensure recognition is listening when connected and not muted
-  useEffect(() => {
-    if (connectionStatus === 'connected' && !isEffectivelyMuted && !isListening && !micError) {
-      startListening();
-    }
-  }, [connectionStatus, isEffectivelyMuted, isListening, micError, startListening]);
-
   useEffect(() => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL || window.location.origin;
+    
+    // Hardened socket connection with persistent websocket transport and auto-reconnect
     const socketInstance = io(backendUrl, {
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 10
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     });
 
     socketRef.current = socketInstance;
@@ -172,7 +155,6 @@ export default function CallRoom({
     socketInstance.on('peer_connected', (data) => {
       setConnectionStatus('connected');
       setPeerInfo(data.peer);
-      setIsInitiator(Boolean(data.isInitiator));
       startListeningRef.current();
     });
 
@@ -352,7 +334,7 @@ export default function CallRoom({
           {connectionStatus === 'connected' && (
             <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 text-xs font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{p2pStatus === 'connected' ? 'P2P Live Call' : 'Connected'}</span>
+              <span>AI Translation Call</span>
             </div>
           )}
           {connectionStatus === 'waiting' && (
@@ -490,11 +472,10 @@ export default function CallRoom({
                 <span className="text-[11px] font-medium text-zinc-400 bg-black/40 px-2 py-0.5 rounded border border-white/5">
                   {peerLangObj ? peerLangObj.name : 'Partner'}
                 </span>
-                {p2pStatus === 'connected' && (
-                  <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                    P2P Direct
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-medium bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                  <Sparkles className="w-2.5 h-2.5" />
+                  AI Voice Only
+                </span>
               </div>
               {/* Dynamic Equalizer Bars */}
               {isSpeakingRemote && (
@@ -530,7 +511,7 @@ export default function CallRoom({
                 </span>
                 {connectionStatus === 'connected' && (
                   <span className="text-[10px] text-zinc-400">
-                    {isSpeakingRemote ? 'Translating audio...' : p2pStatus === 'connected' ? 'Live audio stream active' : 'Connecting audio...'}
+                    {isSpeakingRemote ? 'Speaking in your language...' : 'Listening in their language'}
                   </span>
                 )}
               </div>
@@ -617,85 +598,24 @@ export default function CallRoom({
             </button>
 
             {showVolumeSlider && (
-              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-2xl flex flex-col gap-3 w-64 z-50 animate-in fade-in">
-                <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-                  <span className="text-xs font-semibold text-white">Audio & Voice Balance</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    p2pStatus === 'connected' ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400'
-                  }`}>
-                    {p2pStatus === 'connected' ? 'P2P Live' : 'Connecting'}
-                  </span>
+              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-2xl flex flex-col gap-2.5 w-56 z-50 animate-in fade-in">
+                <div className="flex items-center justify-between pb-1.5 border-b border-zinc-800">
+                  <span className="text-xs font-semibold text-white">AI Voice Volume</span>
+                  <span className="font-mono text-xs text-emerald-400 font-semibold">{Math.round(volume * 100)}%</span>
                 </div>
-
-                {/* Translated Audio Volume */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs text-zinc-300">
-                    <span>Translated Voice</span>
-                    <span className="font-mono text-zinc-200">{Math.round(volume * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2.0"
-                    step="0.05"
-                    value={volume}
-                    onChange={(e) => setVolume(parseFloat(e.target.value))}
-                    className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
-                  />
-                </div>
-
-                {/* Original Voice Ducking Preset */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs text-zinc-300">
-                    <span>Voice Ducking Level</span>
-                    <span className="font-mono text-zinc-400 text-[11px]">{duckingPercentage}% vol</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setDuckingPercentage(15)}
-                      className={`py-1 px-1 rounded-lg text-[10px] font-medium transition-all cursor-pointer ${
-                        duckingPercentage === 15 ? 'bg-emerald-600 text-white font-semibold' : 'bg-zinc-800 hover:bg-zinc-750 text-zinc-300'
-                      }`}
-                    >
-                      15% (Auto)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDuckingPercentage(0)}
-                      className={`py-1 px-1 rounded-lg text-[10px] font-medium transition-all cursor-pointer ${
-                        duckingPercentage === 0 ? 'bg-emerald-600 text-white font-semibold' : 'bg-zinc-800 hover:bg-zinc-750 text-zinc-300'
-                      }`}
-                    >
-                      0% (Muted)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDuckingPercentage(35)}
-                      className={`py-1 px-1 rounded-lg text-[10px] font-medium transition-all cursor-pointer ${
-                        duckingPercentage === 35 ? 'bg-emerald-600 text-white font-semibold' : 'bg-zinc-800 hover:bg-zinc-750 text-zinc-300'
-                      }`}
-                    >
-                      35% (Mix)
-                    </button>
-                  </div>
-                </div>
-
-                {/* Original Voice Playback Volume */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-xs text-zinc-300">
-                    <span>Original Voice Master</span>
-                    <span className="font-mono text-zinc-200">{originalVoiceVolume}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="5"
-                    value={originalVoiceVolume}
-                    onChange={(e) => setOriginalVoiceVolume(parseInt(e.target.value, 10))}
-                    className="w-full accent-blue-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
-                  />
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2.0"
+                  step="0.05"
+                  value={volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                />
+                <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                  <span>50%</span>
+                  <span>100%</span>
+                  <span>200%</span>
                 </div>
               </div>
             )}

@@ -85,6 +85,7 @@ export function useSpeechRecognition({
   // Internal helper to create and start a fresh recognition instance
   const startFreshRecognition = useCallback(() => {
     if (isDestroyedRef.current || !shouldListenRef.current || isMutedRef.current) {
+      setIsListening(false);
       return;
     }
 
@@ -177,22 +178,24 @@ export function useSpeechRecognition({
           // Google STT cloud server drops continuous socket after idle silence.
           // This is standard Chromium behavior, NOT a permanent fatal offline state!
           networkErrorCountRef.current += 1;
-          if (networkErrorCountRef.current >= 5) {
+          if (networkErrorCountRef.current >= 6) {
             setMicError('Network connection to speech server timed out. Reconnecting...');
           }
         }
       };
 
       recognition.onend = () => {
-        setIsListening(false);
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
 
         if (!isDestroyedRef.current && shouldListenRef.current && !isMutedRef.current) {
-          // Silent automatic recovery with a brief backoff
-          const delay = networkErrorCountRef.current > 0 ? 800 : 350;
+          // Keep isListening as true so UI does NOT flicker disconnected during idle pause
+          setIsListening(true);
+          const delay = networkErrorCountRef.current > 0 ? 500 : 250;
           restartTimerRef.current = setTimeout(() => {
             startFreshRecognition();
           }, delay);
+        } else {
+          setIsListening(false);
         }
       };
 
@@ -205,7 +208,7 @@ export function useSpeechRecognition({
       if (!isDestroyedRef.current && shouldListenRef.current && !isMutedRef.current) {
         restartTimerRef.current = setTimeout(() => {
           startFreshRecognition();
-        }, 1000);
+        }, 800);
       }
     }
   }, [flushTranscript]);
