@@ -7,18 +7,14 @@ import {
   Copy, 
   Check, 
   Share2, 
-  Users, 
-  Sparkles, 
   Volume2, 
-  Radio,
   AlertCircle,
   MessageSquare,
   Download,
-  ShieldCheck,
   X,
-  Activity
+  Radio,
+  Subtitles
 } from 'lucide-react';
-import Visualizer from './Visualizer';
 import VoiceBridgeLogo from './VoiceBridgeLogo';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useAudioQueue } from '../hooks/useAudioQueue';
@@ -36,7 +32,7 @@ export default function CallRoom({
   const [isMuted, setIsMuted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
-  const [speechStatus, setSpeechStatus] = useState('Idle'); // 'Idle' | 'Listening' | 'Translating' | 'Playing'
+  const [speechStatus, setSpeechStatus] = useState('Idle');
   const [lastDeliveredSentence, setLastDeliveredSentence] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [transcriptHistory, setTranscriptHistory] = useState([]);
@@ -48,7 +44,6 @@ export default function CallRoom({
 
   const socketRef = useRef(null);
 
-  // Audio queue for smooth sequential playback of incoming translated voice with volume boost
   const { enqueueAudio, isPlaying: isQueuePlaying, volume, setVolume, stopAll } = useAudioQueue({
     onStartSpeaking: () => {
       setIsSpeakingRemote(true);
@@ -60,11 +55,9 @@ export default function CallRoom({
     }
   });
 
-  // Auto-mute microphone while partner's translated speech is playing through speaker to prevent echo loop
   const isAutoMuted = isSpeakingRemote || isQueuePlaying;
   const isEffectivelyMuted = isMuted || isAutoMuted;
 
-  // Client-side Speech Recognition with VAD (silence detection)
   const handleSpeechFinal = useCallback((phrase) => {
     if (!socketRef.current || isEffectivelyMuted || !phrase.trim()) return;
 
@@ -103,7 +96,6 @@ export default function CallRoom({
   const voiceGenderRef = useRef(voiceGender);
   voiceGenderRef.current = voiceGender;
 
-  // Update language on peer when modified
   useEffect(() => {
     if (socketRef.current) {
       socketRef.current.emit('update_language', {
@@ -113,7 +105,6 @@ export default function CallRoom({
     }
   }, [language, voiceGender]);
 
-  // Connect to Socket.io (strictly once per roomId)
   useEffect(() => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL || window.location.origin;
     const socketInstance = io(backendUrl, {
@@ -162,7 +153,7 @@ export default function CallRoom({
     });
 
     socketInstance.on('room_full', (data) => {
-      setErrorMessage(data.message || 'Call is at full capacity (2 participants).');
+      setErrorMessage(data.message || 'Call is at maximum capacity (2 participants).');
     });
 
     socketInstance.on('peer_incoming_speech', () => {
@@ -170,7 +161,6 @@ export default function CallRoom({
       setSpeechStatus('Translating incoming speech...');
     });
 
-    // Instant subtitle text delivery (< 200ms)
     socketInstance.on('peer_incoming_text', (payload) => {
       setLastDeliveredSentence({
         speaker: 'peer',
@@ -234,7 +224,6 @@ export default function CallRoom({
     };
   }, [roomId]);
 
-  // Call duration timer
   useEffect(() => {
     let interval = null;
     if (connectionStatus === 'connected') {
@@ -266,29 +255,24 @@ export default function CallRoom({
     }
   };
 
-  // Download Bilingual Transcript as .txt file
   const downloadTranscript = () => {
     if (transcriptHistory.length === 0) {
       alert("No conversation has occurred yet to download.");
       return;
     }
     const header = [
-      `============================================================`,
-      `VOICEBRIDGE ENTERPRISE CALL MINUTES & TRANSCRIPT`,
-      `============================================================`,
+      `VOICEBRIDGE CALL TRANSCRIPT`,
       `Room ID: ${roomId}`,
       `Date: ${new Date().toLocaleString()}`,
-      `Call Duration: ${formatTimer(callDuration)}`,
-      `Participants: You (${currentLangObj.name}) <=> Partner (${peerLangObj?.name || 'Peer'})`,
-      `Privacy: Ephemeral Session (Zero Cloud Storage)`,
-      `============================================================\n\n`
+      `Duration: ${formatTimer(callDuration)}`,
+      `Participants: You (${currentLangObj.name}) <=> Partner (${peerLangObj?.name || 'Partner'})\n\n`
     ].join('\n');
 
     const lines = transcriptHistory.map((item) => {
       const speakerName = item.speaker === 'self' 
         ? `You (${currentLangObj.name})` 
         : `Partner (${peerLangObj?.name || 'Partner'})`;
-      return `[${item.time}] ${speakerName}:\n  Original:   "${item.originalText}"\n  Translated: "${item.translatedText}"\n`;
+      return `[${item.time}] ${speakerName}:\n  ${item.originalText}\n  -> ${item.translatedText}\n`;
     }).join('\n');
 
     const fullText = header + lines;
@@ -296,7 +280,7 @@ export default function CallRoom({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `voicebridge-call-${roomId}.txt`;
+    a.download = `voicebridge-${roomId}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -311,328 +295,254 @@ export default function CallRoom({
     : null;
 
   return (
-    <div className="dynamic-screen bg-[#0B0F19] text-white justify-between p-3 sm:p-6 md:p-8 relative overflow-hidden select-none safe-area-top safe-area-bottom">
-      {/* Background ambient lighting */}
-      <div className={`absolute top-1/4 left-1/4 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] rounded-full blur-[160px] pointer-events-none transition-all duration-1000 ${
-        isSpeakingLocal ? 'bg-cyan-500/15' : isSpeakingRemote ? 'bg-purple-500/15' : 'bg-blue-500/05'
-      }`} />
-
-      {/* Enterprise Top Navigation & Status Header */}
-      <header className="max-w-5xl mx-auto w-full flex items-center justify-between z-20 gap-2">
-        <div className="flex items-center gap-2.5">
+    <div className="dynamic-screen justify-between p-3 sm:p-5 md:p-6 safe-area-top safe-area-bottom select-none">
+      
+      {/* Top Header Navigation */}
+      <header className="max-w-6xl mx-auto w-full flex items-center justify-between z-20">
+        <div className="flex items-center gap-3">
           <VoiceBridgeLogo size={22} showText={false} />
-          <div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-xs sm:text-sm font-bold text-slate-200 font-mono tracking-tight">
-                {roomId}
-              </span>
-              <button
-                type="button"
-                onClick={copyRoomLink}
-                className="p-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-all cursor-pointer"
-                title="Copy shareable invite link"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-            <div className="text-[10px] sm:text-xs text-slate-500 font-mono flex items-center gap-1.5">
-              <span>{connectionStatus === 'connected' ? formatTimer(callDuration) : 'Connecting...'}</span>
-              <span>•</span>
-              <span className="text-emerald-400/90 hidden xs:inline">E2EE Protected</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Status Pill, Transcript Button & Download Action */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Download Transcript Button */}
-          {transcriptHistory.length > 0 && (
+          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1">
+            <span className="text-xs font-mono font-medium text-zinc-300">{roomId}</span>
             <button
               type="button"
-              onClick={downloadTranscript}
-              className="p-2 sm:px-3 sm:py-1.5 rounded-full glass-panel-subtle hover:border-cyan-500/40 text-xs font-medium text-slate-300 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Download Call Minutes (.txt)"
+              onClick={copyRoomLink}
+              className="text-zinc-400 hover:text-white transition-all cursor-pointer p-0.5"
+              title="Copy share link"
             >
-              <Download className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">Download Minutes</span>
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
-          )}
+          </div>
+          <span className="text-xs text-zinc-400 font-mono hidden sm:inline">
+            {connectionStatus === 'connected' ? formatTimer(callDuration) : 'Connecting...'}
+          </span>
+        </div>
 
-          {/* Transcript Drawer Toggle */}
-          <button
-            type="button"
-            onClick={() => setIsTranscriptOpen(prev => !prev)}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-full border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              isTranscriptOpen
-                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
-                : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-            title="Toggle Live Transcript History"
-          >
-            <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden xs:inline">Transcript</span>
-            {transcriptHistory.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/30 text-[10px] text-cyan-200 font-mono">
-                {transcriptHistory.length}
-              </span>
-            )}
-          </button>
-
-          {/* Connection Status Badge */}
+        {/* Right Header Status */}
+        <div className="flex items-center gap-2">
           {connectionStatus === 'connected' && (
-            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/40 text-emerald-400 text-[11px] sm:text-xs font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              <span>Live Active</span>
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 text-xs font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>Connected</span>
             </div>
           )}
           {connectionStatus === 'waiting' && (
-            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-amber-950/50 border border-amber-500/40 text-amber-400 text-[11px] sm:text-xs font-medium">
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-              <span>Waiting</span>
-            </div>
-          )}
-          {connectionStatus === 'connecting' && (
-            <div className="px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-400 text-[11px] font-medium">
-              Connecting...
+              <span>Waiting for partner</span>
             </div>
           )}
           {connectionStatus === 'error' && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-950/60 border border-rose-500/50 text-rose-300 text-[11px] font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
-              <span>Offline</span>
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-medium">
+              <span>Disconnected</span>
             </div>
           )}
         </div>
       </header>
 
-      {/* Error Modal */}
-      {errorMessage && (
-        <div className="max-w-md mx-auto w-full my-auto z-30 glass-panel border-rose-500/40 rounded-2xl p-6 text-center shadow-2xl">
-          <AlertCircle className="w-10 h-10 text-rose-400 mx-auto mb-3" />
-          <h3 className="text-lg font-bold text-white mb-2">Room Unavailable</h3>
-          <p className="text-sm text-slate-400 mb-6">{errorMessage}</p>
-          <button
-            onClick={onLeaveCall}
-            className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs tracking-wide cursor-pointer"
-          >
-            Back to Home
-          </button>
-        </div>
-      )}
+      {/* Main Calling Stage: Google Meet / FaceTime Participant Tiles */}
+      <main className="max-w-5xl mx-auto w-full my-auto z-10 flex flex-col items-center justify-center py-2 sm:py-4">
+        
+        {/* Waiting For Peer Card */}
+        {connectionStatus === 'waiting' && (
+          <div className="mb-4 sm:mb-6 text-center max-w-sm w-full bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-sm">
+            <h3 className="text-sm font-semibold text-white mb-1">Waiting for someone to join</h3>
+            <p className="text-xs text-zinc-400 mb-3">
+              Share the call link with your friend to connect.
+            </p>
+            <button
+              type="button"
+              onClick={copyRoomLink}
+              className="w-full py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+              <span>{copied ? 'Link Copied!' : 'Share Call Link'}</span>
+            </button>
+          </div>
+        )}
 
-      {/* Main Calling Stage */}
-      {!errorMessage && (
-        <main className="call-stage-container max-w-4xl mx-auto w-full my-auto z-10 flex flex-col items-center justify-center py-2 sm:py-4">
-          {/* Waiting Banner if only 1 participant */}
-          {connectionStatus === 'waiting' && (
-            <div className="mb-4 sm:mb-6 text-center max-w-md mx-auto glass-panel p-4 sm:p-5 rounded-2xl border-cyan-500/30 shadow-xl">
-              <Share2 className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-400 mx-auto mb-2" />
-              <h4 className="text-sm sm:text-base font-bold text-white mb-1">Invite your partner to connect</h4>
-              <p className="text-[11px] sm:text-xs text-slate-400 mb-3.5">
-                Send this room link to the person you wish to speak with. They can speak their language and hear yours in real-time.
-              </p>
-              <button
-                type="button"
-                onClick={copyRoomLink}
-                className="w-full py-2.5 px-4 rounded-xl bg-cyan-500/15 border border-cyan-500/40 hover:bg-cyan-500/25 text-cyan-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
-                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                <span>{copied ? 'Link Copied to Clipboard!' : 'Copy Invite Link'}</span>
-              </button>
+        {/* Mic Permission Banner if blocked */}
+        {micError && (
+          <div className="mb-4 max-w-md w-full p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs text-center flex items-center justify-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <span>{micError}</span>
+          </div>
+        )}
+
+        {/* The 2 Google Meet Style Participant Tiles */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl">
+          
+          {/* Tile 1: You */}
+          <div className={`studio-tile relative aspect-[4/3] flex flex-col justify-between p-4 sm:p-5 ${
+            isSpeakingLocal ? 'studio-tile-active' : ''
+          }`}>
+            {/* Top Bar of Tile: Status & Audio Equalizer */}
+            <div className="flex items-center justify-between z-10">
+              <span className="text-[11px] font-medium text-zinc-400 bg-black/40 px-2 py-0.5 rounded border border-white/5">
+                {currentLangObj.name}
+              </span>
+              {/* Dynamic Equalizer Bars */}
+              {isSpeakingLocal && !isMuted && (
+                <div className="flex items-center gap-1 h-5">
+                  <div className="eq-bar" />
+                  <div className="eq-bar" />
+                  <div className="eq-bar" />
+                  <div className="eq-bar" />
+                </div>
+              )}
             </div>
-          )}
 
-          {/* Mic Permission / Network Error Banner */}
-          {micError && (
-            <div className="mb-4 max-w-md mx-auto w-full p-3 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-300 text-xs text-center flex items-center justify-center gap-2.5 shadow-lg">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-              <span>{micError}</span>
-            </div>
-          )}
-
-          {/* Responsive 2-Participant Circles */}
-          <div className="w-full grid grid-cols-2 gap-4 sm:gap-12 md:gap-16 items-center justify-center max-w-xl">
-            {/* User A (Self) */}
-            <div className="flex flex-col items-center text-center">
-              <div className="relative mb-2.5 sm:mb-4">
-                {isSpeakingLocal && (
-                  <div className="absolute inset-0 -m-2 sm:-m-3 rounded-full bg-cyan-400/20 animate-ping pointer-events-none" />
-                )}
-                <div className={`participant-avatar w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-full glass-panel flex flex-col items-center justify-center border-2 transition-all duration-300 ${
-                  isSpeakingLocal 
-                    ? 'border-cyan-400 shadow-2xl shadow-cyan-500/40 ring-4 ring-cyan-500/20' 
-                    : isMuted 
-                    ? 'border-rose-900/60 opacity-60' 
-                    : 'border-slate-800'
-                }`}>
-                  <div className="text-xl sm:text-3xl font-extrabold text-white">YOU</div>
-                  <div className="text-[10px] sm:text-xs font-semibold text-cyan-400 mt-0.5 sm:mt-1">{currentLangObj.native}</div>
-                </div>
-
-                {isMuted && (
-                  <div className="absolute bottom-0 right-0 sm:bottom-1 sm:right-1 p-1.5 sm:p-2 rounded-full bg-rose-600 text-white shadow-md">
-                    <MicOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-0.5 sm:space-y-1">
-                <div className="text-xs sm:text-sm font-bold text-slate-200">
-                  You ({currentLangObj.name})
-                </div>
-                <div className="text-[10px] sm:text-xs text-slate-500">
-                  {isMuted
-                    ? 'Microphone Muted'
-                    : isAutoMuted
-                    ? 'Mic auto-paused (anti-echo)'
-                    : isSpeakingLocal
-                    ? 'Listening to speech...'
-                    : 'Microphone Ready'}
-                </div>
-              </div>
-
-              <div className="mt-2 sm:mt-3">
-                <Visualizer isActive={isSpeakingLocal && !isMuted} color="cyan" isIncoming={false} />
+            {/* Center Avatar */}
+            <div className="flex flex-col items-center justify-center my-auto z-10">
+              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center border transition-all ${
+                isSpeakingLocal 
+                  ? 'border-emerald-500 bg-emerald-950/20 shadow-md shadow-emerald-500/20' 
+                  : 'border-zinc-700 bg-zinc-800'
+              }`}>
+                <span className="text-2xl font-bold text-zinc-200">YOU</span>
               </div>
             </div>
 
-            {/* User B (Peer) */}
-            <div className="flex flex-col items-center text-center">
-              <div className="relative mb-2.5 sm:mb-4">
-                {isSpeakingRemote && (
-                  <div className="absolute inset-0 -m-2 sm:-m-3 rounded-full bg-purple-400/25 animate-ping pointer-events-none" />
-                )}
-                <div className={`participant-avatar w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-full glass-panel flex flex-col items-center justify-center border-2 transition-all duration-300 ${
-                  isSpeakingRemote 
-                    ? 'border-purple-400 shadow-2xl shadow-purple-500/40 ring-4 ring-purple-500/20' 
-                    : connectionStatus === 'connected' 
-                    ? 'border-slate-800' 
-                    : 'border-dashed border-slate-800/80'
-                }`}>
-                  {connectionStatus === 'connected' ? (
-                    <>
-                      <div className="text-xl sm:text-3xl font-extrabold text-white">PEER</div>
-                      <div className="text-[10px] sm:text-xs font-semibold text-purple-400 mt-0.5 sm:mt-1">
-                        {peerLangObj ? peerLangObj.native : 'हिन्दी'}
-                      </div>
-                    </>
-                  ) : (
-                    <Users className="w-7 h-7 sm:w-10 sm:h-10 text-slate-600 animate-pulse" />
-                  )}
-                </div>
+            {/* Bottom Bar of Tile: Name & Mic status */}
+            <div className="flex items-center justify-between z-10">
+              <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-white/5">
+                <span className="text-xs font-semibold text-white">You</span>
+                <span className="text-[10px] text-zinc-400">({currentLangObj.native})</span>
               </div>
-
-              <div className="space-y-0.5 sm:space-y-1">
-                <div className="text-xs sm:text-sm font-bold text-slate-200">
-                  {connectionStatus === 'connected' ? `Partner (${peerLangObj?.name || 'Partner'})` : 'Waiting for Partner'}
-                </div>
-                <div className="text-[10px] sm:text-xs text-slate-500">
-                  {connectionStatus === 'connected'
-                    ? isSpeakingRemote
-                      ? `Speaking in ${peerLangObj?.name || 'Partner Language'}...`
-                      : 'Connected'
-                    : 'Invite link pending'}
-                </div>
-              </div>
-
-              <div className="mt-2 sm:mt-3">
-                <Visualizer isActive={isSpeakingRemote} color="purple" isIncoming={true} />
+              <div className={`p-1.5 rounded-full ${isMuted ? 'bg-red-600/90 text-white' : 'bg-black/50 text-zinc-300'}`}>
+                {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5 text-emerald-400" />}
               </div>
             </div>
           </div>
 
-          {/* Live Subtitle Banner */}
-          {lastDeliveredSentence && (
-            <div className="mt-4 sm:mt-6 max-w-lg w-full glass-panel border border-cyan-500/30 rounded-2xl p-3 sm:p-4 shadow-xl text-center transition-all animate-in fade-in zoom-in-95 duration-300">
-              <div className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-center gap-1.5 sm:gap-2">
-                <span>{lastDeliveredSentence.speaker === 'self' ? 'You Spoke' : `${peerLangObj?.name || 'Partner'} Spoke`}</span>
-                <span className="text-slate-600">•</span>
-                <span className="text-cyan-400">Live Translation</span>
-              </div>
-              <div className="text-xs sm:text-sm text-slate-300 font-medium italic mb-1.5 sm:mb-2">
-                "{lastDeliveredSentence.originalText}"
-              </div>
-              <div className="text-sm sm:text-base text-white font-bold bg-slate-900/80 py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl border border-slate-800 flex items-center justify-center gap-2 shadow-inner">
-                <Volume2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                <span>{lastDeliveredSentence.translatedText}</span>
+          {/* Tile 2: Partner */}
+          <div className={`studio-tile relative aspect-[4/3] flex flex-col justify-between p-4 sm:p-5 ${
+            isSpeakingRemote ? 'studio-tile-active' : ''
+          }`}>
+            {/* Top Bar of Tile */}
+            <div className="flex items-center justify-between z-10">
+              <span className="text-[11px] font-medium text-zinc-400 bg-black/40 px-2 py-0.5 rounded border border-white/5">
+                {peerLangObj ? peerLangObj.name : 'Partner'}
+              </span>
+              {/* Dynamic Equalizer Bars */}
+              {isSpeakingRemote && (
+                <div className="flex items-center gap-1 h-5">
+                  <div className="eq-bar" />
+                  <div className="eq-bar" />
+                  <div className="eq-bar" />
+                  <div className="eq-bar" />
+                </div>
+              )}
+            </div>
+
+            {/* Center Avatar */}
+            <div className="flex flex-col items-center justify-center my-auto z-10">
+              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center border transition-all ${
+                isSpeakingRemote 
+                  ? 'border-emerald-500 bg-emerald-950/20 shadow-md shadow-emerald-500/20' 
+                  : connectionStatus === 'connected' 
+                  ? 'border-zinc-700 bg-zinc-800' 
+                  : 'border-dashed border-zinc-800 bg-zinc-900/50'
+              }`}>
+                <span className="text-2xl font-bold text-zinc-300">
+                  {connectionStatus === 'connected' ? 'PEER' : '…'}
+                </span>
               </div>
             </div>
-          )}
 
-          {/* Central Context Hint */}
-          <div className="mt-4 sm:mt-5 text-center max-w-md">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-slate-300 text-[11px] sm:text-xs">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <span>
-                {connectionStatus === 'connected'
-                  ? `Speak naturally in ${currentLangObj.name}. When you pause, translated voice plays instantly.`
-                  : 'Call activates automatically when partner connects.'}
+            {/* Bottom Bar of Tile */}
+            <div className="flex items-center justify-between z-10">
+              <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-white/5">
+                <span className="text-xs font-semibold text-white">
+                  {connectionStatus === 'connected' ? `Partner (${peerLangObj?.name || 'Partner'})` : 'Waiting for connection'}
+                </span>
+              </div>
+              {connectionStatus === 'connected' && (
+                <div className="p-1.5 rounded-full bg-black/50 text-emerald-400">
+                  <Volume2 className="w-3.5 h-3.5" />
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Live Closed Caption Overlay (Google Meet / Apple Translate style) */}
+        {lastDeliveredSentence && (
+          <div className="caption-bar mt-4 w-full max-w-2xl rounded-xl p-3 sm:p-3.5 shadow-lg animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 mb-1">
+              <Subtitles className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                {lastDeliveredSentence.speaker === 'self' ? 'You Spoke' : `${peerLangObj?.name || 'Partner'} Spoke`}
               </span>
             </div>
+            <div className="text-xs sm:text-sm text-zinc-300 font-medium">
+              "{lastDeliveredSentence.originalText}"
+            </div>
+            <div className="text-xs sm:text-sm text-emerald-400 font-semibold mt-1 flex items-center gap-1.5">
+              <span>➔</span>
+              <span>{lastDeliveredSentence.translatedText}</span>
+            </div>
           </div>
-        </main>
-      )}
+        )}
 
-      {/* Floating Bottom Control Dock */}
+      </main>
+
+      {/* Clean Bottom Control Dock (Google Meet / FaceTime style) */}
       <footer className="max-w-md mx-auto w-full z-20 flex items-center justify-center pb-2">
-        <div className="glass-panel p-2 sm:p-2.5 rounded-full border border-slate-800 shadow-2xl flex items-center gap-2 sm:gap-3">
-          {/* Mic Mute Toggle */}
+        <div className="bg-zinc-900 border border-zinc-800 p-2 rounded-full shadow-lg flex items-center gap-2 sm:gap-2.5">
+          
+          {/* Mute Toggle */}
           <button
             type="button"
             onClick={toggleMute}
-            className={`dock-control-btn p-3 sm:p-3.5 rounded-full transition-all duration-200 cursor-pointer ${
-              isMuted
-                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30'
-                : 'bg-slate-800/80 text-white hover:bg-slate-700/80 border border-slate-700'
+            className={`p-3 rounded-full transition-all cursor-pointer ${
+              isMuted ? 'control-btn-danger' : 'control-btn'
             }`}
             title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
           >
-            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5 text-cyan-400" />}
+            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5 text-zinc-100" />}
           </button>
 
-          {/* Copy Link Button */}
+          {/* Share Link */}
           <button
             type="button"
             onClick={copyRoomLink}
-            className="dock-control-btn p-3 sm:p-3.5 rounded-full bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white border border-slate-700 transition-all duration-200 cursor-pointer"
+            className="control-btn p-3 rounded-full cursor-pointer"
             title="Copy Invite Link"
           >
             {copied ? <Check className="w-5 h-5 text-emerald-400" /> : <Share2 className="w-5 h-5" />}
           </button>
 
-          {/* Transcript Drawer Button */}
+          {/* Transcript History Drawer */}
           <button
             type="button"
             onClick={() => setIsTranscriptOpen(prev => !prev)}
-            className={`dock-control-btn p-3 sm:p-3.5 rounded-full border transition-all duration-200 cursor-pointer ${
-              isTranscriptOpen
-                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
-                : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white border-slate-700'
+            className={`p-3 rounded-full cursor-pointer ${
+              isTranscriptOpen ? 'control-btn-active' : 'control-btn'
             }`}
-            title="Toggle Live Transcript Drawer"
+            title="Open Call Transcript"
           >
             <MessageSquare className="w-5 h-5" />
           </button>
 
-          {/* Volume Control Popover */}
+          {/* Volume Control Slider */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowVolumeSlider(prev => !prev)}
-              className={`dock-control-btn p-3 sm:p-3.5 rounded-full border transition-all duration-200 cursor-pointer ${
-                showVolumeSlider
-                  ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
-                  : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white border-slate-700'
+              className={`p-3 rounded-full cursor-pointer ${
+                showVolumeSlider ? 'control-btn-active' : 'control-btn'
               }`}
-              title="Speaker Volume & Amplification"
+              title="Speaker Volume"
             >
-              <Volume2 className="w-5 h-5 text-cyan-400" />
+              <Volume2 className="w-5 h-5" />
             </button>
+
             {showVolumeSlider && (
-              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 glass-panel p-3.5 rounded-2xl border border-slate-700 shadow-2xl flex flex-col items-center gap-2 w-44 z-50">
-                <div className="flex items-center justify-between w-full text-[11px] font-semibold text-slate-300">
-                  <span>Voice Volume</span>
-                  <span className="text-cyan-400 font-mono">{Math.round(volume * 100)}%</span>
+              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-zinc-900 p-3.5 rounded-xl border border-zinc-800 shadow-2xl flex flex-col items-center gap-2 w-44 z-50">
+                <div className="flex items-center justify-between w-full text-xs font-medium text-zinc-300">
+                  <span>Volume</span>
+                  <span className="font-mono text-zinc-100">{Math.round(volume * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -641,50 +551,49 @@ export default function CallRoom({
                   step="0.1"
                   value={volume}
                   onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                  className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
                 />
-                <span className="text-[10px] text-slate-500">{volume > 1.0 ? '⚡ Amplified Boost' : 'Standard'}</span>
               </div>
             )}
           </div>
 
-          <div className="w-px h-6 bg-slate-800 mx-0.5 sm:mx-1" />
+          <div className="w-px h-6 bg-zinc-800 mx-0.5" />
 
-          {/* End / Leave Call Button */}
+          {/* End Call Button */}
           <button
             type="button"
             onClick={onLeaveCall}
-            className="px-4 sm:px-5 py-3 sm:py-3.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs tracking-wider flex items-center gap-1.5 sm:gap-2 shadow-lg shadow-rose-600/30 transition-all duration-200 cursor-pointer"
-            title="End Call"
+            className="control-btn-danger px-4 py-2.5 rounded-full font-semibold text-xs tracking-wide flex items-center gap-1.5 cursor-pointer shadow-sm"
+            title="Leave Call"
           >
             <PhoneOff className="w-4 h-4" />
-            <span>End</span>
+            <span>Leave</span>
           </button>
         </div>
       </footer>
 
-      {/* Slide-out / Bottom Sheet Live Bilingual Transcript Drawer */}
+      {/* Clean Live Transcript Drawer */}
       {isTranscriptOpen && (
-        <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-slate-950/95 backdrop-blur-2xl border-l border-slate-800 shadow-2xl z-50 flex flex-col p-4 sm:p-5 mobile-bottom-sheet">
-          <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800">
+        <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-zinc-900 border-l border-zinc-800 shadow-2xl z-50 flex flex-col p-4 sm:p-5 mobile-drawer-sheet">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-cyan-400" />
-              <h3 className="font-bold text-sm text-white">Live Call Minutes</h3>
+              <MessageSquare className="w-4 h-4 text-zinc-300" />
+              <h3 className="font-bold text-sm text-white">Call Transcript</h3>
             </div>
             <div className="flex items-center gap-2">
               {transcriptHistory.length > 0 && (
                 <button
                   type="button"
                   onClick={downloadTranscript}
-                  className="p-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-500/50 text-slate-300 hover:text-white transition-all cursor-pointer"
-                  title="Download transcript to device"
+                  className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-all cursor-pointer"
+                  title="Download transcript (.txt)"
                 >
-                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  <Download className="w-3.5 h-3.5" />
                 </button>
               )}
               <button
                 onClick={() => setIsTranscriptOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -693,46 +602,45 @@ export default function CallRoom({
 
           <div className="flex-1 overflow-y-auto py-3 space-y-2.5">
             {transcriptHistory.length === 0 ? (
-              <div className="text-center text-xs text-slate-500 py-16">
-                No dialogue yet.<br />Speak in {currentLangObj.name} to see the real-time transcript and translations recorded here.
+              <div className="text-center text-xs text-zinc-400 py-16">
+                No conversation yet.<br />Speech and translations will be recorded here in real-time.
               </div>
             ) : (
               transcriptHistory.map((item) => (
                 <div
                   key={item.id}
-                  className={`p-3 rounded-xl text-xs space-y-1.5 border ${
+                  className={`p-3 rounded-xl text-xs space-y-1 border ${
                     item.speaker === 'self'
-                      ? 'bg-cyan-950/30 border-cyan-500/30 ml-2'
-                      : 'bg-purple-950/30 border-purple-500/30 mr-2'
+                      ? 'bg-zinc-800/80 border-zinc-700/60 ml-2'
+                      : 'bg-zinc-850 border-zinc-800 mr-2'
                   }`}
                 >
-                  <div className="flex items-center justify-between font-bold">
-                    <span className={item.speaker === 'self' ? 'text-cyan-400' : 'text-purple-400'}>
-                      {item.speaker === 'self' ? `You (${currentLangObj.name})` : `${peerLangObj?.name || 'Partner'}`}
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-normal">{item.time}</span>
+                  <div className="flex items-center justify-between font-semibold text-zinc-300">
+                    <span>{item.speaker === 'self' ? 'You' : (peerLangObj?.name || 'Partner')}</span>
+                    <span className="text-[10px] text-zinc-400 font-normal">{item.time}</span>
                   </div>
-                  <div className="text-slate-300 italic">"{item.originalText}"</div>
-                  <div className="text-white font-medium bg-black/40 p-2 rounded-lg border border-slate-800/80">
-                    {item.translatedText}
+                  <div className="text-zinc-300">"{item.originalText}"</div>
+                  <div className="text-emerald-400 font-medium pt-0.5">
+                    ➔ {item.translatedText}
                   </div>
                 </div>
               ))
             )}
           </div>
 
-          <div className="pt-2.5 border-t border-slate-800 text-[11px] text-slate-500 text-center flex items-center justify-between">
-            <span>Ephemerally Encrypted</span>
+          <div className="pt-2.5 border-t border-zinc-800 text-[11px] text-zinc-400 flex items-center justify-between">
+            <span>Encrypted Session</span>
             <button
               onClick={downloadTranscript}
               disabled={transcriptHistory.length === 0}
-              className="text-cyan-400 hover:underline disabled:opacity-30 cursor-pointer font-medium"
+              className="text-zinc-300 hover:text-white underline disabled:opacity-30 cursor-pointer"
             >
               Export Transcript (.txt)
             </button>
           </div>
         </div>
       )}
+
     </div>
   );
 }

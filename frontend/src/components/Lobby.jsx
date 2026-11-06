@@ -1,41 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Sparkles, 
   Mic, 
-  Volume2, 
+  MicOff, 
   ArrowRight, 
-  Globe2, 
-  ShieldCheck, 
-  Zap, 
+  Globe, 
+  Volume2, 
   Download,
   CheckCircle2,
-  Lock,
+  Settings2,
   Smartphone,
   X,
   Share2,
-  Plus
+  Plus,
+  Radio,
+  SlidersHorizontal
 } from 'lucide-react';
 import VoiceBridgeLogo from './VoiceBridgeLogo';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
 export const SUPPORTED_LANGUAGES = [
-  { code: 'te', name: 'Telugu', native: 'తెలుగు', flag: '🇮🇳' },
-  { code: 'hi', name: 'Hindi', native: 'हिन्दी', flag: '🇮🇳' },
-  { code: 'en', name: 'English (India)', native: 'English', flag: '🌐' },
-  { code: 'ta', name: 'Tamil', native: 'தமிழ்', flag: '🇮🇳' },
-  { code: 'kn', name: 'Kannada', native: 'ಕನ್ನಡ', flag: '🇮🇳' },
-  { code: 'ml', name: 'Malayalam', native: 'മലയാളം', flag: '🇮🇳' },
-  { code: 'mr', name: 'Marathi', native: 'मराठी', flag: '🇮🇳' },
-  { code: 'bn', name: 'Bengali', native: 'বাংলা', flag: '🇮🇳' },
-  { code: 'gu', name: 'Gujarati', native: 'ગુજરાતી', flag: '🇮🇳' },
+  { code: 'te', name: 'Telugu', native: 'తెలుగు' },
+  { code: 'hi', name: 'Hindi', native: 'हिन्दी' },
+  { code: 'en', name: 'English (India)', native: 'English' },
+  { code: 'ta', name: 'Tamil', native: 'தமிழ்' },
+  { code: 'kn', name: 'Kannada', native: 'ಕನ್ನಡ' },
+  { code: 'ml', name: 'Malayalam', native: 'മലയാളം' },
+  { code: 'mr', name: 'Marathi', native: 'మराठी' },
+  { code: 'bn', name: 'Bengali', native: 'বাংলা' },
+  { code: 'gu', name: 'Gujarati', native: 'ગુજરાતી' },
 ];
 
 export default function Lobby({ onJoinRoom, defaultRoomId = '' }) {
   const [selectedLang, setSelectedLang] = useState(() => (defaultRoomId ? 'hi' : 'te'));
   const [voiceGender, setVoiceGender] = useState('female');
   const [roomIdInput, setRoomIdInput] = useState(defaultRoomId);
-  const [micTested, setMicTested] = useState(false);
-  const [isTestingMic, setIsTestingMic] = useState(false);
+  const [micActive, setMicActive] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const streamRef = useRef(null);
+  const animationFrameRef = useRef(null);
 
   const {
     isInstallable,
@@ -52,6 +57,59 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '' }) {
       setSelectedLang((prev) => (prev === 'te' ? 'hi' : prev));
     }
   }, [defaultRoomId]);
+
+  // Clean up audio test on unmount
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
+      }
+    };
+  }, []);
+
+  const toggleMicTest = async () => {
+    if (micActive) {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      setMicActive(false);
+      setAudioLevel(0);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      audioContextRef.current = ctx;
+
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      analyserRef.current = analyser;
+
+      const source = ctx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      setMicActive(true);
+
+      const updateLevel = () => {
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+        setAudioLevel(Math.min(100, Math.round((avg / 128) * 100)));
+        animationFrameRef.current = requestAnimationFrame(updateLevel);
+      };
+      updateLevel();
+    } catch (err) {
+      alert("Microphone access could not be established. Please check your browser mic settings.");
+    }
+  };
 
   const generateRoomId = () => {
     const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -93,208 +151,181 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '' }) {
     });
   };
 
-  const testMicrophone = async () => {
-    setIsTestingMic(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(track => track.stop());
-      setMicTested(true);
-    } catch (err) {
-      alert("Microphone permission was not granted. Please allow microphone access in your browser address bar.");
-    } finally {
-      setIsTestingMic(false);
-    }
-  };
+  const currentLangObj = SUPPORTED_LANGUAGES.find(l => l.code === selectedLang) || SUPPORTED_LANGUAGES[0];
 
   return (
-    <div className="dynamic-screen bg-[#0B0F19] justify-between p-3.5 sm:p-6 md:p-8 relative overflow-x-hidden safe-area-top safe-area-bottom">
-      {/* Ambient background glows */}
-      <div className="absolute top-[-15%] left-[-10%] w-[420px] sm:w-[600px] h-[420px] sm:h-[600px] bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-[-15%] right-[-10%] w-[420px] sm:w-[600px] h-[420px] sm:h-[600px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none" />
+    <div className="dynamic-screen justify-between p-4 sm:p-6 md:p-8 safe-area-top safe-area-bottom">
+      {/* Clean Header Bar */}
+      <header className="max-w-5xl mx-auto w-full flex items-center justify-between py-2 z-10">
+        <VoiceBridgeLogo size={24} />
 
-      {/* Top Enterprise Navigation Bar */}
-      <header className="max-w-6xl mx-auto w-full flex items-center justify-between py-2 relative z-20">
-        <VoiceBridgeLogo size={28} />
-
-        <div className="flex items-center gap-2.5">
-          {/* Telemetry Indicator */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel-subtle text-xs text-slate-300 font-mono">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="text-slate-400">Enterprise Node:</span>
-            <span className="text-emerald-400 font-semibold">Active (0ms)</span>
+        <div className="flex items-center gap-3">
+          {/* Operational status */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>Ready for calls</span>
           </div>
 
-          {/* Download / Install App Button */}
+          {/* Download App Button */}
           {!isInstalled && isInstallable && (
             <button
               type="button"
               onClick={installApp}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-lg shadow-cyan-950/40 transition-all hover:scale-[1.02] cursor-pointer"
-              title="Install VoiceBridge Web App on your device"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 border border-zinc-700 transition-all cursor-pointer"
+              title="Install VoiceBridge Web App"
             >
-              <Download className="w-4 h-4 text-cyan-400 animate-bounce" />
-              <span className="hidden xs:inline">Install Web App</span>
-              <span className="xs:hidden">Install</span>
+              <Download className="w-3.5 h-3.5 text-zinc-300" />
+              <span>Install App</span>
             </button>
           )}
 
           {isInstalled && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-400">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>App Installed</span>
+              <span>Installed</span>
             </div>
           )}
         </div>
       </header>
 
-      {/* Main Content Stage */}
-      <main className="max-w-5xl mx-auto w-full my-auto py-4 sm:py-6 relative z-10">
-        {/* Hero Section */}
-        <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/80 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-3.5 shadow-inner">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Enterprise Neural Translation Architecture</span>
-          </div>
-
-          <h1 className="hero-heading text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-tight mb-3">
-            Speak in your language. <br />
-            <span className="bg-gradient-to-r from-cyan-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
-              They hear theirs.
-            </span>
-          </h1>
-
-          <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
-            Zero subscription costs. Seamless live voice calls with realistic Microsoft neural voices across Telugu, Hindi, and Indian regional languages.
-          </p>
-        </div>
-
-        {/* Configuration Pods */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
-          {/* Left Column: Language & Voice Controls */}
-          <div className="lg:col-span-7 glass-panel rounded-2xl p-4 sm:p-6 space-y-5 border border-slate-800/80 shadow-2xl">
-            {/* Spoken Language Picker */}
-            <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-200">
-                  <Globe2 className="w-4 h-4 text-cyan-400" />
-                  <span>I will speak in (Your Spoken Language):</span>
-                </label>
-                <span className="text-[10px] text-cyan-400 font-mono uppercase bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">
-                  Auto VAD
+      {/* Main Pre-Call Stage (Google Meet Style) */}
+      <main className="max-w-4xl mx-auto w-full my-auto py-6 sm:py-10 z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          
+          {/* Left Column: Audio Green Room / Mic Preview Tile */}
+          <div className="lg:col-span-7 flex flex-col items-center">
+            <div className="w-full aspect-[4/3] max-w-md bg-zinc-900 rounded-2xl border border-zinc-800 p-6 flex flex-col justify-between relative shadow-lg overflow-hidden">
+              
+              {/* Top Row in Preview */}
+              <div className="flex items-center justify-between text-xs text-zinc-400 z-10">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Radio className="w-3.5 h-3.5 text-emerald-400" />
+                  Audio Preview
+                </span>
+                <span className="text-[11px] bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700 font-mono">
+                  {currentLangObj.name} ({currentLangObj.native})
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
-                {SUPPORTED_LANGUAGES.map((lang) => {
-                  const isSelected = selectedLang === lang.code;
-                  return (
-                    <button
-                      key={lang.code}
-                      type="button"
-                      onClick={() => setSelectedLang(lang.code)}
-                      className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all relative overflow-hidden group cursor-pointer ${
-                        isSelected
-                          ? 'bg-cyan-950/40 border-cyan-500/80 text-white shadow-md shadow-cyan-950/50 ring-1 ring-cyan-500/60'
-                          : 'bg-slate-900/50 border-slate-800/80 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-slate-400">{lang.name}</span>
-                        <span className="text-sm">{lang.flag}</span>
-                      </div>
-                      <div className="text-sm font-bold text-white mt-0.5 tracking-wide">{lang.native}</div>
-                      {isSelected && (
-                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-400 to-indigo-500" />
-                      )}
-                    </button>
-                  );
-                })}
+              {/* Center Audio Avatar & Equalizer */}
+              <div className="flex flex-col items-center justify-center my-auto z-10">
+                <div className={`w-24 h-24 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                  micActive && audioLevel > 10 
+                    ? 'border-emerald-500 bg-emerald-950/20 shadow-md shadow-emerald-500/20' 
+                    : 'border-zinc-700 bg-zinc-800'
+                }`}>
+                  <span className="text-2xl font-bold text-zinc-200">YOU</span>
+                </div>
+
+                {/* Live Mic Meter Bar */}
+                <div className="w-32 h-1.5 bg-zinc-800 rounded-full mt-4 overflow-hidden border border-zinc-700/60">
+                  <div 
+                    className="h-full bg-emerald-500 transition-all duration-75"
+                    style={{ width: micActive ? `${audioLevel}%` : '0%' }}
+                  />
+                </div>
+                <span className="text-[11px] text-zinc-400 mt-1.5 font-medium">
+                  {micActive 
+                    ? audioLevel > 15 ? 'Speaking detected' : 'Microphone connected' 
+                    : 'Click below to test microphone'}
+                </span>
               </div>
-            </div>
 
-            {/* AI Neural Voice Persona */}
-            <div>
-              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-200 mb-2.5">
-                <Volume2 className="w-4 h-4 text-purple-400" />
-                <span>AI Voice Persona (When they hear your translation):</span>
-              </label>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Bottom Preview Action */}
+              <div className="flex items-center justify-center gap-3 z-10">
                 <button
                   type="button"
-                  onClick={() => setVoiceGender('female')}
-                  className={`p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
-                    voiceGender === 'female'
-                      ? 'bg-purple-950/40 border-purple-500/80 text-white ring-1 ring-purple-500/60 shadow-lg shadow-purple-950/40'
-                      : 'bg-slate-900/50 border-slate-800/80 text-slate-400 hover:border-slate-700'
+                  onClick={toggleMicTest}
+                  className={`px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-2 border transition-all cursor-pointer ${
+                    micActive 
+                      ? 'bg-emerald-600 text-white border-emerald-500' 
+                      : 'bg-zinc-800 hover:bg-zinc-750 text-zinc-300 border-zinc-700'
                   }`}
                 >
-                  <div className="text-left">
-                    <div className="text-xs sm:text-sm font-bold text-white">Female Natural Voice</div>
-                    <div className="text-[10px] text-slate-400">Shruti (TE) / Swara (HI)</div>
-                  </div>
-                  <span className="text-[10px] px-2 py-1 rounded bg-purple-900/40 text-purple-300 font-mono">
-                    HD Edge
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setVoiceGender('male')}
-                  className={`p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
-                    voiceGender === 'male'
-                      ? 'bg-purple-950/40 border-purple-500/80 text-white ring-1 ring-purple-500/60 shadow-lg shadow-purple-950/40'
-                      : 'bg-slate-900/50 border-slate-800/80 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="text-left">
-                    <div className="text-xs sm:text-sm font-bold text-white">Male Natural Voice</div>
-                    <div className="text-[10px] text-slate-400">Mohan (TE) / Madhur (HI)</div>
-                  </div>
-                  <span className="text-[10px] px-2 py-1 rounded bg-purple-900/40 text-purple-300 font-mono">
-                    HD Edge
-                  </span>
+                  {micActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4 text-zinc-400" />}
+                  <span>{micActive ? 'Mic Active (Testing)' : 'Test Microphone'}</span>
                 </button>
               </div>
+
+              {/* Subtle background grid pattern */}
+              <div className="absolute inset-0 bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px] opacity-30 pointer-events-none" />
             </div>
 
-            {/* Mic Diagnostic */}
-            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-              <span className="text-xs text-slate-400 flex items-center gap-1.5">
-                <Mic className="w-3.5 h-3.5 text-slate-300" />
-                <span>Microphone Readiness</span>
-              </span>
-              <button
-                type="button"
-                onClick={testMicrophone}
-                disabled={isTestingMic || micTested}
-                className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-                  micTested
-                    ? 'bg-emerald-950/60 border border-emerald-500/50 text-emerald-300'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                }`}
-              >
-                {isTestingMic ? 'Validating...' : micTested ? '✓ Mic Calibrated' : 'Test Microphone'}
-              </button>
-            </div>
+            <p className="text-xs text-zinc-400 mt-3 text-center">
+              Your partner will hear your speech converted directly into their chosen language.
+            </p>
           </div>
 
-          {/* Right Column: Instant Call Actions */}
-          <div className="lg:col-span-5 flex flex-col justify-between gap-4">
-            <div className="glass-panel rounded-2xl p-5 sm:p-6 border border-slate-800/80 shadow-2xl flex flex-col justify-between flex-1">
-              {defaultRoomId ? (
-                <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-semibold mb-3">
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                    <span>Direct Call Invitation</span>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-extrabold text-white mb-1">
-                    Room: <span className="text-cyan-400 font-mono">{defaultRoomId}</span>
-                  </h2>
-                  <p className="text-xs text-slate-400 mb-5">
-                    Connect instantly with your partner. Your speech will be auto-translated into their language in real-time.
-                  </p>
+          {/* Right Column: Language Configuration & Call Entry */}
+          <div className="lg:col-span-5 space-y-6">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
+                Start a Translation Call
+              </h1>
+              <p className="text-xs sm:text-sm text-zinc-400">
+                Cross-language speech with human neural voices. No subscription or setup needed.
+              </p>
+            </div>
 
+            {/* Language & Persona Controls */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                  Your Spoken Language
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedLang}
+                    onChange={(e) => setSelectedLang(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-500 transition-all cursor-pointer appearance-none"
+                  >
+                    {SUPPORTED_LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.name} — {l.native}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400 text-xs">
+                    ▾
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                  Translated Voice Persona
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVoiceGender('female')}
+                    className={`py-2 px-3 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer ${
+                      voiceGender === 'female'
+                        ? 'bg-zinc-800 border-zinc-500 text-white font-semibold'
+                        : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    }`}
+                  >
+                    Female (Natural)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVoiceGender('male')}
+                    className={`py-2 px-3 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer ${
+                      voiceGender === 'male'
+                        ? 'bg-zinc-800 border-zinc-500 text-white font-semibold'
+                        : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    }`}
+                  >
+                    Male (Natural)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Launch / Join Options */}
+            <div className="space-y-3">
+              {defaultRoomId ? (
+                <div className="space-y-3">
                   <button
                     type="button"
                     onClick={() =>
@@ -305,136 +336,104 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '' }) {
                         isCreator: false,
                       })
                     }
-                    className="w-full py-4 px-4 rounded-xl bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 hover:from-emerald-300 hover:to-blue-400 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-cyan-500/25 hover:scale-[1.01] transition-all flex items-center justify-center gap-2 cursor-pointer group"
+                    className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm tracking-wide shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Connect to Call Now</span>
-                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    <span>Join Room ({defaultRoomId})</span>
+                    <ArrowRight className="w-4 h-4" />
                   </button>
-
-                  <div className="mt-4 pt-3 border-t border-slate-800/80 text-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRoomIdInput('');
-                        handleStartNewCall();
-                      }}
-                      className="text-xs text-slate-500 hover:text-slate-300 underline cursor-pointer"
-                    >
-                      Or start a fresh room instead
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRoomIdInput('');
+                      handleStartNewCall();
+                    }}
+                    className="w-full text-center text-xs text-zinc-400 hover:text-zinc-300 underline cursor-pointer"
+                  >
+                    Start a fresh room instead
+                  </button>
                 </div>
               ) : (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <h2 className="text-base sm:text-lg font-bold text-white">Instant Call Creation</h2>
-                    <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40">
-                      Peer-to-Peer
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 mb-5">
-                    Creates a secure room link. Share it with your friend to begin continuous voice translation.
-                  </p>
-
+                <div className="space-y-3">
                   <button
                     type="button"
                     onClick={handleStartNewCall}
-                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-500 hover:from-cyan-300 hover:to-purple-400 text-slate-950 font-bold text-sm tracking-wide shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:scale-[1.01] transition-all flex items-center justify-center gap-2 group cursor-pointer"
+                    className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm tracking-wide shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Start a New Call</span>
-                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    <span>Start Instant Call</span>
+                    <ArrowRight className="w-4 h-4" />
                   </button>
-                </div>
-              )}
 
-              {!defaultRoomId && (
-                <>
-                  <div className="my-4 flex items-center gap-3">
-                    <div className="h-px bg-slate-800 flex-1" />
-                    <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wider">or join existing</span>
-                    <div className="h-px bg-slate-800 flex-1" />
+                  <div className="flex items-center gap-2 my-2">
+                    <div className="h-px bg-zinc-800 flex-1" />
+                    <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-medium">or</span>
+                    <div className="h-px bg-zinc-800 flex-1" />
                   </div>
 
-                  <form onSubmit={handleJoinExisting} className="space-y-2.5">
+                  <form onSubmit={handleJoinExisting} className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Enter Call ID or Paste Link (e.g. call-xyz)"
+                      placeholder="Paste room code (e.g. call-xyz)"
                       value={roomIdInput}
                       onChange={(e) => setRoomIdInput(e.target.value)}
-                      className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500/50 transition-all"
+                      className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition-all"
                     />
                     <button
                       type="submit"
                       disabled={!roomIdInput.trim()}
-                      className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 font-semibold text-xs tracking-wide border border-slate-700 transition-all cursor-pointer"
+                      className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-200 font-semibold text-xs border border-zinc-700 transition-all cursor-pointer shrink-0"
                     >
-                      Join Existing Call
+                      Join
                     </button>
                   </form>
-                </>
+                </div>
               )}
             </div>
 
-            {/* Enterprise Trust Badges */}
-            <div className="glass-panel rounded-xl p-3 sm:p-3.5 border border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Ephemerally Encrypted</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Sub-Second TTS</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
-                <span>Zero Cost Stack</span>
-              </div>
-            </div>
           </div>
         </div>
       </main>
 
       {/* iOS / Fallback PWA Install Guide Modal */}
       {showInstallGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className="glass-panel p-6 rounded-2xl border border-slate-700 max-w-sm w-full space-y-4 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 max-w-sm w-full space-y-4 shadow-2xl relative">
             <button
               type="button"
               onClick={() => setShowInstallGuide(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-3">
-              <Smartphone className="w-7 h-7 text-cyan-400" />
+              <Smartphone className="w-6 h-6 text-blue-400" />
               <div>
-                <h3 className="text-base font-bold text-white">Install VoiceBridge App</h3>
-                <p className="text-xs text-slate-400">One-click home screen access</p>
+                <h3 className="text-sm font-bold text-white">Install VoiceBridge</h3>
+                <p className="text-xs text-zinc-400">Add to Home Screen for one-click access</p>
               </div>
             </div>
 
-            <div className="space-y-2.5 text-xs text-slate-300">
+            <div className="space-y-2 text-xs text-zinc-300">
               {isIOS ? (
                 <>
-                  <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                    <span className="font-bold text-cyan-400">1.</span>
-                    <span>Tap the Safari <strong>Share button</strong> <Share2 className="w-3.5 h-3.5 inline mx-1" /> at the bottom of the screen.</span>
+                  <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-800 border border-zinc-700">
+                    <span className="font-bold text-blue-400">1.</span>
+                    <span>Tap the Safari <strong>Share button</strong> <Share2 className="w-3.5 h-3.5 inline mx-1" /> at the bottom.</span>
                   </div>
-                  <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                    <span className="font-bold text-cyan-400">2.</span>
-                    <span>Scroll down and select <strong>"Add to Home Screen"</strong> <Plus className="w-3.5 h-3.5 inline mx-1" />.</span>
+                  <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-800 border border-zinc-700">
+                    <span className="font-bold text-blue-400">2.</span>
+                    <span>Select <strong>"Add to Home Screen"</strong> <Plus className="w-3.5 h-3.5 inline mx-1" />.</span>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                    <span className="font-bold text-cyan-400">1.</span>
-                    <span>Open browser menu (three dots <strong>⋮</strong> in top-right).</span>
+                  <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-800 border border-zinc-700">
+                    <span className="font-bold text-blue-400">1.</span>
+                    <span>Click the three dots <strong>⋮</strong> in browser menu.</span>
                   </div>
-                  <div className="flex items-start gap-2.5 p-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                    <span className="font-bold text-cyan-400">2.</span>
-                    <span>Select <strong>"Install VoiceBridge"</strong> or <strong>"Add to Home screen"</strong>.</span>
+                  <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-800 border border-zinc-700">
+                    <span className="font-bold text-blue-400">2.</span>
+                    <span>Select <strong>"Install VoiceBridge"</strong>.</span>
                   </div>
                 </>
               )}
@@ -443,21 +442,19 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '' }) {
             <button
               type="button"
               onClick={() => setShowInstallGuide(false)}
-              className="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs tracking-wider transition-all"
+              className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 text-white font-semibold text-xs transition-all cursor-pointer"
             >
-              Got it
+              Close
             </button>
           </div>
         </div>
       )}
 
-      {/* Enterprise Footer */}
-      <footer className="max-w-6xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between py-2 text-[11px] text-slate-500 relative z-10 gap-2">
-        <div>VoiceBridge Enterprise • Real-Time Cross-Language Audio Translation</div>
-        <div className="flex items-center gap-3">
-          <span>Microsoft Edge Neural Audio</span>
-          <span>•</span>
-          <span>Web Audio Gain Booster</span>
+      {/* Clean Studio Footer */}
+      <footer className="max-w-5xl mx-auto w-full flex items-center justify-between py-2 text-[11px] text-zinc-400 z-10 border-t border-zinc-800/60">
+        <div>VoiceBridge • Real-Time Voice Translation</div>
+        <div className="flex items-center gap-2">
+          <span>Microsoft Edge Neural Voices</span>
         </div>
       </footer>
     </div>

@@ -3,11 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --app-bg: #0B0F19;
-  --card-bg: rgba(17, 24, 39, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --cyan-glow: rgba(6, 182, 212, 0.25);
-  --purple-glow: rgba(168, 85, 247, 0.25);
+  --bg-main: #121418;
+  --bg-surface: #1a1d24;
+  --bg-surface-hover: #22262f;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(255, 255, 255, 0.2);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-emerald: #10b981;
+  --accent-blue: #3b82f6;
+  --danger: #ef4444;
 }
 
 html, body {
@@ -16,137 +22,132 @@ html, body {
   width: 100%;
   min-height: 100%;
   min-height: 100dvh;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--app-bg);
-  color: #F8FAFC;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-/* Dynamic Viewport Container to prevent mobile browser URL bar jump */
+/* Dynamic screen container for full mobile viewport consistency */
 .dynamic-screen {
   min-height: 100vh;
   min-height: 100dvh;
   height: 100dvh;
   display: flex;
   flex-direction: column;
+  background-color: var(--bg-main);
 }
 
-/* Safe Area Insets for iPhone Dynamic Island / Home Bar & Android Gesture Bars */
+/* Safe area insets for mobile devices */
 .safe-area-bottom {
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
 .safe-area-top {
-  padding-top: max(0.5rem, env(safe-area-inset-top));
+  padding-top: max(0.75rem, env(safe-area-inset-top));
 }
 
-/* Enterprise Custom Scrollbars */
+/* Clean, modern scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(255, 255, 255, 0.25);
 }
 
-/* Glassmorphism & Enterprise Panel Styles */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Studio Participant Card */
+.studio-tile {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.25rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.glass-panel-subtle {
-  background: rgba(15, 23, 42, 0.45);
+.studio-tile-active {
+  border-color: rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+/* Clean Google Meet style Caption Bar */
+.caption-bar {
+  background: rgba(18, 20, 24, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
 }
 
-.glass-card {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+/* Tactile Control Buttons */
+.control-btn {
+  background-color: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  color: var(--text-primary);
+  transition: all 0.15s ease-in-out;
 }
 
-.glow-border-cyan {
-  border-color: rgba(6, 182, 212, 0.4);
-  box-shadow: 0 0 24px -4px rgba(6, 182, 212, 0.2);
+.control-btn:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
-.glow-border-purple {
-  border-color: rgba(168, 85, 247, 0.4);
-  box-shadow: 0 0 24px -4px rgba(168, 85, 247, 0.2);
+.control-btn-active {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
 }
 
-/* Responsive Audio Soundwave animation */
-@keyframes voice-wave {
+.control-btn-danger {
+  background-color: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+.control-btn-danger:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* Equalizer Bars */
+@keyframes eq-pulse {
   0%, 100% {
-    transform: scaleY(0.4);
+    height: 4px;
   }
   50% {
-    transform: scaleY(1);
+    height: 18px;
   }
 }
 
-.animate-voice-wave {
-  animation: voice-wave 1.2s ease-in-out infinite;
+.eq-bar {
+  width: 3px;
+  border-radius: 2px;
+  background-color: #10b981;
+  animation: eq-pulse 0.8s ease-in-out infinite;
 }
 
-/* Mobile Media Queries & Screen Rules */
+.eq-bar:nth-child(2) { animation-delay: 0.15s; }
+.eq-bar:nth-child(3) { animation-delay: 0.3s; }
+.eq-bar:nth-child(4) { animation-delay: 0.45s; }
+
+/* Mobile drawer sheet */
 @media (max-width: 640px) {
-  /* Mobile Specific Layout Constraints */
-  .call-stage-container {
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
-    gap: 0.75rem !important;
-  }
-  
-  .dock-control-btn {
-    padding: 0.75rem !important;
-  }
-
-  .dock-control-btn svg {
-    width: 1.15rem !important;
-    height: 1.15rem !important;
-  }
-
-  /* Bottom sheet modal styling for mobile drawers */
-  .mobile-bottom-sheet {
+  .mobile-drawer-sheet {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    max-height: 85vh;
+    max-height: 80vh;
     border-top-left-radius: 1.5rem;
     border-top-right-radius: 1.5rem;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
-  }
-}
-
-/* Extra small screens (iPhone SE, Galaxy A-series: <= 375px) */
-@media (max-width: 380px) {
-  .hero-heading {
-    font-size: 1.5rem !important;
-    line-height: 1.2 !important;
-  }
-
-  .participant-avatar {
-    width: 4rem !important;
-    height: 4rem !important;
+    box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.7);
   }
 }
