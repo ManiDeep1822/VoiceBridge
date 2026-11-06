@@ -2,6 +2,10 @@
 ### Real-Time Speech-to-Speech Cross-Language Audio Calling Web App
 > **Speak in Telugu, they hear Hindi. Speak in Hindi, you hear Telugu.**
 
+🌐 **Live Web Application:** [https://voice-bridge-sandy.vercel.app](https://voice-bridge-sandy.vercel.app)  
+⚡ **Live Cloud Backend:** [https://voicebridge-yd1k.onrender.com](https://voicebridge-yd1k.onrender.com)  
+📱 **PWA Installable:** Android, iOS, Windows & Mac (Zero App Store install needed)
+
 VoiceBridge connects two people from different language backgrounds over a clean audio call link. Raw microphone audio is muted to the listener, and replaced with high-definition, human-like neural synthetic speech in the listener's native language in real-time.
 
 ---
