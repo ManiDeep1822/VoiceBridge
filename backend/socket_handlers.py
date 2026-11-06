@@ -76,10 +76,34 @@ def register_socket_events(sio):
         if len(participants) == 1:
             await sio.emit("waiting_for_peer", {"self": rooms[room_id][sid]}, to=sid)
         elif len(participants) == 2:
-            # Pair them up
+            # Pair them up with explicit initiator designation for WebRTC negotiation
             p1, p2 = participants[0], participants[1]
-            await sio.emit("peer_connected", {"self": p1, "peer": p2}, to=p1["sid"])
-            await sio.emit("peer_connected", {"self": p2, "peer": p1}, to=p2["sid"])
+            await sio.emit("peer_connected", {"self": p1, "peer": p2, "isInitiator": True}, to=p1["sid"])
+            await sio.emit("peer_connected", {"self": p2, "peer": p1, "isInitiator": False}, to=p2["sid"])
+
+    @sio.event
+    async def webrtc_offer(sid, data):
+        room_id = sid_to_room.get(sid)
+        if room_id and room_id in rooms:
+            for peer_sid in rooms[room_id]:
+                if peer_sid != sid:
+                    await sio.emit("webrtc_offer", data, to=peer_sid)
+
+    @sio.event
+    async def webrtc_answer(sid, data):
+        room_id = sid_to_room.get(sid)
+        if room_id and room_id in rooms:
+            for peer_sid in rooms[room_id]:
+                if peer_sid != sid:
+                    await sio.emit("webrtc_answer", data, to=peer_sid)
+
+    @sio.event
+    async def webrtc_ice_candidate(sid, data):
+        room_id = sid_to_room.get(sid)
+        if room_id and room_id in rooms:
+            for peer_sid in rooms[room_id]:
+                if peer_sid != sid:
+                    await sio.emit("webrtc_ice_candidate", data, to=peer_sid)
 
     @sio.event
     async def update_language(sid, data):
