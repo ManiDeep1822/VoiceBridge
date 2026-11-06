@@ -31,6 +31,7 @@ export default function CallRoom({
   const [connectionStatus, setConnectionStatus] = useState('connecting'); // 'connecting' | 'waiting' | 'connected' | 'error'
   const [peerInfo, setPeerInfo] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [isPeerMuted, setIsPeerMuted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [speechStatus, setSpeechStatus] = useState('Idle');
@@ -155,7 +156,12 @@ export default function CallRoom({
     socketInstance.on('peer_connected', (data) => {
       setConnectionStatus('connected');
       setPeerInfo(data.peer);
+      setIsPeerMuted(Boolean(data.peer?.isMuted));
       startListeningRef.current();
+    });
+
+    socketInstance.on('peer_mute_changed', (data) => {
+      setIsPeerMuted(Boolean(data.isMuted));
     });
 
     socketInstance.on('peer_disconnected', () => {
@@ -472,13 +478,20 @@ export default function CallRoom({
                 <span className="text-[11px] font-medium text-zinc-400 bg-black/40 px-2 py-0.5 rounded border border-white/5">
                   {peerLangObj ? peerLangObj.name : 'Partner'}
                 </span>
-                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-medium bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-500/30">
-                  <Sparkles className="w-2.5 h-2.5" />
-                  AI Voice Only
-                </span>
+                {isPeerMuted ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-rose-300 font-semibold bg-rose-950/80 px-2 py-0.5 rounded border border-rose-500/40 animate-pulse">
+                    <MicOff className="w-2.5 h-2.5" />
+                    Muted
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-medium bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    AI Voice Only
+                  </span>
+                )}
               </div>
               {/* Dynamic Equalizer Bars */}
-              {isSpeakingRemote && (
+              {isSpeakingRemote && !isPeerMuted && (
                 <div className="flex items-center gap-1 h-5">
                   <div className="eq-bar" />
                   <div className="eq-bar" />
@@ -491,13 +504,15 @@ export default function CallRoom({
             {/* Center Avatar */}
             <div className="flex flex-col items-center justify-center my-auto z-10">
               <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center border transition-all ${
-                isSpeakingRemote 
+                isPeerMuted
+                  ? 'border-rose-500/60 bg-rose-950/20 shadow-sm'
+                  : isSpeakingRemote 
                   ? 'border-emerald-500 bg-emerald-950/20 shadow-md shadow-emerald-500/20' 
                   : connectionStatus === 'connected' 
                   ? 'border-zinc-700 bg-zinc-800' 
                   : 'border-dashed border-zinc-800 bg-zinc-900/50'
               }`}>
-                <span className="text-2xl font-bold text-zinc-300">
+                <span className={`text-2xl font-bold ${isPeerMuted ? 'text-rose-300' : 'text-zinc-300'}`}>
                   {connectionStatus === 'connected' ? 'PEER' : '…'}
                 </span>
               </div>
@@ -510,14 +525,24 @@ export default function CallRoom({
                   {connectionStatus === 'connected' ? `Partner (${peerLangObj?.name || 'Partner'})` : 'Waiting for connection'}
                 </span>
                 {connectionStatus === 'connected' && (
-                  <span className="text-[10px] text-zinc-400">
-                    {isSpeakingRemote ? 'Speaking in your language...' : 'Listening in their language'}
+                  <span className="text-[10px]">
+                    {isPeerMuted ? (
+                      <span className="text-rose-400 font-medium flex items-center gap-1">
+                        <MicOff className="w-2.5 h-2.5 inline" /> Partner muted microphone
+                      </span>
+                    ) : isSpeakingRemote ? (
+                      <span className="text-emerald-400 font-medium">Speaking in your language...</span>
+                    ) : (
+                      <span className="text-zinc-400">Listening in their language</span>
+                    )}
                   </span>
                 )}
               </div>
               {connectionStatus === 'connected' && (
-                <div className="p-1.5 rounded-full bg-black/50 text-emerald-400">
-                  <Volume2 className="w-3.5 h-3.5" />
+                <div className={`p-1.5 rounded-full transition-all ${
+                  isPeerMuted ? 'bg-red-600/90 text-white shadow-sm' : 'bg-black/50 text-emerald-400'
+                }`}>
+                  {isPeerMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
                 </div>
               )}
             </div>

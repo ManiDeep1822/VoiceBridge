@@ -33,6 +33,7 @@ export function useSpeechRecognition({
   const lastFlushedRef = useRef({ text: '', time: 0 });
   const networkErrorCountRef = useRef(0);
   const isDestroyedRef = useRef(false);
+  const micLockStreamRef = useRef(null); // Persistent hardware audio stream to prevent Windows/Chrome mic blinking
 
   // Keep callback refs stable across renders
   const onSpeechFinalRef = useRef(onSpeechFinal);
@@ -82,8 +83,31 @@ export function useSpeechRecognition({
     }
   }, []);
 
-  // Internal helper to create and start a fresh recognition instance
-  const startFreshRecognition = useCallback(() => {
+  // Acquires and holds the physical mic stream open so Windows/Chrome never flashes the mic indicator off/on
+  const acquireHardwareLock = useCallback(async () => {
+    if (micLockStreamRef.current && micLockStreamRef.current.active) {
+      return micLockStreamRef.current;
+    }
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        micLockStreamRef.current = stream;
+        return stream;
+      }
+    } catch (e) {
+      console.warn('[SpeechRecognition] Hardware lock error:', e);
+    }
+    return null;
+  }, []);
+
+  // Internal helper to create and start recognition
+  const startFreshRecognition = useCallback(async () => {
     if (isDestroyedRef.current || !shouldListenRef.current || isMutedRef.current) {
       setIsListening(false);
       return;
@@ -94,6 +118,9 @@ export function useSpeechRecognition({
       setIsSupported(false);
       return;
     }
+
+    // Keep hardware microphone continuously active
+    await acquireHardwareLock();
 
     // Clean up any existing instance first
     if (recognitionRef.current) {
@@ -151,12 +178,10 @@ export function useSpeechRecognition({
         }
 
         if (hasFinal) {
-          // Complete thought marked final: wait 350ms to catch immediate follow-up clause, then flush once
           pauseTimerRef.current = setTimeout(() => {
             flushTranscript();
           }, 350);
         } else if (interimStr && !activeTranscriptRef.current) {
-          // Fallback only if speaker went completely silent for over 1.4s without browser marking final
           pauseTimerRef.current = setTimeout(() => {
             activeTranscriptRef.current = interimStr;
             flushTranscript();
@@ -175,8 +200,6 @@ export function useSpeechRecognition({
           setIsListening(false);
           setMicError('Microphone permission is blocked. Please allow mic access in your browser or click Retry.');
         } else if (event.error === 'network') {
-          // Google STT cloud server drops continuous socket after idle silence.
-          // This is standard Chromium behavior, NOT a permanent fatal offline state!
           networkErrorCountRef.current += 1;
           if (networkErrorCountRef.current >= 6) {
             setMicError('Network connection to speech server timed out. Reconnecting...');
@@ -188,12 +211,18 @@ export function useSpeechRecognition({
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
 
         if (!isDestroyedRef.current && shouldListenRef.current && !isMutedRef.current) {
-          // Keep isListening as true so UI does NOT flicker disconnected during idle pause
+          // Keep isListening as true so UI never flickers
           setIsListening(true);
-          const delay = networkErrorCountRef.current > 0 ? 500 : 250;
+          // Seamless instant restart on pause; mic hardware is locked on via micLockStream
           restartTimerRef.current = setTimeout(() => {
-            startFreshRecognition();
-          }, delay);
+            if (!isDestroyedRef.current && shouldListenRef.current && !isMutedRef.current && recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch (e) {
+                startFreshRecognition();
+              }
+            }
+          }, 50);
         } else {
           setIsListening(false);
         }
@@ -204,14 +233,13 @@ export function useSpeechRecognition({
       setIsListening(true);
     } catch (err) {
       console.warn('[SpeechRecognition] start error:', err);
-      // If start failed (e.g. browser busy), try again once shortly
       if (!isDestroyedRef.current && shouldListenRef.current && !isMutedRef.current) {
         restartTimerRef.current = setTimeout(() => {
           startFreshRecognition();
-        }, 800);
+        }, 500);
       }
     }
-  }, [flushTranscript]);
+  }, [flushTranscript, acquireHardwareLock]);
 
   const startListening = useCallback(() => {
     shouldListenRef.current = true;
@@ -225,6 +253,12 @@ export function useSpeechRecognition({
       restartTimerRef.current = null;
     }
     flushTranscript();
+
+    if (micLockStreamRef.current) {
+      micLockStreamRef.current.getTracks().forEach((t) => t.stop());
+      micLockStreamRef.current = null;
+    }
+
     if (recognitionRef.current) {
       try {
         recognitionRef.current.onstart = null;
@@ -238,34 +272,41 @@ export function useSpeechRecognition({
     setIsListening(false);
   }, [flushTranscript]);
 
-  // Explicit user-triggered retry function for permission recovery
   const retry = useCallback(async () => {
     setMicError(null);
     networkErrorCountRef.current = 0;
     try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((t) => t.stop());
+      if (micLockStreamRef.current) {
+        micLockStreamRef.current.getTracks().forEach((t) => t.stop());
+        micLockStreamRef.current = null;
       }
+      await acquireHardwareLock();
     } catch (e) {
       console.warn('[retry] mic permission prompt failed:', e);
     }
     shouldListenRef.current = true;
     startFreshRecognition();
-  }, [startFreshRecognition]);
+  }, [startFreshRecognition, acquireHardwareLock]);
 
-  // Re-start recognition when language changes
+  // Language changes
   useEffect(() => {
     if (shouldListenRef.current && !isMuted) {
       startFreshRecognition();
     }
   }, [langLocale, isMuted, startFreshRecognition]);
 
-  // Handle mute changes
+  // Handle mute changes: disable hardware tracks and recognition cleanly
   useEffect(() => {
     if (isMuted) {
       flushTranscript();
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+
+      if (micLockStreamRef.current) {
+        micLockStreamRef.current.getAudioTracks().forEach((t) => {
+          t.enabled = false;
+        });
+      }
+
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
@@ -273,6 +314,11 @@ export function useSpeechRecognition({
       }
       setIsListening(false);
     } else if (shouldListenRef.current) {
+      if (micLockStreamRef.current) {
+        micLockStreamRef.current.getAudioTracks().forEach((t) => {
+          t.enabled = true;
+        });
+      }
       startFreshRecognition();
     }
   }, [isMuted, flushTranscript, startFreshRecognition]);
@@ -284,6 +330,12 @@ export function useSpeechRecognition({
       isDestroyedRef.current = true;
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+
+      if (micLockStreamRef.current) {
+        micLockStreamRef.current.getTracks().forEach((t) => t.stop());
+        micLockStreamRef.current = null;
+      }
+
       if (recognitionRef.current) {
         try {
           recognitionRef.current.onstart = null;
