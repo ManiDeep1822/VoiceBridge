@@ -45,12 +45,18 @@ export default function App() {
     setCurrentView('lobby');
   };
 
+  const handleClearDefaultRoom = () => {
+    window.location.hash = '';
+    setActiveRoomId('');
+  };
+
   return (
     <div className="min-h-screen bg-dark-950 text-white font-sans">
       {currentView === 'lobby' ? (
         <Lobby 
           onJoinRoom={handleJoinRoom} 
           defaultRoomId={activeRoomId} 
+          onClearDefaultRoom={handleClearDefaultRoom}
         />
       ) : (
         <CallRoom 

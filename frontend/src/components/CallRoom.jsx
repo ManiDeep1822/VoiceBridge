@@ -70,7 +70,14 @@ export default function CallRoom({
     });
   }, [isEffectivelyMuted, language]);
 
-  const { isListening, isSupported: isSTTSupported, micError, startListening, stopListening } = useSpeechRecognition({
+  const { 
+    isListening, 
+    isSupported: isSTTSupported, 
+    micError, 
+    startListening, 
+    stopListening,
+    retry: retrySpeech 
+  } = useSpeechRecognition({
     language,
     isMuted: isEffectivelyMuted,
     onSpeechFinal: handleSpeechFinal,
@@ -104,6 +111,13 @@ export default function CallRoom({
       });
     }
   }, [language, voiceGender]);
+
+  // Ensure recognition is listening when connected and not muted
+  useEffect(() => {
+    if (connectionStatus === 'connected' && !isEffectivelyMuted && !isListening && !micError) {
+      startListening();
+    }
+  }, [connectionStatus, isEffectivelyMuted, isListening, micError, startListening]);
 
   useEffect(() => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL || window.location.origin;
@@ -360,11 +374,21 @@ export default function CallRoom({
           </div>
         )}
 
-        {/* Mic Permission Banner if blocked */}
+        {/* Mic Permission Banner if blocked with Actionable Retry Button */}
         {micError && (
-          <div className="mb-4 max-w-md w-full p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs text-center flex items-center justify-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>{micError}</span>
+          <div className="mb-4 max-w-lg w-full p-3 sm:p-3.5 rounded-2xl bg-rose-950/80 border border-rose-800 text-rose-200 text-xs flex items-center justify-between gap-3 shadow-xl animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{micError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={retrySpeech}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-semibold text-xs whitespace-nowrap cursor-pointer transition-all shadow-md shrink-0 flex items-center gap-1.5"
+            >
+              <Mic className="w-3.5 h-3.5" />
+              <span>Allow / Retry Mic</span>
+            </button>
           </div>
         )}
 
@@ -404,13 +428,39 @@ export default function CallRoom({
 
             {/* Bottom Bar of Tile: Name & Mic status */}
             <div className="flex items-center justify-between z-10">
-              <div className="flex items-center gap-2 bg-black/50 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-white/5">
-                <span className="text-xs font-semibold text-white">You</span>
-                <span className="text-[10px] text-zinc-400">({currentLangObj.native})</span>
+              <div className="flex flex-col bg-black/50 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-white/5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-white">You</span>
+                  <span className="text-[10px] text-zinc-400">({currentLangObj.native})</span>
+                </div>
+                <div className="text-[10px]">
+                  {micError ? (
+                    <span className="text-rose-400 font-medium">Mic Permission Needed</span>
+                  ) : isMuted ? (
+                    <span className="text-zinc-500">Muted</span>
+                  ) : isSpeakingLocal ? (
+                    <span className="text-emerald-400 font-medium">Speaking...</span>
+                  ) : isListening ? (
+                    <span className="text-emerald-400">Microphone Active</span>
+                  ) : (
+                    <span className="text-zinc-400">Microphone Ready</span>
+                  )}
+                </div>
               </div>
-              <div className={`p-1.5 rounded-full ${isMuted ? 'bg-red-600/90 text-white' : 'bg-black/50 text-zinc-300'}`}>
-                {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5 text-emerald-400" />}
-              </div>
+              <button
+                type="button"
+                onClick={micError ? retrySpeech : toggleMute}
+                className={`p-1.5 rounded-full cursor-pointer transition-all ${
+                  micError 
+                    ? 'bg-rose-600 text-white animate-pulse' 
+                    : isMuted 
+                    ? 'bg-red-600/90 text-white' 
+                    : 'bg-black/50 text-zinc-300'
+                }`}
+                title={micError ? 'Click to Allow/Retry Microphone' : isMuted ? 'Unmute' : 'Mute'}
+              >
+                {micError ? <AlertCircle className="w-3.5 h-3.5" /> : isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5 text-emerald-400" />}
+              </button>
             </div>
           </div>
 
@@ -491,16 +541,16 @@ export default function CallRoom({
       <footer className="max-w-md mx-auto w-full z-20 flex items-center justify-center pb-2">
         <div className="bg-zinc-900 border border-zinc-800 p-2 rounded-full shadow-lg flex items-center gap-2 sm:gap-2.5">
           
-          {/* Mute Toggle */}
+          {/* Mute Toggle / Retry Mic if blocked */}
           <button
             type="button"
-            onClick={toggleMute}
+            onClick={micError ? retrySpeech : toggleMute}
             className={`p-3 rounded-full transition-all cursor-pointer ${
-              isMuted ? 'control-btn-danger' : 'control-btn'
+              micError ? 'control-btn-danger animate-pulse' : isMuted ? 'control-btn-danger' : 'control-btn'
             }`}
-            title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+            title={micError ? 'Tap to Allow/Retry Microphone' : isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
           >
-            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5 text-zinc-100" />}
+            {micError ? <MicOff className="w-5 h-5 text-rose-200" /> : isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5 text-zinc-100" />}
           </button>
 
           {/* Share Link */}
