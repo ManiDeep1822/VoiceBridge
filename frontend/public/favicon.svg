@@ -1,0 +1,24 @@
+<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="vb-bridge-grad" x1="4" y1="24" x2="44" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#06B6D4" />
+      <stop offset="50%" stopColor="#6366F1" />
+      <stop offset="100%" stopColor="#A855F7" />
+    </linearGradient>
+    <linearGradient id="vb-glow-cyan" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stopColor="#22D3EE" />
+      <stop offset="100%" stopColor="#0891B2" />
+    </linearGradient>
+    <linearGradient id="vb-glow-purple" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stopColor="#C084FC" />
+      <stop offset="100%" stopColor="#7E22CE" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="12" fill="#0B0F19" />
+  <rect x="6" y="18" width="3" height="12" rx="1.5" fill="url(#vb-glow-cyan)" />
+  <rect x="11" y="12" width="3.5" height="24" rx="1.75" fill="url(#vb-glow-cyan)" />
+  <path d="M 14 24 C 18 14, 30 14, 34 24 C 30 34, 18 34, 14 24 Z" fill="none" stroke="url(#vb-bridge-grad)" stroke-width="2.5" stroke-linecap="round" />
+  <circle cx="24" cy="24" r="2.5" fill="#FFFFFF" />
+  <rect x="33.5" y="12" width="3.5" height="24" rx="1.75" fill="url(#vb-glow-purple)" />
+  <rect x="39" y="18" width="3" height="12" rx="1.5" fill="url(#vb-glow-purple)" />
+</svg>

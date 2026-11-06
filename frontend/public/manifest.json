@@ -1,0 +1,18 @@
+{
+  "name": "VoiceBridge Enterprise",
+  "short_name": "VoiceBridge",
+  "description": "Enterprise Real-Time Speech-to-Speech Translation Calls (Telugu, Hindi, English & Indian Languages)",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0F19",
+  "theme_color": "#0B0F19",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
