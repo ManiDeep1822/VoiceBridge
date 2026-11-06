@@ -112,6 +112,12 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '', onClearDefaultRo
 
   // Helper to ensure mic permission is requested directly in user click gesture
   const warmUpMicPermission = async () => {
+    // Release any active green room test microphone first
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+      setMicActive(false);
+    }
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });

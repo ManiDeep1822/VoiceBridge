@@ -1,5 +1,6 @@
 import os
 import json
+import html
 import urllib.parse
 import aiohttp
 from dotenv import load_dotenv
@@ -11,9 +12,39 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # Ultra-fast in-memory LRU cache for frequent conversation phrases
 _TRANSLATION_CACHE = {}
 
+def _sanitize_translation(raw: str) -> str:
+    """
+    Cleans raw translation output: unescapes HTML entities, strips quotes,
+    and discards quota warning messages from free APIs.
+    """
+    if not raw or not isinstance(raw, str):
+        return ""
+    
+    clean = html.unescape(raw).strip()
+
+    # Reject quota / rate-limit warnings from free translation APIs
+    warning_patterns = [
+        "MYMEMORY WARNING",
+        "QUERY LENGTH LIMIT EXCEEDED",
+        "YOU USED ALL AVAILABLE FREE TRANSLATIONS",
+        "INVALID LANGUAGE PAIR",
+        "PLEASE ENTER A VALID",
+        "TRANSLATION NOT FOUND",
+        "IS NOT AVAILABLE"
+    ]
+    for pattern in warning_patterns:
+        if pattern in clean.upper():
+            return ""
+
+    # Strip accidental surrounding quotation marks
+    if (clean.startswith('"') and clean.endswith('"')) or (clean.startswith("'") and clean.endswith("'")):
+        clean = clean[1:-1].strip()
+
+    return clean
+
 async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     """
-    Translates text from source_lang to target_lang.
+    Translates text from source_lang to target_lang with multi-engine fallback.
     source_lang and target_lang can be full locale codes like 'te-IN', 'hi-IN' or simple 'te', 'hi'.
     """
     if not text or not text.strip():
@@ -30,12 +61,13 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
         return _TRANSLATION_CACHE[cache_key]
 
     def _cache_and_return(result_str: str) -> str:
-        clean = result_str.strip()
+        clean = _sanitize_translation(result_str)
         if clean:
             if len(_TRANSLATION_CACHE) > 2000:
                 _TRANSLATION_CACHE.clear()
             _TRANSLATION_CACHE[cache_key] = clean
-        return clean
+            return clean
+        return ""
 
     # Option 1: Try Gemini if API key is present
     if GEMINI_API_KEY:
@@ -53,39 +85,62 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
                 contents=prompt
             )
             if response.text and response.text.strip():
-                return _cache_and_return(response.text)
+                res = _cache_and_return(response.text)
+                if res:
+                    return res
         except Exception as e:
             print(f"[Translator] Gemini translation fallback due to: {e}")
 
-    # Option 2: High-speed free translation API via client=gtx
+    # Option 2: High-speed primary Google Translate API via client=gtx
     try:
         url = (
             f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={src}&tl={tgt}&dt=t&q="
             + urllib.parse.quote(text)
         )
         async with aiohttp.ClientSession() as session:
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:
                 if resp.status == 200:
                     raw_data = await resp.text()
                     data = json.loads(raw_data)
                     translated = "".join(part[0] for part in data[0] if part and part[0])
-                    if translated:
-                        return _cache_and_return(translated)
+                    res = _cache_and_return(translated)
+                    if res:
+                        return res
     except Exception as e:
         print(f"[Translator] Primary Google translate endpoint failed: {e}")
 
-    # Option 3: Fallback using MyMemory free translation API
+    # Option 3: Fallback Google Translate endpoint via client=dict-chrome-ex
+    try:
+        url_fallback = (
+            f"https://translate.googleapis.com/translate_a/single?client=dict-chrome-ex&sl={src}&tl={tgt}&dt=t&q="
+            + urllib.parse.quote(text)
+        )
+        async with aiohttp.ClientSession() as session:
+            headers = {"User-Agent": "Mozilla/5.0 (Chrome-Extension; dict-chrome-ex)"}
+            async with session.get(url_fallback, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                if resp.status == 200:
+                    raw_data = await resp.text()
+                    data = json.loads(raw_data)
+                    translated = "".join(part[0] for part in data[0] if part and part[0])
+                    res = _cache_and_return(translated)
+                    if res:
+                        return res
+    except Exception as e:
+        print(f"[Translator] Secondary Google translate endpoint failed: {e}")
+
+    # Option 4: Fallback using MyMemory with strict warning guard
     try:
         pair = f"{src}|{tgt}"
         mm_url = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text)}&langpair={pair}"
         async with aiohttp.ClientSession() as session:
-            async with session.get(mm_url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            async with session.get(mm_url, timeout=aiohttp.ClientTimeout(total=4)) as resp:
                 if resp.status == 200:
                     result = await resp.json()
                     translated = result.get("responseData", {}).get("translatedText")
-                    if translated:
-                        return _cache_and_return(translated)
+                    res = _cache_and_return(translated)
+                    if res:
+                        return res
     except Exception as e:
         print(f"[Translator] MyMemory fallback failed: {e}")
 

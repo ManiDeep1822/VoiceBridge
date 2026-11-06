@@ -1,15 +1,21 @@
 import base64
 import logging
-from typing import Dict, Any
+import re
+import time
+from typing import Dict, Any, List
 from services.translator import translate_text
 from services.tts import synthesize_speech
 
 logger = logging.getLogger("socket_handlers")
 
+# Regex to enforce valid room IDs (alphanumeric, dashes, underscores, length 3 to 32)
+ROOM_ID_REGEX = re.compile(r"^[a-zA-Z0-9_-]{3,32}$")
+
 # In-memory room store:
 # rooms[room_id] = { sid: { "userId": str, "language": str, "voiceGender": str, "isMuted": bool } }
 rooms: Dict[str, Dict[str, Any]] = {}
 sid_to_room: Dict[str, str] = {}
+socket_activity: Dict[str, List[float]] = {}
 
 def register_socket_events(sio):
     @sio.event
@@ -19,6 +25,7 @@ def register_socket_events(sio):
     @sio.event
     async def disconnect(sid):
         logger.info(f"Client disconnected: {sid}")
+        socket_activity.pop(sid, None)
         room_id = sid_to_room.pop(sid, None)
         if room_id and room_id in rooms:
             user_data = rooms[room_id].pop(sid, None)
@@ -37,8 +44,8 @@ def register_socket_events(sio):
         language = data.get("language", "te")  # e.g. 'te' or 'hi'
         voice_gender = data.get("voiceGender", "female")
 
-        if not room_id:
-            await sio.emit("error", {"message": "Invalid roomId"}, to=sid)
+        if not room_id or not ROOM_ID_REGEX.match(room_id):
+            await sio.emit("error", {"message": "Invalid roomId. Must be 3-32 alphanumeric characters, dashes, or underscores."}, to=sid)
             return
 
         if room_id not in rooms:
@@ -143,7 +150,19 @@ def register_socket_events(sio):
         if not sender or sender.get("isMuted"):
             return
 
-        original_text = data.get("originalText", "").strip()
+        # DoS prevention: per-socket sliding window rate limiting (max 5 requests per 3 seconds)
+        now = time.time()
+        activity = socket_activity.get(sid, [])
+        activity = [t for t in activity if now - t < 3.0]
+        if len(activity) >= 5:
+            logger.warning(f"[RateLimit] Dropping segment spam from socket {sid}")
+            return
+        activity.append(now)
+        socket_activity[sid] = activity
+
+        raw_text = str(data.get("originalText", "")).strip()
+        # Enforce maximum text payload cap of 1,000 characters
+        original_text = raw_text[:1000]
         source_lang = data.get("sourceLang", sender.get("language", "te"))
 
         if not original_text:

@@ -83,8 +83,21 @@ export function useSpeechRecognition({
     }
   }, []);
 
-  // Acquires and holds the physical mic stream open so Windows/Chrome never flashes the mic indicator off/on
+  // Acquires and holds the physical mic stream open on desktop so Windows/Chrome never flashes the mic indicator
   const acquireHardwareLock = useCallback(async () => {
+    // CRITICAL FIX FOR MOBILE:
+    // On Android & iOS mobile devices, the OS audio HAL assigns exclusive microphone access to a single client.
+    // Holding a background getUserMedia stream starves webkitSpeechRecognition of audio (feeding it zero bytes/silence).
+    // Therefore, on mobile devices, we DO NOT hold a background getUserMedia stream.
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+    if (isMobile) {
+      if (micLockStreamRef.current) {
+        micLockStreamRef.current.getTracks().forEach((t) => t.stop());
+        micLockStreamRef.current = null;
+      }
+      return null;
+    }
+
     if (micLockStreamRef.current && micLockStreamRef.current.active) {
       return micLockStreamRef.current;
     }
@@ -280,7 +293,15 @@ export function useSpeechRecognition({
         micLockStreamRef.current.getTracks().forEach((t) => t.stop());
         micLockStreamRef.current = null;
       }
-      await acquireHardwareLock();
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+      if (isMobile) {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          tempStream.getTracks().forEach((t) => t.stop());
+        }
+      } else {
+        await acquireHardwareLock();
+      }
     } catch (e) {
       console.warn('[retry] mic permission prompt failed:', e);
     }

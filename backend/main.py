@@ -63,11 +63,12 @@ async def get_rooms():
 
 @app.post("/api/translate")
 async def handle_translate(req: TranslateRequest):
-    if not req.text.strip():
+    clean_text = req.text.strip()[:1000]
+    if not clean_text:
         raise HTTPException(status_code=400, detail="Text cannot be empty")
-    translated = await translate_text(req.text, req.source_lang, req.target_lang)
+    translated = await translate_text(clean_text, req.source_lang, req.target_lang)
     return {
-        "original": req.text,
+        "original": clean_text,
         "translated": translated,
         "source_lang": req.source_lang,
         "target_lang": req.target_lang
@@ -75,9 +76,10 @@ async def handle_translate(req: TranslateRequest):
 
 @app.post("/api/tts")
 async def handle_tts(req: TTSRequest):
-    if not req.text.strip():
+    clean_text = req.text.strip()[:1000]
+    if not clean_text:
         raise HTTPException(status_code=400, detail="Text cannot be empty")
-    audio_bytes = await synthesize_speech(req.text, req.target_lang, req.gender)
+    audio_bytes = await synthesize_speech(clean_text, req.target_lang, req.gender)
     if not audio_bytes:
         raise HTTPException(status_code=500, detail="Failed to synthesize speech")
     return {
