@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Lobby from './components/Lobby';
 import CallRoom from './components/CallRoom';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const getInitialRoomId = () => {
   if (typeof window === 'undefined') return '';
@@ -22,8 +23,20 @@ const getInitialRoomId = () => {
 export default function App() {
   const [currentView, setCurrentView] = useState('lobby'); // 'lobby' | 'call'
   const [activeRoomId, setActiveRoomId] = useState(getInitialRoomId);
-  const [selectedLanguage, setSelectedLanguage] = useState(() => (getInitialRoomId() ? 'hi' : 'te'));
-  const [voiceGender, setVoiceGender] = useState('female');
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const saved = window.sessionStorage.getItem('voicebridge_language');
+      if (saved) return saved;
+    }
+    return getInitialRoomId() ? 'hi' : 'te';
+  });
+  const [voiceGender, setVoiceGender] = useState(() => {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const saved = window.sessionStorage.getItem('voicebridge_voice_gender');
+      if (saved) return saved;
+    }
+    return 'female';
+  });
 
   // Sync room from URL if shared via link or browser back/forward button
   useEffect(() => {
@@ -56,10 +69,15 @@ export default function App() {
   };
 
   const handleLeaveCall = () => {
-    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
-      window.history.replaceState(null, '', window.location.pathname);
-    } else {
-      window.location.hash = '';
+    if (typeof window !== 'undefined') {
+      try {
+        window.sessionStorage.removeItem('voicebridge_in_call');
+      } catch (e) {}
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', window.location.pathname);
+      } else {
+        window.location.hash = '';
+      }
     }
     setActiveRoomId('');
     setCurrentView('lobby');
@@ -76,20 +94,22 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-dark-950 text-white font-sans">
-      {currentView === 'lobby' ? (
-        <Lobby 
-          onJoinRoom={handleJoinRoom} 
-          defaultRoomId={activeRoomId} 
-          onClearDefaultRoom={handleClearDefaultRoom}
-        />
-      ) : (
-        <CallRoom 
-          roomId={activeRoomId} 
-          language={selectedLanguage} 
-          voiceGender={voiceGender} 
-          onLeaveCall={handleLeaveCall} 
-        />
-      )}
+      <ErrorBoundary onReset={handleLeaveCall}>
+        {currentView === 'lobby' ? (
+          <Lobby 
+            onJoinRoom={handleJoinRoom} 
+            defaultRoomId={activeRoomId} 
+            onClearDefaultRoom={handleClearDefaultRoom}
+          />
+        ) : (
+          <CallRoom 
+            roomId={activeRoomId} 
+            language={selectedLanguage} 
+            voiceGender={voiceGender} 
+            onLeaveCall={handleLeaveCall} 
+          />
+        )}
+      </ErrorBoundary>
     </div>
   );
 }

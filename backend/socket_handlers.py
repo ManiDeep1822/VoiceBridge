@@ -35,7 +35,26 @@ def register_socket_events(sio):
                 peer_sid = remaining_sids[0]
                 await sio.emit("peer_disconnected", {"peerId": user_data.get("userId") if user_data else "peer"}, to=peer_sid)
             else:
-                del rooms[room_id]
+                rooms.pop(room_id, None)
+
+    @sio.event
+    async def leave_room(sid, data=None):
+        """Explicitly leave the active room without dropping the underlying socket."""
+        socket_activity.pop(sid, None)
+        room_id = sid_to_room.pop(sid, None)
+        if room_id and room_id in rooms:
+            user_data = rooms[room_id].pop(sid, None)
+            remaining_sids = list(rooms[room_id].keys())
+            if remaining_sids:
+                peer_sid = remaining_sids[0]
+                await sio.emit("peer_disconnected", {"peerId": user_data.get("userId") if user_data else "peer"}, to=peer_sid)
+            else:
+                rooms.pop(room_id, None)
+            try:
+                await sio.leave_room(sid, room_id)
+            except Exception:
+                pass
+            logger.info(f"Socket {sid} explicitly left room '{room_id}'")
 
     @sio.event
     async def join_room(sid, data=None):
@@ -50,12 +69,29 @@ def register_socket_events(sio):
             await sio.emit("error", {"message": "Invalid roomId. Must be 3-32 alphanumeric characters, dashes, or underscores."}, to=sid)
             return
 
+        # If socket was previously registered in another room, clean it up first
+        old_room_id = sid_to_room.get(sid)
+        if old_room_id and old_room_id != room_id:
+            logger.info(f"Socket {sid} switching from room '{old_room_id}' to '{room_id}'")
+            if old_room_id in rooms:
+                old_user_data = rooms[old_room_id].pop(sid, None)
+                remaining = list(rooms[old_room_id].keys())
+                if remaining:
+                    await sio.emit("peer_disconnected", {"peerId": old_user_data.get("userId") if old_user_data else "peer"}, to=remaining[0])
+                else:
+                    rooms.pop(old_room_id, None)
+            try:
+                await sio.leave_room(sid, old_room_id)
+            except Exception:
+                pass
+            sid_to_room.pop(sid, None)
+
         if room_id not in rooms:
             rooms[room_id] = {}
 
         # Handle browser refresh / reconnection for same user
         existing_sid = None
-        for s, p in rooms[room_id].items():
+        for s, p in list(rooms[room_id].items()):
             if p.get("userId") == user_id:
                 existing_sid = s
                 break
@@ -64,6 +100,7 @@ def register_socket_events(sio):
             logger.info(f"Replacing stale socket {existing_sid} with new socket {sid} for user {user_id}")
             rooms[room_id].pop(existing_sid, None)
             sid_to_room.pop(existing_sid, None)
+            socket_activity.pop(existing_sid, None)
             try:
                 await sio.leave_room(existing_sid, room_id)
             except Exception:
@@ -100,7 +137,7 @@ def register_socket_events(sio):
             data = {}
         room_id = sid_to_room.get(sid)
         if room_id and room_id in rooms:
-            for peer_sid in rooms[room_id]:
+            for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
                     await sio.emit("webrtc_offer", data, to=peer_sid)
 
@@ -110,7 +147,7 @@ def register_socket_events(sio):
             data = {}
         room_id = sid_to_room.get(sid)
         if room_id and room_id in rooms:
-            for peer_sid in rooms[room_id]:
+            for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
                     await sio.emit("webrtc_answer", data, to=peer_sid)
 
@@ -120,7 +157,7 @@ def register_socket_events(sio):
             data = {}
         room_id = sid_to_room.get(sid)
         if room_id and room_id in rooms:
-            for peer_sid in rooms[room_id]:
+            for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
                     await sio.emit("webrtc_ice_candidate", data, to=peer_sid)
 
@@ -130,13 +167,13 @@ def register_socket_events(sio):
             data = {}
         room_id = sid_to_room.get(sid)
         if room_id and room_id in rooms and sid in rooms[room_id]:
-            new_lang = data.get("language", "te")
-            new_gender = data.get("voiceGender", "female")
+            new_lang = str(data.get("language", "te")).strip()
+            new_gender = str(data.get("voiceGender", "female")).strip()
             rooms[room_id][sid]["language"] = new_lang
             rooms[room_id][sid]["voiceGender"] = new_gender
 
             # Notify peer of updated language and voice persona
-            for peer_sid, peer_info in rooms[room_id].items():
+            for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
                     await sio.emit("peer_language_updated", {
                         "peerLanguage": new_lang,
@@ -151,7 +188,7 @@ def register_socket_events(sio):
         if room_id and room_id in rooms and sid in rooms[room_id]:
             is_muted = bool(data.get("isMuted", False))
             rooms[room_id][sid]["isMuted"] = is_muted
-            for peer_sid in rooms[room_id]:
+            for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
                     await sio.emit("peer_mute_changed", {"isMuted": is_muted}, to=peer_sid)
 
@@ -183,25 +220,24 @@ def register_socket_events(sio):
         activity.append(now)
         socket_activity[sid] = activity
 
-        raw_text = str(data.get("originalText", "")).strip()
+        raw_text = str(data.get("originalText") or "").strip()
         # Enforce maximum text payload cap of 1,000 characters
         original_text = raw_text[:1000]
-        source_lang = data.get("sourceLang", sender.get("language", "te"))
+        source_lang = str(data.get("sourceLang") or sender.get("language") or "te").strip()
 
         if not original_text:
             return
 
         # Locate the recipient peer
-        peers = [p for s, p in rooms[room_id].items() if s != sid]
+        peers = [p for s, p in list(rooms[room_id].items()) if s != sid]
         if not peers:
             # No listener currently in room
             return
 
         peer = peers[0]
         peer_sid = peer["sid"]
-        target_lang = peer.get("language", "hi")
-        # Synthesize using the speaker's chosen voice gender so the listener hears the speaker's persona
-        speaker_gender = sender.get("voiceGender", "female")
+        target_lang = str(peer.get("language", "hi")).strip()
+        speaker_gender = str(sender.get("voiceGender", "female")).strip()
 
         try:
             # Notify listener immediately that incoming speech is being translated
@@ -209,6 +245,11 @@ def register_socket_events(sio):
 
             # 1. Translate text immediately (< 200ms)
             translated_text = await translate_text(original_text, source_lang, target_lang)
+
+            # Guard: check if peer is still in room before sending subtitle
+            if room_id not in rooms or peer_sid not in rooms[room_id]:
+                logger.info(f"Peer {peer_sid} left room during translation; skipping subtitle/audio emit")
+                return
 
             # Stage 1: Deliver instant live subtitle text to listener before audio synthesis
             await sio.emit("peer_incoming_text", {
@@ -227,6 +268,11 @@ def register_socket_events(sio):
 
             # Stage 2: Fast neural voice synthesis (+15% conversational speed)
             audio_bytes = await synthesize_speech(translated_text, target_lang, speaker_gender, rate="+15%")
+
+            # Guard: check again if peer is still in room before sending audio
+            if room_id not in rooms or peer_sid not in rooms[room_id]:
+                logger.info(f"Peer {peer_sid} left room during TTS; skipping audio emit")
+                return
 
             if audio_bytes:
                 audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")

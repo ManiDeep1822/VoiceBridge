@@ -200,6 +200,11 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '', onClearDefaultRo
     cleanId = cleanId.replace(/[^a-zA-Z0-9_-]/g, '').trim();
     if (!cleanId) return;
 
+    if (cleanId.length < 3 || cleanId.length > 32) {
+      alert("Room ID must be between 3 and 32 characters (letters, numbers, dashes, underscores).");
+      return;
+    }
+
     await warmUpMicPermission();
     onJoinRoom({
       roomId: cleanId,

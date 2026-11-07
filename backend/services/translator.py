@@ -1,6 +1,7 @@
 import os
 import json
 import html
+import re
 import urllib.parse
 import asyncio
 import aiohttp
@@ -27,7 +28,7 @@ _TRANSLATION_CACHE = {}
 def _sanitize_translation(raw: str) -> str:
     """
     Cleans raw translation output: unescapes HTML entities, strips quotes,
-    and discards quota warning messages from free APIs.
+    removes markdown bolding or LLM preface text, and discards quota warning messages.
     """
     if not raw or not isinstance(raw, str):
         return ""
@@ -40,17 +41,23 @@ def _sanitize_translation(raw: str) -> str:
         "QUERY LENGTH LIMIT EXCEEDED",
         "YOU USED ALL AVAILABLE FREE TRANSLATIONS",
         "INVALID LANGUAGE PAIR",
-        "PLEASE ENTER A VALID",
-        "TRANSLATION NOT FOUND",
-        "IS NOT AVAILABLE"
+        "PAIR IS NOT AVAILABLE",
+        "PLEASE ENTER A VALID TEXT",
+        "TRANSLATION NOT FOUND"
     ]
     for pattern in warning_patterns:
         if pattern in clean.upper():
             return ""
 
-    # Strip accidental surrounding quotation marks
-    if (clean.startswith('"') and clean.endswith('"')) or (clean.startswith("'") and clean.endswith("'")):
+    # Strip markdown bolding or backticks
+    if clean.startswith("**") and clean.endswith("**") and len(clean) >= 4:
+        clean = clean[2:-2].strip()
+    if clean.startswith("*") and clean.endswith("*") and len(clean) >= 2:
         clean = clean[1:-1].strip()
+    if clean.startswith("`") and clean.endswith("`") and len(clean) >= 2:
+        clean = clean[1:-1].strip()
+    clean = re.sub(r'^(?:translation|translated text|output|result)\s*:\s*', '', clean, flags=re.IGNORECASE).strip()
+    clean = clean.strip('"\'`“”‘’«» \t\r\n')
 
     return clean
 
@@ -59,16 +66,17 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     Translates text from source_lang to target_lang with multi-engine fallback.
     source_lang and target_lang can be full locale codes like 'te-IN', 'hi-IN' or simple 'te', 'hi'.
     """
-    if not text or not text.strip():
+    if not text or not str(text).strip():
         return ""
     
-    src = str(source_lang or "te").split("-")[0].lower() or "te"
-    tgt = str(target_lang or "hi").split("-")[0].lower() or "hi"
+    clean_text = str(text).strip()[:1000]
+    src = (str(source_lang).split("-")[0].strip().lower() if source_lang else "") or "te"
+    tgt = (str(target_lang).split("-")[0].strip().lower() if target_lang else "") or "hi"
     
     if src == tgt:
-        return text
+        return clean_text
 
-    cache_key = f"{src}:{tgt}:{text.strip().lower()}"
+    cache_key = f"{src}:{tgt}:{clean_text.lower()}"
     if cache_key in _TRANSLATION_CACHE:
         return _TRANSLATION_CACHE[cache_key]
 
@@ -155,17 +163,19 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     # Option 4: Fallback using MyMemory with strict warning guard
     try:
         pair = f"{src}|{tgt}"
-        mm_url = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text)}&langpair={pair}"
+        mm_url = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(clean_text)}&langpair={pair}"
         async with aiohttp.ClientSession() as session:
             async with session.get(mm_url, timeout=aiohttp.ClientTimeout(total=4)) as resp:
                 if resp.status == 200:
-                    result = await resp.json()
-                    translated = result.get("responseData", {}).get("translatedText")
-                    res = _cache_and_return(translated)
-                    if res:
-                        return res
+                    result = await resp.json(content_type=None)
+                    if isinstance(result, dict) and result.get("responseStatus") == 200:
+                        translated = result.get("responseData", {}).get("translatedText")
+                        if isinstance(translated, str):
+                            res = _cache_and_return(translated)
+                            if res:
+                                return res
     except Exception as e:
         print(f"[Translator] MyMemory fallback failed: {e}")
 
-    # Return original text if all failed
-    return text
+    # Return sanitized original text if all failed
+    return clean_text

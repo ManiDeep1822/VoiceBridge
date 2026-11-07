@@ -31,7 +31,9 @@ export function useSpeechRecognition({
   const recognitionRef = useRef(null);
   const pauseTimerRef = useRef(null);
   const activeTranscriptRef = useRef('');
+  const latestInterimRef = useRef('');
   const shouldListenRef = useRef(false);
+  const isStartingRef = useRef(false);
   const restartTimerRef = useRef(null);
   const lastFlushedRef = useRef({ text: '', time: 0 });
   const networkErrorCountRef = useRef(0);
@@ -54,6 +56,7 @@ export function useSpeechRecognition({
   const langLocale = LOCALE_MAP[language.split('-')[0].toLowerCase()] || 'te-IN';
   const langLocaleRef = useRef(langLocale);
   langLocaleRef.current = langLocale;
+  const prevLangLocaleRef = useRef(langLocale);
 
   const flushTranscript = useCallback(() => {
     if (pauseTimerRef.current) {
@@ -62,13 +65,14 @@ export function useSpeechRecognition({
     }
 
     const textToEmit = activeTranscriptRef.current.trim();
+    latestInterimRef.current = '';
     if (textToEmit.length > 0) {
-      // Anti-duplicate protection: Ignore identical or minor duplicate sub-strings within 2.5s
+      // Anti-duplicate protection: Ignore identical or minor duplicate sub-strings within 1.2s
       const now = Date.now();
       const last = lastFlushedRef.current;
       if (
         last.text &&
-        now - last.time < 2500 &&
+        now - last.time < 1200 &&
         (textToEmit === last.text || (last.text.includes(textToEmit) && textToEmit.length <= last.text.length))
       ) {
         activeTranscriptRef.current = '';
@@ -129,28 +133,40 @@ export function useSpeechRecognition({
       return;
     }
 
+    if (isStartingRef.current) {
+      return;
+    }
+    isStartingRef.current = true;
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setIsSupported(false);
+      isStartingRef.current = false;
       return;
     }
 
-    // Keep hardware microphone continuously active
-    await acquireHardwareLock();
-
-    // Clean up any existing instance first
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.onstart = null;
-        recognitionRef.current.onresult = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.onend = null;
-        recognitionRef.current.abort();
-      } catch (e) {}
-      recognitionRef.current = null;
-    }
-
     try {
+      // Keep hardware microphone continuously active
+      await acquireHardwareLock();
+
+      // Guard: Check again after awaiting hardware lock
+      if (isDestroyedRef.current || !shouldListenRef.current || isMutedRef.current) {
+        setIsListening(false);
+        return;
+      }
+
+      // Clean up any existing instance first
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.onstart = null;
+          recognitionRef.current.onresult = null;
+          recognitionRef.current.onerror = null;
+          recognitionRef.current.onend = null;
+          recognitionRef.current.abort();
+        } catch (e) {}
+        recognitionRef.current = null;
+      }
+
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -183,6 +199,8 @@ export function useSpeechRecognition({
           }
         }
 
+        latestInterimRef.current = interimStr;
+
         if (onSpeechStartRef.current) {
           onSpeechStartRef.current();
         }
@@ -201,14 +219,14 @@ export function useSpeechRecognition({
             flushTranscript();
           }, 350);
         } else if (interimStr) {
-          // Guard: Only flush unfinalized interim if silence persists for 2.5s
+          // Guard: Only flush unfinalized interim if silence persists for 2.0s
           // to avoid premature cut-offs and duplicate phrase emissions
           pauseTimerRef.current = setTimeout(() => {
-            if (interimStr && !activeTranscriptRef.current.trim()) {
-              activeTranscriptRef.current = interimStr;
+            if (latestInterimRef.current && !activeTranscriptRef.current.trim()) {
+              activeTranscriptRef.current = latestInterimRef.current;
               flushTranscript();
             }
-          }, 2500);
+          }, 2000);
         }
       };
 
@@ -234,6 +252,10 @@ export function useSpeechRecognition({
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
 
         // Guarantee that speech spoken right before onend is never lost
+        if (!activeTranscriptRef.current.trim() && latestInterimRef.current.trim()) {
+          activeTranscriptRef.current = latestInterimRef.current.trim();
+          latestInterimRef.current = '';
+        }
         if (activeTranscriptRef.current.trim()) {
           flushTranscript();
         }
@@ -257,11 +279,14 @@ export function useSpeechRecognition({
       setIsListening(true);
     } catch (err) {
       console.warn('[SpeechRecognition] start error:', err);
+      recognitionRef.current = null;
       if (!isDestroyedRef.current && shouldListenRef.current && !isMutedRef.current) {
         restartTimerRef.current = setTimeout(() => {
           startFreshRecognition();
         }, 500);
       }
+    } finally {
+      isStartingRef.current = false;
     }
   }, [flushTranscript, acquireHardwareLock]);
 
@@ -272,9 +297,14 @@ export function useSpeechRecognition({
 
   const stopListening = useCallback(() => {
     shouldListenRef.current = false;
+    isStartingRef.current = false;
     if (restartTimerRef.current) {
       clearTimeout(restartTimerRef.current);
       restartTimerRef.current = null;
+    }
+    if (pauseTimerRef.current) {
+      clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
     }
     flushTranscript();
 
@@ -320,17 +350,25 @@ export function useSpeechRecognition({
     startFreshRecognition();
   }, [startFreshRecognition, acquireHardwareLock]);
 
-  // Language changes
+  // Language changes: only re-initialize if locale actually changed
   useEffect(() => {
-    if (shouldListenRef.current && !isMuted) {
-      startFreshRecognition();
+    if (prevLangLocaleRef.current !== langLocale) {
+      prevLangLocaleRef.current = langLocale;
+      if (shouldListenRef.current && !isMuted) {
+        startFreshRecognition();
+      }
     }
   }, [langLocale, isMuted, startFreshRecognition]);
 
   // Handle mute changes: disable hardware tracks and recognition cleanly
   useEffect(() => {
     if (isMuted) {
-      flushTranscript();
+      if (pauseTimerRef.current) {
+        clearTimeout(pauseTimerRef.current);
+        pauseTimerRef.current = null;
+      }
+      activeTranscriptRef.current = '';
+      latestInterimRef.current = '';
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
 
       if (micLockStreamRef.current) {
@@ -341,8 +379,13 @@ export function useSpeechRecognition({
 
       if (recognitionRef.current) {
         try {
+          recognitionRef.current.onstart = null;
+          recognitionRef.current.onresult = null;
+          recognitionRef.current.onerror = null;
+          recognitionRef.current.onend = null;
           recognitionRef.current.abort();
         } catch (e) {}
+        recognitionRef.current = null;
       }
       setIsListening(false);
     } else if (shouldListenRef.current) {
@@ -353,7 +396,7 @@ export function useSpeechRecognition({
       }
       startFreshRecognition();
     }
-  }, [isMuted, flushTranscript, startFreshRecognition]);
+  }, [isMuted, startFreshRecognition]);
 
   // Cleanup on unmount
   useEffect(() => {

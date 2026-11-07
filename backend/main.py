@@ -71,7 +71,7 @@ async def get_rooms():
     from socket_handlers import rooms
     return {
         "total_rooms": len(rooms),
-        "rooms": {r_id: list(participants.values()) for r_id, participants in rooms.items()}
+        "rooms": {r_id: list(participants.values()) for r_id, participants in list(rooms.items())}
     }
 
 @app.post("/api/translate")

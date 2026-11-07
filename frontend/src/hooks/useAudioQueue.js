@@ -45,6 +45,9 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
       analyserRef.current = analyser;
       gainNodeRef.current = gainNode;
     }
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch(() => {});
+    }
     return audioContextRef.current;
   }, []);
 
@@ -56,7 +59,9 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
   }, [volume]);
 
   const base64ToArrayBuffer = (base64) => {
-    const binaryString = window.atob(base64);
+    if (!base64 || typeof base64 !== 'string') return new ArrayBuffer(0);
+    const cleanBase64 = base64.replace(/[\s\r\n]+/g, '');
+    const binaryString = window.atob(cleanBase64);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
@@ -73,17 +78,23 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
       return;
     }
 
-    isProcessingRef.current = true;
-    setIsPlaying(true);
-    if (onStartSpeakingRef.current) onStartSpeakingRef.current();
-
     const audioItem = queueRef.current.shift();
+    if (!audioItem || !audioItem.base64) {
+      playNext();
+      return;
+    }
+
     const ctx = initAudioContext();
     if (!ctx) {
       isProcessingRef.current = false;
       setIsPlaying(false);
+      if (onStopSpeakingRef.current) onStopSpeakingRef.current();
       return;
     }
+
+    isProcessingRef.current = true;
+    setIsPlaying(true);
+    if (onStartSpeakingRef.current) onStartSpeakingRef.current();
 
     if (ctx.state === 'suspended') {
       try {
@@ -95,6 +106,10 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
 
     try {
       const arrayBuffer = base64ToArrayBuffer(audioItem.base64);
+      if (arrayBuffer.byteLength === 0) {
+        playNext();
+        return;
+      }
       // Cross-browser decodeAudioData wrapper supporting both promise and callback interfaces (WebKit/Safari)
       const audioBuffer = await new Promise((resolve, reject) => {
         let isDone = false;

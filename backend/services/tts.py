@@ -46,10 +46,11 @@ VOICE_MAP = {
 }
 
 def get_voice(lang: str, gender: str = "female") -> str:
-    code = lang.split("-")[0].lower()
-    gender_key = gender.lower() if gender.lower() in ("female", "male") else "female"
-    if code in VOICE_MAP:
-        return VOICE_MAP[code].get(gender_key, VOICE_MAP[code]["female"])
+    clean_lang = (str(lang).split("-")[0].strip().lower() if lang else "") or "en"
+    clean_gender = str(gender).strip().lower() if gender else "female"
+    gender_key = clean_gender if clean_gender in ("female", "male") else "female"
+    if clean_lang in VOICE_MAP:
+        return VOICE_MAP[clean_lang].get(gender_key, VOICE_MAP[clean_lang]["female"])
     return "en-IN-NeerjaNeural"
 
 async def synthesize_speech(
@@ -64,13 +65,16 @@ async def synthesize_speech(
     Primary: Microsoft Edge Neural TTS (+15% rate).
     Fallback: Google gTTS.
     """
-    if not text or not text.strip():
+    if not text or not str(text).strip():
         return b""
     
-    clean_text = text.strip()
+    clean_text = str(text).strip()[:1000]
     voice = get_voice(target_lang, gender)
 
-    # 1. Primary: Microsoft Edge Neural TTS (capped at 4.0s timeout to prevent pipeline stalls)
+    # Dynamic timeout: Edge-TTS streams at ~15-20 chars/sec; minimum 4.5s, scaling up to 12.0s for long paragraphs
+    calc_timeout = max(4.5, min(12.0, 3.5 + len(clean_text) * 0.015))
+
+    # 1. Primary: Microsoft Edge Neural TTS
     async def _stream_edge():
         communicate = edge_tts.Communicate(clean_text, voice=voice, rate=rate, volume=volume)
         audio_chunks = []
@@ -80,7 +84,7 @@ async def synthesize_speech(
         return b"".join(audio_chunks)
 
     try:
-        result = await asyncio.wait_for(_stream_edge(), timeout=4.0)
+        result = await asyncio.wait_for(_stream_edge(), timeout=calc_timeout)
         if result:
             return result
     except (asyncio.TimeoutError, Exception) as e:
@@ -89,7 +93,7 @@ async def synthesize_speech(
     # 2. Resilient Fallback: Google Text-to-Speech (gTTS)
     try:
         from gtts import gTTS
-        code = target_lang.split("-")[0].lower()
+        code = (str(target_lang).split("-")[0].strip().lower() if target_lang else "") or "en"
         if code not in ("te", "hi", "en", "ta", "kn", "ml", "mr", "bn", "gu"):
             code = "en"
 
@@ -99,7 +103,7 @@ async def synthesize_speech(
             tts.write_to_fp(fp)
             return fp.getvalue()
         
-        fallback_bytes = await asyncio.wait_for(asyncio.to_thread(_gtts_task), timeout=4.0)
+        fallback_bytes = await asyncio.wait_for(asyncio.to_thread(_gtts_task), timeout=calc_timeout)
         if fallback_bytes:
             return fallback_bytes
     except Exception as gtts_err:

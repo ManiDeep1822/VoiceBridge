@@ -48,7 +48,7 @@ export default function CallRoom({
   const speechTimerRef = useRef(null);
   const remoteSpeakingTimeoutRef = useRef(null);
 
-  const { enqueueAudio, isPlaying: isQueuePlaying, volume, setVolume, stopAll } = useAudioQueue({
+  const { enqueueAudio, isPlaying: isQueuePlaying, volume, setVolume, stopAll, initAudioContext } = useAudioQueue({
     onStartSpeaking: () => {
       if (remoteSpeakingTimeoutRef.current) {
         clearTimeout(remoteSpeakingTimeoutRef.current);
@@ -56,8 +56,17 @@ export default function CallRoom({
       }
       setIsSpeakingRemote(true);
       setSpeechStatus('Speaking translated audio');
+      // Max safety timeout so tile speaking state never hangs indefinitely
+      remoteSpeakingTimeoutRef.current = setTimeout(() => {
+        setIsSpeakingRemote(false);
+        setSpeechStatus('Idle');
+      }, 20000);
     },
     onStopSpeaking: () => {
+      if (remoteSpeakingTimeoutRef.current) {
+        clearTimeout(remoteSpeakingTimeoutRef.current);
+        remoteSpeakingTimeoutRef.current = null;
+      }
       setIsSpeakingRemote(false);
       setSpeechStatus('Idle');
     }
@@ -302,9 +311,25 @@ export default function CallRoom({
       if (remoteSpeakingTimeoutRef.current) clearTimeout(remoteSpeakingTimeoutRef.current);
       stopListeningRef.current();
       stopAllRef.current();
+      try {
+        socketInstance.emit('leave_room');
+      } catch (e) {}
       socketInstance.disconnect();
     };
   }, [roomId]);
+
+  // Unlock Web Audio context on the first user interaction (touch/click) for cross-browser reliability
+  useEffect(() => {
+    const primeAudio = () => {
+      if (initAudioContext) initAudioContext();
+    };
+    window.addEventListener('click', primeAudio, { once: true });
+    window.addEventListener('touchstart', primeAudio, { once: true });
+    return () => {
+      window.removeEventListener('click', primeAudio);
+      window.removeEventListener('touchstart', primeAudio);
+    };
+  }, [initAudioContext]);
 
   useEffect(() => {
     let interval = null;
@@ -357,6 +382,10 @@ export default function CallRoom({
   const toggleMute = () => {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
+    if (nextMuted) {
+      setIsSpeakingLocal(false);
+      setSpeechStatus('Idle');
+    }
     if (socketRef.current) {
       socketRef.current.emit('toggle_mute', { isMuted: nextMuted });
     }
@@ -388,9 +417,19 @@ export default function CallRoom({
     const a = document.createElement('a');
     a.href = url;
     a.download = `voicebridge-${roomId}.txt`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
   };
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('voicebridge_language', language);
+      sessionStorage.setItem('voicebridge_voice_gender', voiceGender);
+      sessionStorage.setItem('voicebridge_in_call', roomId);
+    } catch (e) {}
+  }, [language, voiceGender, roomId]);
 
   const currentLangObj = SUPPORTED_LANGUAGES.find(l => l.code === language) || {
     name: language.toUpperCase(),
