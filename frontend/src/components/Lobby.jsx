@@ -35,6 +35,7 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '', onClearDefaultRo
   const [roomIdInput, setRoomIdInput] = useState(defaultRoomId);
   const [micActive, setMicActive] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [micTestError, setMicTestError] = useState('');
 
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
@@ -69,6 +70,7 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '', onClearDefaultRo
   }, []);
 
   const toggleMicTest = async () => {
+    setMicTestError('');
     if (micActive) {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
@@ -106,18 +108,29 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '', onClearDefaultRo
       };
       updateLevel();
     } catch (err) {
-      alert("Microphone permission was not granted. Please allow microphone access in your browser address bar.");
+      console.warn('[Lobby] Mic test permission denied:', err);
+      setMicTestError("Microphone access was denied. Please allow microphone permissions in your browser.");
     }
   };
 
   // Helper to ensure mic permission is requested directly in user click gesture
   const warmUpMicPermission = async () => {
-    // Release any active green room test microphone first
+    // Release any active green room test microphone and audio graph first
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
-      setMicActive(false);
     }
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    setMicActive(false);
+    setAudioLevel(0);
+
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -163,13 +176,29 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '', onClearDefaultRo
     if (!roomIdInput.trim()) return;
     
     let cleanId = roomIdInput.trim();
-    if (cleanId.includes('#room=')) {
-      cleanId = cleanId.split('#room=')[1];
-    } else if (cleanId.includes('?room=')) {
-      cleanId = cleanId.split('?room=')[1];
-    } else if (cleanId.includes('/room/')) {
-      cleanId = cleanId.split('/room/')[1];
+    try {
+      if (cleanId.includes('http://') || cleanId.includes('https://')) {
+        const urlObj = new URL(cleanId);
+        if (urlObj.hash && urlObj.hash.includes('room=')) {
+          cleanId = urlObj.hash.split('room=')[1].split('&')[0];
+        } else if (urlObj.searchParams.get('room')) {
+          cleanId = urlObj.searchParams.get('room');
+        } else {
+          cleanId = urlObj.pathname.split('/').filter(Boolean).pop() || cleanId;
+        }
+      } else if (cleanId.includes('#room=')) {
+        cleanId = cleanId.split('#room=')[1].split('&')[0];
+      } else if (cleanId.includes('?room=')) {
+        cleanId = cleanId.split('?room=')[1].split('&')[0];
+      } else if (cleanId.includes('/room/')) {
+        cleanId = cleanId.split('/room/')[1].split('&')[0];
+      }
+    } catch (err) {
+      // Fallback if not a valid URL
     }
+
+    cleanId = cleanId.replace(/[^a-zA-Z0-9_-]/g, '').trim();
+    if (!cleanId) return;
 
     await warmUpMicPermission();
     onJoinRoom({
@@ -323,6 +352,10 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '', onClearDefaultRo
                   {micActive ? <Mic className="w-3.5 h-3.5 text-emerald-400" /> : <MicOff className="w-3.5 h-3.5 text-zinc-400" />}
                   <span>{micActive ? 'Mic Active • Tap to finish' : 'Test Microphone'}</span>
                 </button>
+
+                {micTestError && (
+                  <p className="text-[11px] text-rose-400 text-center">{micTestError}</p>
+                )}
               </div>
             </div>
 
@@ -398,7 +431,7 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '', onClearDefaultRo
                 </div>
 
                 {/* Bottom Preview Action */}
-                <div className="flex items-center justify-center gap-3 z-10">
+                <div className="flex flex-col items-center justify-center gap-2 z-10">
                   <button
                     type="button"
                     onClick={toggleMicTest}
@@ -411,6 +444,9 @@ export default function Lobby({ onJoinRoom, defaultRoomId = '', onClearDefaultRo
                     {micActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4 text-zinc-400" />}
                     <span>{micActive ? 'Mic Active (Testing)' : 'Test Microphone'}</span>
                   </button>
+                  {micTestError && (
+                    <p className="text-[11px] text-rose-400 text-center max-w-xs">{micTestError}</p>
+                  )}
                 </div>
 
                 {/* Subtle background grid pattern */}

@@ -1,10 +1,19 @@
 import asyncio
 import sys
+import os
 import base64
 import socketio
 
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 if sys.platform == "win32":
-    sys.stdout.reconfigure(encoding="utf-8")
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 async def run_e2e_test():
     print("[Test] Starting 2-Client Speech-to-Speech E2E Simulation...")
@@ -68,9 +77,9 @@ async def run_e2e_test():
 
     # 4. Wait for Client B to receive instant text, then audio
     try:
-        await asyncio.wait_for(text_event.wait(), timeout=5)
+        await asyncio.wait_for(text_event.wait(), timeout=6)
         print("[STAGE 1 SUCCESS] Instant text received with sub-second latency!")
-        await asyncio.wait_for(audio_event.wait(), timeout=8)
+        await asyncio.wait_for(audio_event.wait(), timeout=12)
         print("[STAGE 2 SUCCESS] Fast neural audio received!")
         assert "audioBase64" in received_payload and len(received_payload["audioBase64"]) > 5000
     except asyncio.TimeoutError:

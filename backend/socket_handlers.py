@@ -38,11 +38,13 @@ def register_socket_events(sio):
                 del rooms[room_id]
 
     @sio.event
-    async def join_room(sid, data):
-        room_id = data.get("roomId", "").strip()
-        user_id = data.get("userId", f"user_{sid[:5]}")
-        language = data.get("language", "te")  # e.g. 'te' or 'hi'
-        voice_gender = data.get("voiceGender", "female")
+    async def join_room(sid, data=None):
+        if not isinstance(data, dict):
+            data = {}
+        room_id = str(data.get("roomId", "")).strip()
+        user_id = str(data.get("userId", f"user_{sid[:5]}")).strip()
+        language = str(data.get("language", "te")).strip()
+        voice_gender = str(data.get("voiceGender", "female")).strip()
 
         if not room_id or not ROOM_ID_REGEX.match(room_id):
             await sio.emit("error", {"message": "Invalid roomId. Must be 3-32 alphanumeric characters, dashes, or underscores."}, to=sid)
@@ -62,6 +64,10 @@ def register_socket_events(sio):
             logger.info(f"Replacing stale socket {existing_sid} with new socket {sid} for user {user_id}")
             rooms[room_id].pop(existing_sid, None)
             sid_to_room.pop(existing_sid, None)
+            try:
+                await sio.leave_room(existing_sid, room_id)
+            except Exception:
+                pass
 
         if len(rooms[room_id]) >= 2 and sid not in rooms[room_id]:
             await sio.emit("room_full", {"message": "This call is already at maximum capacity (2 participants)."}, to=sid)
@@ -89,7 +95,9 @@ def register_socket_events(sio):
             await sio.emit("peer_connected", {"self": p2, "peer": p1, "isInitiator": False}, to=p2["sid"])
 
     @sio.event
-    async def webrtc_offer(sid, data):
+    async def webrtc_offer(sid, data=None):
+        if not isinstance(data, dict):
+            data = {}
         room_id = sid_to_room.get(sid)
         if room_id and room_id in rooms:
             for peer_sid in rooms[room_id]:
@@ -97,7 +105,9 @@ def register_socket_events(sio):
                     await sio.emit("webrtc_offer", data, to=peer_sid)
 
     @sio.event
-    async def webrtc_answer(sid, data):
+    async def webrtc_answer(sid, data=None):
+        if not isinstance(data, dict):
+            data = {}
         room_id = sid_to_room.get(sid)
         if room_id and room_id in rooms:
             for peer_sid in rooms[room_id]:
@@ -105,7 +115,9 @@ def register_socket_events(sio):
                     await sio.emit("webrtc_answer", data, to=peer_sid)
 
     @sio.event
-    async def webrtc_ice_candidate(sid, data):
+    async def webrtc_ice_candidate(sid, data=None):
+        if not isinstance(data, dict):
+            data = {}
         room_id = sid_to_room.get(sid)
         if room_id and room_id in rooms:
             for peer_sid in rooms[room_id]:
@@ -113,7 +125,9 @@ def register_socket_events(sio):
                     await sio.emit("webrtc_ice_candidate", data, to=peer_sid)
 
     @sio.event
-    async def update_language(sid, data):
+    async def update_language(sid, data=None):
+        if not isinstance(data, dict):
+            data = {}
         room_id = sid_to_room.get(sid)
         if room_id and room_id in rooms and sid in rooms[room_id]:
             new_lang = data.get("language", "te")
@@ -121,13 +135,18 @@ def register_socket_events(sio):
             rooms[room_id][sid]["language"] = new_lang
             rooms[room_id][sid]["voiceGender"] = new_gender
 
-            # Notify peer of updated language
+            # Notify peer of updated language and voice persona
             for peer_sid, peer_info in rooms[room_id].items():
                 if peer_sid != sid:
-                    await sio.emit("peer_language_updated", {"peerLanguage": new_lang}, to=peer_sid)
+                    await sio.emit("peer_language_updated", {
+                        "peerLanguage": new_lang,
+                        "voiceGender": new_gender
+                    }, to=peer_sid)
 
     @sio.event
-    async def toggle_mute(sid, data):
+    async def toggle_mute(sid, data=None):
+        if not isinstance(data, dict):
+            data = {}
         room_id = sid_to_room.get(sid)
         if room_id and room_id in rooms and sid in rooms[room_id]:
             is_muted = bool(data.get("isMuted", False))
@@ -137,11 +156,14 @@ def register_socket_events(sio):
                     await sio.emit("peer_mute_changed", {"isMuted": is_muted}, to=peer_sid)
 
     @sio.event
-    async def speech_segment(sid, data):
+    async def speech_segment(sid, data=None):
         """
         Triggered when a user speaks a sentence.
         data: { "originalText": str, "sourceLang": str }
         """
+        if not isinstance(data, dict):
+            data = {}
+
         room_id = sid_to_room.get(sid)
         if not room_id or room_id not in rooms:
             return
@@ -156,6 +178,7 @@ def register_socket_events(sio):
         activity = [t for t in activity if now - t < 3.0]
         if len(activity) >= 5:
             logger.warning(f"[RateLimit] Dropping segment spam from socket {sid}")
+            await sio.emit("speech_error", {"error": "Rate limit exceeded. Please speak at a natural pace."}, to=sid)
             return
         activity.append(now)
         socket_activity[sid] = activity
@@ -177,9 +200,13 @@ def register_socket_events(sio):
         peer = peers[0]
         peer_sid = peer["sid"]
         target_lang = peer.get("language", "hi")
-        target_gender = peer.get("voiceGender", "female")
+        # Synthesize using the speaker's chosen voice gender so the listener hears the speaker's persona
+        speaker_gender = sender.get("voiceGender", "female")
 
         try:
+            # Notify listener immediately that incoming speech is being translated
+            await sio.emit("peer_incoming_speech", {"speakerId": sender["userId"]}, to=peer_sid)
+
             # 1. Translate text immediately (< 200ms)
             translated_text = await translate_text(original_text, source_lang, target_lang)
 
@@ -199,7 +226,7 @@ def register_socket_events(sio):
             }, to=sid)
 
             # Stage 2: Fast neural voice synthesis (+15% conversational speed)
-            audio_bytes = await synthesize_speech(translated_text, target_lang, target_gender, rate="+15%")
+            audio_bytes = await synthesize_speech(translated_text, target_lang, speaker_gender, rate="+15%")
 
             if audio_bytes:
                 audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
@@ -213,7 +240,14 @@ def register_socket_events(sio):
                     "targetLang": target_lang,
                     "speakerId": sender["userId"]
                 }, to=peer_sid)
+            else:
+                # Audio failed or returned empty: release peer's speaking state so UI doesn't hang
+                await sio.emit("peer_speech_ended", {"speakerId": sender["userId"]}, to=peer_sid)
 
         except Exception as e:
             logger.error(f"Error processing speech segment: {e}", exc_info=True)
             await sio.emit("speech_error", {"error": str(e)}, to=sid)
+            try:
+                await sio.emit("peer_speech_ended", {"speakerId": sender.get("userId", "peer")}, to=peer_sid)
+            except Exception:
+                pass

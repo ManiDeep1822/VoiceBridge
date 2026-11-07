@@ -22,7 +22,10 @@ export function useSpeechRecognition({
   onSpeechEnd
 }) {
   const [isListening, setIsListening] = useState(false);
-  const [isSupported, setIsSupported] = useState(true);
+  const [isSupported, setIsSupported] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  });
   const [micError, setMicError] = useState(null);
 
   const recognitionRef = useRef(null);
@@ -169,8 +172,10 @@ export function useSpeechRecognition({
         let hasFinal = false;
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const transcriptPart = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
+          const item = event.results[i];
+          if (!item || !item[0]) continue;
+          const transcriptPart = item[0].transcript || '';
+          if (item.isFinal) {
             activeTranscriptRef.current += ' ' + transcriptPart;
             hasFinal = true;
           } else {
@@ -188,17 +193,22 @@ export function useSpeechRecognition({
 
         if (pauseTimerRef.current) {
           clearTimeout(pauseTimerRef.current);
+          pauseTimerRef.current = null;
         }
 
         if (hasFinal) {
           pauseTimerRef.current = setTimeout(() => {
             flushTranscript();
           }, 350);
-        } else if (interimStr && !activeTranscriptRef.current) {
+        } else if (interimStr) {
+          // Guard: Only flush unfinalized interim if silence persists for 2.5s
+          // to avoid premature cut-offs and duplicate phrase emissions
           pauseTimerRef.current = setTimeout(() => {
-            activeTranscriptRef.current = interimStr;
-            flushTranscript();
-          }, 1400);
+            if (interimStr && !activeTranscriptRef.current.trim()) {
+              activeTranscriptRef.current = interimStr;
+              flushTranscript();
+            }
+          }, 2500);
         }
       };
 
@@ -223,17 +233,18 @@ export function useSpeechRecognition({
       recognition.onend = () => {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
 
+        // Guarantee that speech spoken right before onend is never lost
+        if (activeTranscriptRef.current.trim()) {
+          flushTranscript();
+        }
+
         if (!isDestroyedRef.current && shouldListenRef.current && !isMutedRef.current) {
           // Keep isListening as true so UI never flickers
           setIsListening(true);
-          // Seamless instant restart on pause; mic hardware is locked on via micLockStream
+          // Seamless restart on pause
           restartTimerRef.current = setTimeout(() => {
-            if (!isDestroyedRef.current && shouldListenRef.current && !isMutedRef.current && recognitionRef.current) {
-              try {
-                recognitionRef.current.start();
-              } catch (e) {
-                startFreshRecognition();
-              }
+            if (!isDestroyedRef.current && shouldListenRef.current && !isMutedRef.current) {
+              startFreshRecognition();
             }
           }, 50);
         } else {

@@ -9,6 +9,9 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1.5); // Default 1.5x volume boost!
 
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
+
   const audioContextRef = useRef(null);
   const queueRef = useRef([]);
   const isProcessingRef = useRef(false);
@@ -24,6 +27,7 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
   const initAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
       const ctx = new AudioCtx();
       
       const analyser = ctx.createAnalyser();
@@ -31,7 +35,7 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
       analyser.smoothingTimeConstant = 0.8;
 
       const gainNode = ctx.createGain();
-      gainNode.gain.value = volume; // 150% amplification by default
+      gainNode.gain.value = volumeRef.current; // 150% amplification by default
 
       // Pipeline: GainNode -> Analyser -> Destination
       gainNode.connect(analyser);
@@ -41,11 +45,8 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
       analyserRef.current = analyser;
       gainNodeRef.current = gainNode;
     }
-    if (audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume();
-    }
     return audioContextRef.current;
-  }, [volume]);
+  }, []);
 
   // Update hardware gain when user moves slider
   useEffect(() => {
@@ -78,10 +79,66 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
 
     const audioItem = queueRef.current.shift();
     const ctx = initAudioContext();
+    if (!ctx) {
+      isProcessingRef.current = false;
+      setIsPlaying(false);
+      return;
+    }
+
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch (e) {
+        console.warn('[AudioQueue] AudioContext resume failed:', e);
+      }
+    }
 
     try {
       const arrayBuffer = base64ToArrayBuffer(audioItem.base64);
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      // Cross-browser decodeAudioData wrapper supporting both promise and callback interfaces (WebKit/Safari)
+      const audioBuffer = await new Promise((resolve, reject) => {
+        let isDone = false;
+        try {
+          const ret = ctx.decodeAudioData(
+            arrayBuffer,
+            (buf) => {
+              if (!isDone) {
+                isDone = true;
+                resolve(buf);
+              }
+            },
+            (err) => {
+              if (!isDone) {
+                isDone = true;
+                reject(err);
+              }
+            }
+          );
+          if (ret && typeof ret.then === 'function') {
+            ret.then((buf) => {
+              if (!isDone) {
+                isDone = true;
+                resolve(buf);
+              }
+            }).catch((err) => {
+              if (!isDone) {
+                isDone = true;
+                reject(err);
+              }
+            });
+          }
+        } catch (e) {
+          if (!isDone) {
+            isDone = true;
+            reject(e);
+          }
+        }
+      });
+
+      // Guard: If stopAll was called while decodeAudioData was in flight, abort immediately
+      if (!isProcessingRef.current) {
+        return;
+      }
 
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
@@ -98,6 +155,7 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
       currentSourceRef.current = source;
 
       source.onended = () => {
+        currentSourceRef.current = null;
         playNext();
       };
 
@@ -121,15 +179,16 @@ export function useAudioQueue({ onStartSpeaking, onStopSpeaking } = {}) {
 
   const stopAll = useCallback(() => {
     queueRef.current = [];
+    isProcessingRef.current = false;
     if (currentSourceRef.current) {
       try {
+        currentSourceRef.current.onended = null;
         currentSourceRef.current.stop();
       } catch (e) {
         // Ignored
       }
       currentSourceRef.current = null;
     }
-    isProcessingRef.current = false;
     setIsPlaying(false);
     if (onStopSpeakingRef.current) onStopSpeakingRef.current();
   }, []);

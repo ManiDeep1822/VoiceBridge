@@ -4,11 +4,19 @@ import CallRoom from './components/CallRoom';
 
 const getInitialRoomId = () => {
   if (typeof window === 'undefined') return '';
-  if (window.location.hash && window.location.hash.includes('#room=')) {
-    return window.location.hash.split('#room=')[1].trim();
+  if (window.location.hash) {
+    const hash = window.location.hash.replace(/^#\/?/, '');
+    if (hash.includes('room=')) {
+      const parts = hash.split('room=')[1];
+      return parts.split('&')[0].replace(/[^a-zA-Z0-9_-]/g, '').trim();
+    }
   }
   const params = new URLSearchParams(window.location.search);
-  return (params.get('room') || '').trim();
+  const searchRoom = params.get('room');
+  if (searchRoom) {
+    return searchRoom.replace(/[^a-zA-Z0-9_-]/g, '').trim();
+  }
+  return '';
 };
 
 export default function App() {
@@ -17,18 +25,26 @@ export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState(() => (getInitialRoomId() ? 'hi' : 'te'));
   const [voiceGender, setVoiceGender] = useState('female');
 
-  // Read room from URL if shared via link
+  // Sync room from URL if shared via link or browser back/forward button
   useEffect(() => {
     const parseUrl = () => {
       const urlRoom = getInitialRoomId();
       if (urlRoom) {
         setActiveRoomId(urlRoom);
+      } else {
+        // Navigated back to base URL
+        setCurrentView((prev) => (prev === 'call' ? 'lobby' : prev));
+        setActiveRoomId('');
       }
     };
 
     parseUrl();
     window.addEventListener('hashchange', parseUrl);
-    return () => window.removeEventListener('hashchange', parseUrl);
+    window.addEventListener('popstate', parseUrl);
+    return () => {
+      window.removeEventListener('hashchange', parseUrl);
+      window.removeEventListener('popstate', parseUrl);
+    };
   }, []);
 
   const handleJoinRoom = ({ roomId, language, voiceGender }) => {
@@ -40,13 +56,21 @@ export default function App() {
   };
 
   const handleLeaveCall = () => {
-    window.location.hash = '';
+    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', window.location.pathname);
+    } else {
+      window.location.hash = '';
+    }
     setActiveRoomId('');
     setCurrentView('lobby');
   };
 
   const handleClearDefaultRoom = () => {
-    window.location.hash = '';
+    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', window.location.pathname);
+    } else {
+      window.location.hash = '';
+    }
     setActiveRoomId('');
   };
 

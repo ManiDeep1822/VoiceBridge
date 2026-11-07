@@ -1,5 +1,10 @@
+import logging
+import io
+import asyncio
 import edge_tts
 from typing import Optional
+
+logger = logging.getLogger("tts")
 
 VOICE_MAP = {
     "te": {
@@ -55,19 +60,49 @@ async def synthesize_speech(
     volume: str = "+50%"
 ) -> bytes:
     """
-    Synthesizes text using Microsoft Edge Neural TTS into high-definition audio bytes (MP3 format).
-    rate: speed adjustment e.g. "+15%" for natural fast conversational cadence.
-    volume: volume boost e.g. "+50%" for loud, clear output on quiet laptop speakers.
+    Synthesizes text into high-definition audio bytes (MP3 format).
+    Primary: Microsoft Edge Neural TTS (+15% rate).
+    Fallback: Google gTTS.
     """
     if not text or not text.strip():
         return b""
     
+    clean_text = text.strip()
     voice = get_voice(target_lang, gender)
-    communicate = edge_tts.Communicate(text.strip(), voice=voice, rate=rate, volume=volume)
-    
-    audio_chunks = []
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            audio_chunks.append(chunk["data"])
-            
-    return b"".join(audio_chunks)
+
+    # 1. Primary: Microsoft Edge Neural TTS (capped at 4.0s timeout to prevent pipeline stalls)
+    async def _stream_edge():
+        communicate = edge_tts.Communicate(clean_text, voice=voice, rate=rate, volume=volume)
+        audio_chunks = []
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_chunks.append(chunk["data"])
+        return b"".join(audio_chunks)
+
+    try:
+        result = await asyncio.wait_for(_stream_edge(), timeout=4.0)
+        if result:
+            return result
+    except (asyncio.TimeoutError, Exception) as e:
+        logger.warning(f"[TTS] Edge-TTS synthesis failed or timed out for voice '{voice}': {e}. Using gTTS fallback...")
+
+    # 2. Resilient Fallback: Google Text-to-Speech (gTTS)
+    try:
+        from gtts import gTTS
+        code = target_lang.split("-")[0].lower()
+        if code not in ("te", "hi", "en", "ta", "kn", "ml", "mr", "bn", "gu"):
+            code = "en"
+
+        def _gtts_task():
+            tts = gTTS(text=clean_text, lang=code)
+            fp = io.BytesIO()
+            tts.write_to_fp(fp)
+            return fp.getvalue()
+        
+        fallback_bytes = await asyncio.wait_for(asyncio.to_thread(_gtts_task), timeout=4.0)
+        if fallback_bytes:
+            return fallback_bytes
+    except Exception as gtts_err:
+        logger.error(f"[TTS] gTTS fallback failed: {gtts_err}")
+
+    return b""

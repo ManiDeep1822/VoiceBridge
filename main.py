@@ -6,6 +6,13 @@ import sys
 import os
 import subprocess
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "backend"))
 venv_python = os.path.join(backend_dir, ".venv", "Scripts", "python.exe")
 

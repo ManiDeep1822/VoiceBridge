@@ -45,9 +45,15 @@ export default function CallRoom({
   const [isSpeakingRemote, setIsSpeakingRemote] = useState(false);
 
   const socketRef = useRef(null);
+  const speechTimerRef = useRef(null);
+  const remoteSpeakingTimeoutRef = useRef(null);
 
   const { enqueueAudio, isPlaying: isQueuePlaying, volume, setVolume, stopAll } = useAudioQueue({
     onStartSpeaking: () => {
+      if (remoteSpeakingTimeoutRef.current) {
+        clearTimeout(remoteSpeakingTimeoutRef.current);
+        remoteSpeakingTimeoutRef.current = null;
+      }
       setIsSpeakingRemote(true);
       setSpeechStatus('Speaking translated audio');
     },
@@ -58,16 +64,22 @@ export default function CallRoom({
   });
 
   const handleSpeechFinal = useCallback((phrase) => {
-    if (!socketRef.current || isMuted || !phrase.trim()) return;
+    if (!socketRef.current || isMuted || !phrase.trim() || connectionStatus !== 'connected') return;
 
     setSpeechStatus('Translating phrase...');
     setIsSpeakingLocal(true);
+
+    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+    speechTimerRef.current = setTimeout(() => {
+      setIsSpeakingLocal(false);
+      setSpeechStatus('Idle');
+    }, 6000);
 
     socketRef.current.emit('speech_segment', {
       originalText: phrase.trim(),
       sourceLang: language
     });
-  }, [isMuted, language]);
+  }, [isMuted, language, connectionStatus]);
 
   // Dedicated speech recognition: never interrupted or aborted by incoming audio playback
   const { 
@@ -113,7 +125,15 @@ export default function CallRoom({
   }, [language, voiceGender]);
 
   useEffect(() => {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || window.location.origin;
+    const isLocal = typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.startsWith('192.168.') ||
+      window.location.hostname.startsWith('10.') ||
+      window.location.hostname.endsWith('.local')
+    );
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 
+      (isLocal ? window.location.origin : 'https://voicebridge-yd1k.onrender.com');
     
     // Hardened socket connection with persistent websocket transport and auto-reconnect
     const socketInstance = io(backendUrl, {
@@ -137,10 +157,18 @@ export default function CallRoom({
     socketInstance.on('connect_error', (err) => {
       console.error('[Socket] connect_error:', err);
       setConnectionStatus('error');
+      setErrorMessage('Unable to reach voice translation server. Reconnecting...');
+    });
+
+    socketInstance.on('error', (data) => {
+      console.error('[Socket] error:', data);
+      setErrorMessage(data?.message || 'Server error occurred.');
+      setConnectionStatus('error');
     });
 
     socketInstance.on('connect', () => {
       setConnectionStatus('connecting');
+      setErrorMessage('');
       socketInstance.emit('join_room', {
         roomId,
         userId,
@@ -155,9 +183,18 @@ export default function CallRoom({
 
     socketInstance.on('peer_connected', (data) => {
       setConnectionStatus('connected');
+      setErrorMessage('');
       setPeerInfo(data.peer);
       setIsPeerMuted(Boolean(data.peer?.isMuted));
       startListeningRef.current();
+    });
+
+    socketInstance.on('peer_language_updated', (data) => {
+      setPeerInfo((prev) => prev ? { 
+        ...prev, 
+        language: data.peerLanguage || prev.language,
+        voiceGender: data.voiceGender || prev.voiceGender 
+      } : null);
     });
 
     socketInstance.on('peer_mute_changed', (data) => {
@@ -168,15 +205,31 @@ export default function CallRoom({
       setConnectionStatus('waiting');
       setPeerInfo(null);
       stopAllRef.current();
+      stopListeningRef.current();
+      setIsSpeakingLocal(false);
+      setIsSpeakingRemote(false);
+      setSpeechStatus('Idle');
     });
 
     socketInstance.on('room_full', (data) => {
-      setErrorMessage(data.message || 'Call is at maximum capacity (2 participants).');
+      setErrorMessage(data?.message || 'Call is at maximum capacity (2 participants).');
+      setConnectionStatus('error');
     });
 
     socketInstance.on('peer_incoming_speech', () => {
       setIsSpeakingRemote(true);
       setSpeechStatus('Translating incoming speech...');
+      if (remoteSpeakingTimeoutRef.current) clearTimeout(remoteSpeakingTimeoutRef.current);
+      remoteSpeakingTimeoutRef.current = setTimeout(() => {
+        setIsSpeakingRemote(false);
+        setSpeechStatus('Idle');
+      }, 7000);
+    });
+
+    socketInstance.on('peer_speech_ended', () => {
+      if (remoteSpeakingTimeoutRef.current) clearTimeout(remoteSpeakingTimeoutRef.current);
+      setIsSpeakingRemote(false);
+      setSpeechStatus('Idle');
     });
 
     socketInstance.on('peer_incoming_text', (payload) => {
@@ -195,7 +248,7 @@ export default function CallRoom({
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
-      setSpeechStatus('Playing translated speech');
+      setSpeechStatus('Translating phrase...');
     });
 
     socketInstance.on('translated_audio', (payload) => {
@@ -208,6 +261,10 @@ export default function CallRoom({
     });
 
     socketInstance.on('speech_delivered', (data) => {
+      if (speechTimerRef.current) {
+        clearTimeout(speechTimerRef.current);
+        speechTimerRef.current = null;
+      }
       setLastDeliveredSentence({
         speaker: 'self',
         originalText: data.originalText,
@@ -231,11 +288,18 @@ export default function CallRoom({
 
     socketInstance.on('speech_error', (err) => {
       console.error('[Socket] speech_error:', err);
+      if (speechTimerRef.current) {
+        clearTimeout(speechTimerRef.current);
+        speechTimerRef.current = null;
+      }
       setIsSpeakingLocal(false);
-      setSpeechStatus('Idle');
+      setSpeechStatus('Translation service temporarily busy');
+      setTimeout(() => setSpeechStatus('Idle'), 3000);
     });
 
     return () => {
+      if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+      if (remoteSpeakingTimeoutRef.current) clearTimeout(remoteSpeakingTimeoutRef.current);
       stopListeningRef.current();
       stopAllRef.current();
       socketInstance.disconnect();
@@ -258,9 +322,34 @@ export default function CallRoom({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const copyRoomLink = () => {
+  const copyRoomLink = async () => {
     const shareableUrl = `${window.location.origin}/#room=${roomId}`;
-    navigator.clipboard.writeText(shareableUrl);
+    let success = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareableUrl);
+        success = true;
+      }
+    } catch (e) {
+      console.warn('[CallRoom] Clipboard API error:', e);
+    }
+
+    if (!success) {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = shareableUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        success = document.execCommand('copy');
+        document.body.removeChild(textArea);
+      } catch (err) {
+        console.error('[CallRoom] Fallback copy error:', err);
+      }
+    }
+
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -360,8 +449,40 @@ export default function CallRoom({
       {/* Main Calling Stage: Google Meet / FaceTime Participant Tiles */}
       <main className="max-w-5xl mx-auto w-full my-auto z-10 flex flex-col items-center justify-center py-2 sm:py-4">
         
+        {/* Error / Full Room Alert */}
+        {(errorMessage || connectionStatus === 'error') && (
+          <div className="mb-4 sm:mb-6 text-center max-w-sm w-full bg-rose-950/40 border border-rose-800/80 p-5 rounded-2xl shadow-xl animate-in fade-in">
+            <div className="w-10 h-10 rounded-full bg-rose-900/60 border border-rose-700 flex items-center justify-center mx-auto mb-3">
+              <AlertCircle className="w-5 h-5 text-rose-400" />
+            </div>
+            <h3 className="text-sm font-semibold text-rose-200 mb-1">
+              {errorMessage ? 'Call Notice' : 'Connection Disconnected'}
+            </h3>
+            <p className="text-xs text-rose-300/80 mb-4">
+              {errorMessage || 'Disconnected from the translation server. Please check your internet connection.'}
+            </p>
+            <button
+              type="button"
+              onClick={onLeaveCall}
+              className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
+            >
+              Return to Lobby
+            </button>
+          </div>
+        )}
+
+        {/* Unsupported Browser Speech Recognition Warning */}
+        {!isSTTSupported && (
+          <div className="mb-4 max-w-lg w-full p-3.5 rounded-2xl bg-amber-950/80 border border-amber-800 text-amber-200 text-xs flex items-center gap-2.5 shadow-xl animate-in fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>
+              Your browser does not support Web Speech Recognition. For live voice translation, please use Google Chrome, Microsoft Edge, or Safari.
+            </span>
+          </div>
+        )}
+
         {/* Waiting For Peer Card */}
-        {connectionStatus === 'waiting' && (
+        {connectionStatus === 'waiting' && !errorMessage && (
           <div className="mb-4 sm:mb-6 text-center max-w-sm w-full bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-sm">
             <h3 className="text-sm font-semibold text-white mb-1">Waiting for someone to join</h3>
             <p className="text-xs text-zinc-400 mb-3">

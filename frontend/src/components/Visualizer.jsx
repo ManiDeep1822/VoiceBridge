@@ -55,7 +55,11 @@ export default function Visualizer({ isActive, color = 'cyan', isIncoming = fals
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.roundRect(x, y, barWidth, Math.max(amplitude, 3), [2]);
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(x, y, barWidth, Math.max(amplitude, 3), [2]);
+        } else {
+          ctx.rect(x, y, barWidth, Math.max(amplitude, 3));
+        }
         ctx.fill();
       }
 

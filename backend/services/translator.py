@@ -2,12 +2,24 @@ import os
 import json
 import html
 import urllib.parse
+import asyncio
 import aiohttp
 from dotenv import load_dotenv
 
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+_gemini_client = None
+
+def _get_gemini_client():
+    global _gemini_client
+    if _gemini_client is None and GEMINI_API_KEY:
+        try:
+            from google import genai
+            _gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        except Exception as e:
+            print(f"[Translator] Error initializing Gemini client: {e}")
+    return _gemini_client
 
 # Ultra-fast in-memory LRU cache for frequent conversation phrases
 _TRANSLATION_CACHE = {}
@@ -50,8 +62,8 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     if not text or not text.strip():
         return ""
     
-    src = source_lang.split("-")[0].lower()
-    tgt = target_lang.split("-")[0].lower()
+    src = str(source_lang or "te").split("-")[0].lower() or "te"
+    tgt = str(target_lang or "hi").split("-")[0].lower() or "hi"
     
     if src == tgt:
         return text
@@ -69,27 +81,36 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
             return clean
         return ""
 
-    # Option 1: Try Gemini if API key is present
+    # Option 1: Try Gemini if API key is present (non-blocking async with 3.5s timeout)
     if GEMINI_API_KEY:
-        try:
-            from google import genai
-            client = genai.Client(api_key=GEMINI_API_KEY)
-            prompt = (
-                f"You are a real-time conversational translator. Translate the following speech from "
-                f"language code '{src}' into natural conversational '{tgt}'. "
-                f"Output ONLY the translated text, with no explanations, quotes, or notes.\n\n"
-                f"Original: {text}"
-            )
-            response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt
-            )
-            if response.text and response.text.strip():
-                res = _cache_and_return(response.text)
-                if res:
-                    return res
-        except Exception as e:
-            print(f"[Translator] Gemini translation fallback due to: {e}")
+        client = _get_gemini_client()
+        if client:
+            try:
+                prompt = (
+                    f"You are a real-time conversational translator. Translate the following speech from "
+                    f"language code '{src}' into natural conversational '{tgt}'. "
+                    f"Output ONLY the translated text, with no explanations, quotes, or notes.\n\n"
+                    f"Original: {text}"
+                )
+                async def _call_gemini():
+                    if hasattr(client, "aio") and hasattr(client.aio, "models"):
+                        return await client.aio.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=prompt
+                        )
+                    return await asyncio.to_thread(
+                        client.models.generate_content,
+                        model='gemini-2.5-flash',
+                        contents=prompt
+                    )
+
+                response = await asyncio.wait_for(_call_gemini(), timeout=3.5)
+                if response and response.text and response.text.strip():
+                    res = _cache_and_return(response.text)
+                    if res:
+                        return res
+            except Exception as e:
+                print(f"[Translator] Gemini translation fallback due to: {e}")
 
     # Option 2: High-speed primary Google Translate API via client=gtx
     try:
@@ -103,10 +124,11 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
                 if resp.status == 200:
                     raw_data = await resp.text()
                     data = json.loads(raw_data)
-                    translated = "".join(part[0] for part in data[0] if part and part[0])
-                    res = _cache_and_return(translated)
-                    if res:
-                        return res
+                    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
+                        translated = "".join(part[0] for part in data[0] if isinstance(part, list) and len(part) > 0 and isinstance(part[0], str))
+                        res = _cache_and_return(translated)
+                        if res:
+                            return res
     except Exception as e:
         print(f"[Translator] Primary Google translate endpoint failed: {e}")
 
@@ -122,10 +144,11 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
                 if resp.status == 200:
                     raw_data = await resp.text()
                     data = json.loads(raw_data)
-                    translated = "".join(part[0] for part in data[0] if part and part[0])
-                    res = _cache_and_return(translated)
-                    if res:
-                        return res
+                    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
+                        translated = "".join(part[0] for part in data[0] if isinstance(part, list) and len(part) > 0 and isinstance(part[0], str))
+                        res = _cache_and_return(translated)
+                        if res:
+                            return res
     except Exception as e:
         print(f"[Translator] Secondary Google translate endpoint failed: {e}")
 
