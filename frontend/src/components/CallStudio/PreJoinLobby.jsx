@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PhoneCall, Volume2, Globe, User, ArrowRight, Sparkles, CheckCircle2, ChevronDown } from 'lucide-react';
+import { PhoneCall, Volume2, Globe, User, ArrowRight, CheckCircle2, ChevronDown } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageMeta, getLocaleStrings } from '../../utils/languages.js';
 
 export function PreJoinLobby({
@@ -37,7 +37,7 @@ export function PreJoinLobby({
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10B981]" />
               <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">
-                Universal Live Voice
+                Enterprise Voice Bridge
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">

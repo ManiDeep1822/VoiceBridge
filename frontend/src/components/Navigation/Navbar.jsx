@@ -1,5 +1,5 @@
 import React from 'react';
-import { PhoneCall, LayoutDashboard, ShieldCheck, Settings, CreditCard, Sparkles } from 'lucide-react';
+import { PhoneCall, LayoutDashboard, ShieldCheck, Settings, CreditCard } from 'lucide-react';
 
 export function Navbar({
   activeTab = 'studio',
@@ -13,28 +13,31 @@ export function Navbar({
   const isINR = currency === 'INR';
 
   return (
-    <header className="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-2 flex items-center justify-between select-none z-30 shrink-0 font-sans">
+    <header className="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-3 sm:px-4 py-2 flex items-center justify-between select-none z-30 shrink-0 font-sans">
       {/* Left: Brand Identity */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 sm:gap-6">
         <div 
-          className="flex items-center gap-3 cursor-pointer group" 
+          className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group" 
           onClick={() => onSelectTab('studio')}
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5 text-white" />
+          {/* Professional Vector SVG VoiceBridge Logo (Zero AI artifacts) */}
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 12V12.01M8 8V16M12 4V20M16 8V16M20 12V12.01" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
 
           <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-base tracking-tight text-white">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-bold text-sm sm:text-base tracking-tight text-white">
                 VoiceBridge
               </span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20">
-                Live AI
+              <span className="text-[10px] px-1.5 sm:px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-medium border border-slate-700">
+                Enterprise
               </span>
             </div>
-            <span className="text-xs text-slate-400">
-              Universal Call Translator
+            <span className="text-[11px] sm:text-xs text-slate-400">
+              Live Call Translator
             </span>
           </div>
         </div>

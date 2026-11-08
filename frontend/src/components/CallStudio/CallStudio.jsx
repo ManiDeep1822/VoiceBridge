@@ -617,9 +617,17 @@ export function CallStudio({
           </div>
         </div>
 
+        {/* Mobile Backdrop for Transcript Drawer */}
+        {showMobileChat && (
+          <div 
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 lg:hidden"
+            onClick={() => setShowMobileChat(false)}
+          />
+        )}
+
         {/* Right Sidebar: Conversation Log & Quick Phrases (Desktop & Mobile Drawer) */}
-        <div className={`w-full lg:w-96 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-slate-800 flex flex-col overflow-hidden shrink-0 ${
-          showMobileChat ? 'fixed inset-4 z-50 lg:static lg:inset-auto' : 'hidden lg:flex'
+        <div className={`w-full lg:w-96 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-slate-800 flex flex-col overflow-hidden shrink-0 ${
+          showMobileChat ? 'fixed inset-3 sm:inset-6 z-50 lg:static lg:inset-auto shadow-2xl' : 'hidden lg:flex'
         }`}>
           <div className="p-3.5 border-b border-slate-800 flex items-center justify-between">
             <span className="font-bold text-sm text-white flex items-center gap-2">

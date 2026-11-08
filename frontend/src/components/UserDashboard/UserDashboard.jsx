@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Clock, PhoneCall, CheckCircle2, FileText,
-  Globe, Search, Check, Sparkles, Calendar, ArrowRight
+  Globe, Search, Check, Activity, Calendar, ArrowRight
 } from 'lucide-react';
 
 export function UserDashboard({
@@ -153,7 +153,7 @@ export function UserDashboard({
         <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
           <div className="flex justify-between items-center text-xs text-slate-400">
             <span>Audio Quality</span>
-            <Sparkles className="w-4 h-4 text-amber-400" />
+            <Activity className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-2xl font-bold text-white">Studio HD</div>
           <div className="text-xs text-emerald-400 font-medium">Neural synthesis active</div>

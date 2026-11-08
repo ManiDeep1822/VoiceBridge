@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle2, Download, Copy, Check, FileText, Sparkles, UserCheck } from 'lucide-react';
+import { X, CheckCircle2, Download, Copy, Check, FileText, UserCheck } from 'lucide-react';
 
 export function MinutesDrawer({
   isOpen = false,
@@ -129,7 +129,7 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee})`).
           {!minutesData ? (
             <div className="rounded-2xl border border-slate-800 bg-slate-800/40 p-8 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 mx-auto">
-                <Sparkles className="w-6 h-6" />
+                <FileText className="w-6 h-6" />
               </div>
               <div className="text-white font-bold text-base">
                 Ready to Generate Summary

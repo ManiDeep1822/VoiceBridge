@@ -91,3 +91,45 @@ html, body, #root {
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+/* ============================================================
+   MOBILE RESPONSIVE MEDIA QUERIES (360px - 430px Viewports)
+   Strict zero-overlap, fluid flex-scaling across all devices
+   ============================================================ */
+
+/* Mobile Phones (under 640px) */
+@media (max-width: 639px) {
+  html, body, #root {
+    height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* Compact button padding on narrow mobile screens to prevent text wrap */
+  .btn-base {
+    height: 2.75rem; /* Strict 44px */
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+    font-size: 0.8125rem; /* 13px */
+  }
+
+  /* Compact touch targets on small screens */
+  .btn-base svg {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+/* Very Small Mobile Phones (Samsung Galaxy A-series, iPhone SE <= 380px) */
+@media (max-width: 380px) {
+  .btn-base {
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+    font-size: 0.75rem;
+  }
+
+  .btn-base svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+}
+

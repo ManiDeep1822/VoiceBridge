@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Radio, Play, RefreshCw, Users, User, ArrowRightLeft, Sparkles } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, Radio, Play, RefreshCw, Users, User, ArrowRightLeft, Activity } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageMeta } from '../utils/languages.js';
 
 export function CallStage({
@@ -104,7 +104,7 @@ export function CallStage({
               onClick={onSimulatePeerTurn}
               className="px-3 py-1 bg-[#16202C] hover:bg-[#1E2C3D] border border-cyan-500/50 text-cyan-300 text-xs font-telemetry uppercase flex items-center gap-1.5 transition-colors"
             >
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <Activity className="w-3.5 h-3.5 text-cyan-400" />
               Trigger Peer Response
             </button>
           </div>
