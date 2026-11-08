@@ -268,63 +268,62 @@ export function CallStudio({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0B0F17] overflow-hidden select-none font-sans text-sm">
-      {/* 1. Sleek Top Bar (Sharing & Room Indicator) */}
-      <div className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 py-2.5 flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="h-11 px-5 py-2.5 rounded-xl bg-slate-800 border border-slate-700/80 flex items-center text-sm font-medium text-slate-200">
-            <span className="text-slate-400 mr-1.5">{loc.room}:</span>
-            <span className="font-bold text-white tracking-wide">{roomId}</span>
-          </div>
+      {/* 1. Sleek Top Bar (Google Meet Style: Single Row, Zero Wrap, Compact Badges) */}
+      <div className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 shrink-0">
+        {/* Left: Room Badge */}
+        <div className="h-10 px-3 rounded-xl bg-slate-800/90 border border-slate-700/80 flex items-center text-xs font-medium text-slate-200 shrink-0">
+          <span className="text-slate-400 mr-1.5 hidden xs:inline">{loc.room}:</span>
+          <span className="font-bold text-white tracking-wide">{roomId}</span>
+        </div>
 
+        {/* Right: Uniform Actions in a Clean Row */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Quick WhatsApp Share Button */}
           <button
             onClick={handleWhatsAppShare}
-            className="btn-success h-11 px-5 py-2.5 rounded-xl font-medium text-sm shadow-sm"
+            className="btn-success h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs shadow-sm flex items-center gap-1.5"
             title="Share Call Link to WhatsApp"
           >
-            <MessageCircle className="w-4 h-4 fill-white text-white" />
+            <MessageCircle className="w-4 h-4 fill-white text-white shrink-0" />
             <span className="hidden sm:inline">WhatsApp</span>
           </button>
 
           {/* Copy Link Button */}
           <button
             onClick={handleCopyLink}
-            className="btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm"
+            className="btn-secondary h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs flex items-center gap-1.5"
             title="Copy Invite Link"
           >
-            {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-300" />}
-            <span>{copiedLink ? 'Copied' : loc.copyLink}</span>
+            {copiedLink ? <Check className="w-4 h-4 text-emerald-400 shrink-0" /> : <Copy className="w-4 h-4 text-slate-300 shrink-0" />}
+            <span className="hidden sm:inline">{copiedLink ? 'Copied' : loc.copyLink}</span>
           </button>
-        </div>
 
-        {/* Audio Output Status & Test */}
-        <div className="flex items-center gap-2">
+          {/* Audio Output Status & Test */}
           {!audioUnlocked ? (
             <button
               onClick={onUnlockAudio}
-              className="btn-danger h-11 px-5 py-2.5 rounded-xl font-semibold text-sm animate-pulse"
+              className="btn-danger h-10 px-3 sm:px-4 py-2 rounded-xl font-semibold text-xs animate-pulse flex items-center gap-1.5"
             >
-              <Volume2 className="w-4 h-4" />
-              <span>Enable Speaker</span>
+              <Volume2 className="w-4 h-4 shrink-0" />
+              <span className="hidden xs:inline">Speaker</span>
             </button>
           ) : (
             <button
               onClick={onTestSpeaker}
-              className="btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm hidden sm:flex"
+              className="btn-secondary h-10 px-3 py-2 rounded-xl font-medium text-xs hidden sm:flex items-center gap-1.5"
               title="Test speaker output"
             >
               <Volume2 className="w-4 h-4 text-slate-300" />
-              <span>{loc.testSound}</span>
             </button>
           )}
 
           {/* Mobile Conversation Drawer Toggle */}
           <button
             onClick={() => setShowMobileChat(prev => !prev)}
-            className="btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm lg:hidden"
+            className="btn-secondary h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs flex items-center gap-1.5 lg:hidden"
             title="Toggle Transcript & Messages"
           >
-            <MessageSquare className="w-4 h-4 text-slate-300" />
+            <MessageSquare className="w-4 h-4 text-slate-300 shrink-0" />
             <span>Chat</span>
           </button>
         </div>
@@ -365,28 +364,27 @@ export function CallStudio({
           {/* Dual Calling Stage Cards */}
           <div className="grid grid-cols-2 gap-2.5 sm:gap-4 flex-1 min-h-0">
             {/* CALLER 1: YOU */}
-            <div className={`rounded-2xl p-3 sm:p-5 flex flex-col justify-between relative transition-all duration-200 ${
+            <div className={`rounded-2xl p-3 sm:p-5 flex flex-col justify-between relative transition-all duration-200 overflow-hidden ${
               isListening
                 ? 'bg-slate-900 border-2 border-red-500/80 shadow-2xl shadow-red-950/30'
                 : 'bg-slate-900/80 border border-slate-800'
             }`}>
               {/* Card Header */}
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-3 gap-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className={`w-2.5 h-2.5 shrink-0 rounded-full ${isListening ? 'bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444]' : 'bg-emerald-400'}`} />
-                  <span className="font-bold text-xs sm:text-base text-white truncate">{userName} ({loc.you})</span>
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-3 gap-1 overflow-hidden">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <div className={`w-2 h-2 shrink-0 rounded-full ${isListening ? 'bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444]' : 'bg-emerald-400'}`} />
+                  <span className="font-bold text-xs sm:text-sm text-white truncate">{userName} ({loc.you})</span>
                 </div>
 
-                <div className="h-8 sm:h-9 px-2 sm:px-3 rounded-lg bg-slate-800/90 border border-slate-700/80 flex items-center text-[11px] sm:text-xs text-white shrink-0">
-                  <span className="text-slate-400 mr-1.5 hidden sm:inline">Lang:</span>
+                <div className="h-7 px-2 rounded-lg bg-slate-800 border border-slate-700/80 flex items-center text-[11px] text-white shrink-0 max-w-[85px] sm:max-w-none">
                   <select
                     value={localLanguage}
                     onChange={(e) => onLocalLanguageChange(e.target.value)}
-                    className="bg-transparent text-blue-400 font-bold focus:outline-none cursor-pointer"
+                    className="bg-transparent text-blue-400 font-bold focus:outline-none cursor-pointer w-full truncate"
                   >
                     {SUPPORTED_LANGUAGES.map((l) => (
                       <option key={l.code} value={l.code} className="bg-slate-900 text-white">
-                        {l.native} ({l.name})
+                        {l.name}
                       </option>
                     ))}
                   </select>
@@ -428,20 +426,20 @@ export function CallStudio({
 
             {/* CALLER 2: REMOTE PEER */}
             {isPeerConnected ? (
-              <div className={`rounded-2xl p-3 sm:p-5 flex flex-col justify-between relative transition-all duration-200 ${
+              <div className={`rounded-2xl p-3 sm:p-5 flex flex-col justify-between relative transition-all duration-200 overflow-hidden ${
                 isPeerSpeaking
                   ? 'bg-slate-900 border-2 border-amber-500/80 shadow-2xl shadow-amber-950/30'
                   : 'bg-slate-900/80 border border-slate-800'
               }`}>
                 {/* Peer Header */}
-                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-3 gap-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-2.5 h-2.5 shrink-0 rounded-full ${isPeerSpeaking ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]' : 'bg-emerald-400'}`} />
-                    <span className="font-bold text-xs sm:text-base text-white truncate">{peerDisplayName}</span>
+                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-3 gap-1 overflow-hidden">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <div className={`w-2 h-2 shrink-0 rounded-full ${isPeerSpeaking ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]' : 'bg-emerald-400'}`} />
+                    <span className="font-bold text-xs sm:text-sm text-white truncate">{peerDisplayName}</span>
                   </div>
 
-                  <span className="h-8 sm:h-9 px-2 sm:px-3 rounded-lg bg-slate-800/90 border border-slate-700/80 flex items-center text-[11px] sm:text-xs font-bold text-emerald-400 shrink-0">
-                    {remoteMeta.native}
+                  <span className="h-7 px-2 rounded-lg bg-slate-800 border border-slate-700/80 flex items-center text-[11px] font-bold text-emerald-400 shrink-0">
+                    {remoteMeta.name}
                   </span>
                 </div>
 
@@ -475,7 +473,7 @@ export function CallStudio({
               </div>
             ) : (
               /* Waiting Card */
-              <div className="rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/40 p-3 sm:p-5 flex flex-col justify-between items-center text-center">
+              <div className="rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/40 p-3 sm:p-5 flex flex-col justify-between items-center text-center overflow-hidden">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-300 mt-2 sm:mt-4">
                   <Users className="w-6 h-6 sm:w-7 sm:h-7" />
                 </div>
@@ -492,7 +490,7 @@ export function CallStudio({
                 <div className="w-full flex flex-col sm:flex-row gap-2 pt-2 sm:pt-4 border-t border-slate-800/80">
                   <button
                     onClick={handleWhatsAppShare}
-                    className="btn-success h-11 px-3 sm:px-5 py-2.5 rounded-xl font-medium text-xs sm:text-sm flex-1"
+                    className="btn-success h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs sm:text-sm flex-1"
                   >
                     <MessageCircle className="w-4 h-4 fill-white shrink-0" />
                     <span>WhatsApp</span>
@@ -500,7 +498,7 @@ export function CallStudio({
 
                   <button
                     onClick={handleCopyLink}
-                    className="btn-secondary h-11 px-3 sm:px-5 py-2.5 rounded-xl font-medium text-xs sm:text-sm flex-1"
+                    className="btn-secondary h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs sm:text-sm flex-1"
                   >
                     <Copy className="w-4 h-4 shrink-0" />
                     <span>{copiedLink ? 'Copied' : 'Copy'}</span>
@@ -585,14 +583,13 @@ export function CallStudio({
               {/* Volume Booster Toggle */}
               <button
                 onClick={onToggleVolumeBoost}
-                className={`btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm ${
+                className={`btn-secondary h-11 px-3 sm:px-5 py-2.5 rounded-xl font-medium text-xs sm:text-sm ${
                   volumeBoost ? 'border-blue-500/80 text-blue-400 bg-blue-500/10' : ''
                 }`}
                 title="Loudspeaker Volume Booster (+6dB)"
               >
-                <Volume2 className="w-4 h-4" />
-                <span className="hidden sm:inline">+6dB:</span>
-                <span>{volumeBoost ? 'ON' : 'OFF'}</span>
+                <Volume2 className="w-4 h-4 shrink-0" />
+                <span>Boost: {volumeBoost ? 'ON' : 'OFF'}</span>
               </button>
             </div>
 

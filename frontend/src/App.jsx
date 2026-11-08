@@ -18,7 +18,13 @@ import { getLanguageMeta } from './utils/languages';
 export default function App() {
   // Navigation & View State
   const [activeTab, setActiveTab] = useState('studio'); // 'studio' | 'user-dashboard' | 'admin-dashboard'
-  const [hasJoinedMeeting, setHasJoinedMeeting] = useState(false);
+  const [hasJoinedMeeting, setHasJoinedMeeting] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('joined') === 'true';
+    }
+    return false;
+  });
 
   // Persistent User & Room Identifier
   const userIdRef = useRef(`OP-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -253,7 +259,7 @@ export default function App() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0A0A0A] text-[#FFFFFF] select-none relative overflow-hidden font-mono rounded-none-all">
+    <div className="w-full h-full flex flex-col bg-[#0B0F17] text-white select-none relative overflow-hidden font-sans">
       {!hasJoinedMeeting ? (
         /* Pre-Join Meeting Lobby (Zoom / Google Meet Style) */
         <PreJoinLobby
