@@ -45,8 +45,12 @@ export function CallStudio({
   const [typedMessage, setTypedMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const pointerStartTimeRef = useRef(0);
+  const wasListeningBeforePointerRef = useRef(false);
   const isPttPointerDownRef = useRef(false);
-  const isSpacePressedRef = useRef(false);
+
+  const spacePressStartTimeRef = useRef(0);
+  const wasListeningBeforeSpacePressRef = useRef(false);
+  const isSpaceKeyDownRef = useRef(false);
 
   // Floor Lock: When peer is transmitting or translated audio is active on loudspeaker, lock caller mic
   const isChannelBusy = isPeerSpeaking || isRemoteSpeaking;
@@ -82,7 +86,7 @@ export function CallStudio({
       const gain = ctx.createGain();
       osc.type = 'sine';
       if (isOpen) {
-        // Chirp UP (mic key down)
+        // Chirp UP (mic key down / start)
         osc.frequency.setValueAtTime(440, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(750, ctx.currentTime + 0.04);
         gain.gain.setValueAtTime(0.12, ctx.currentTime);
@@ -105,7 +109,7 @@ export function CallStudio({
     } catch (e) {}
   }, []);
 
-  // Desktop Spacebar Hotkey (Hold Spacebar to speak, release to send in 0ms)
+  // Desktop Spacebar Hotkey (Dual-Mode: Hold to talk OR Tap once to toggle hands-free)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Space' && !e.repeat) {
@@ -113,11 +117,16 @@ export function CallStudio({
         if (tag === 'input' || tag === 'textarea') return;
         if (isChannelBusyRef.current) return;
         e.preventDefault();
-        
-        isSpacePressedRef.current = true;
+
+        spacePressStartTimeRef.current = Date.now();
+        isSpaceKeyDownRef.current = true;
+
         if (!isListeningRef.current) {
+          wasListeningBeforeSpacePressRef.current = false;
           playTactileChirp(true);
           if (onStartListeningRef.current) onStartListeningRef.current();
+        } else {
+          wasListeningBeforeSpacePressRef.current = true;
         }
       }
     };
@@ -128,19 +137,31 @@ export function CallStudio({
         if (tag === 'input' || tag === 'textarea') return;
         e.preventDefault();
 
-        // Release spacebar: 100% guaranteed to stop recording and send in 0ms
-        if (isSpacePressedRef.current || isListeningRef.current) {
-          isSpacePressedRef.current = false;
+        const holdDuration = Date.now() - spacePressStartTimeRef.current;
+        const wasAlreadyListening = wasListeningBeforeSpacePressRef.current;
+        isSpaceKeyDownRef.current = false;
+
+        if (holdDuration > 250) {
+          // True Hold-to-Talk release: Immediately finalize and send in 0ms!
           playTactileChirp(false);
           if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+        } else {
+          // Quick tap:
+          if (wasAlreadyListening) {
+            // Was already recording; tap sends turn in 0ms!
+            playTactileChirp(false);
+            if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+          } else {
+            // Tapped once to start talking: leave mic open!
+          }
         }
       }
     };
 
     const handleWindowBlur = () => {
-      // If user tabs away, switches window, or loses focus while holding Spacebar or PTT: immediately stop recording
-      if (isSpacePressedRef.current || isPttPointerDownRef.current || isListeningRef.current) {
-        isSpacePressedRef.current = false;
+      // If user tabs away, switches window, or loses focus: stop recording
+      if (isSpaceKeyDownRef.current || isPttPointerDownRef.current) {
+        isSpaceKeyDownRef.current = false;
         isPttPointerDownRef.current = false;
         playTactileChirp(false);
         if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
@@ -160,7 +181,7 @@ export function CallStudio({
     };
   }, [playTactileChirp]);
 
-  // Strict Push-to-Talk (Hold button to speak, release to send in 0ms; or tap to send if already talking)
+  // Dual-Mode PTT Button (Hold to talk OR Tap once to toggle hands-free)
   const handlePttPointerDown = (e) => {
     if (isChannelBusyRef.current) return;
 
@@ -172,8 +193,11 @@ export function CallStudio({
     isPttPointerDownRef.current = true;
 
     if (!isListeningRef.current) {
+      wasListeningBeforePointerRef.current = false;
       playTactileChirp(true);
       if (onStartListeningRef.current) onStartListeningRef.current();
+    } else {
+      wasListeningBeforePointerRef.current = true;
     }
   };
 
@@ -183,14 +207,21 @@ export function CallStudio({
     } catch (err) {}
 
     const duration = Date.now() - pointerStartTimeRef.current;
-    const wasDown = isPttPointerDownRef.current;
+    const wasAlreadyListening = wasListeningBeforePointerRef.current;
     isPttPointerDownRef.current = false;
 
-    // If held for more than 250ms, release immediately stops recording and sends in 0ms!
     if (duration > 250) {
-      if (isListeningRef.current || wasDown) {
+      // True Hold-to-Talk release: Immediately finalize and send in 0ms!
+      playTactileChirp(false);
+      if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+    } else {
+      // Quick tap:
+      if (wasAlreadyListening) {
+        // Was already recording; tap sends turn in 0ms!
         playTactileChirp(false);
         if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+      } else {
+        // Tapped once to start talking: leave mic open!
       }
     }
   };
@@ -208,15 +239,7 @@ export function CallStudio({
   };
 
   const handlePttClick = (e) => {
-    if (isChannelBusyRef.current) return;
-    const duration = Date.now() - pointerStartTimeRef.current;
-    
-    // For quick tap (<= 250ms):
-    // If already speaking, tap immediately finalizes and sends!
-    if (duration <= 250 && isListeningRef.current) {
-      playTactileChirp(false);
-      if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
-    }
+    e?.preventDefault();
   };
 
   // Accessible, everyday conversational phrases for clear communication

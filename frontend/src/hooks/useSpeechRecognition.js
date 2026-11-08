@@ -8,7 +8,7 @@ export function useSpeechRecognition({
   onSpeakingStateChange,
   isDucked = false,
   silenceTimeoutMs = 0,
-  strictPushToTalk = true // Strict Push-to-Talk eliminates all silence timeout lag and ambient noise
+  strictPushToTalk = true
 }) {
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');
@@ -22,6 +22,19 @@ export function useSpeechRecognition({
   const micStreamRef = useRef(null);
   const animationFrameRef = useRef(null);
   const shouldBeListeningRef = useRef(false);
+  const isRecognizingRef = useRef(false);
+  const isStartingRef = useRef(false);
+
+  // Keep mutable callbacks in stable refs to prevent useEffect teardown loops
+  const onFinalTranscriptRef = useRef(onFinalTranscript);
+  onFinalTranscriptRef.current = onFinalTranscript;
+
+  const onInterimTranscriptRef = useRef(onInterimTranscript);
+  onInterimTranscriptRef.current = onInterimTranscript;
+
+  const onSpeakingStateChangeRef = useRef(onSpeakingStateChange);
+  onSpeakingStateChangeRef.current = onSpeakingStateChange;
+
   const isDuckedRef = useRef(isDucked);
   isDuckedRef.current = isDucked;
 
@@ -32,7 +45,7 @@ export function useSpeechRecognition({
 
   const langMeta = getLanguageMeta(language);
 
-  // Initialize Audio Meter
+  // Initialize and Maintain Audio Meter with Persistent Mic Stream
   const startAudioMeter = useCallback(async () => {
     try {
       if (!micStreamRef.current) {
@@ -54,14 +67,20 @@ export function useSpeechRecognition({
         await audioContextRef.current.resume();
       }
 
-      const source = audioContextRef.current.createMediaStreamSource(micStreamRef.current);
-      const analyser = audioContextRef.current.createAnalyser();
-      analyser.fftSize = 64;
-      analyser.smoothingTimeConstant = 0.4;
-      source.connect(analyser);
-      analyserRef.current = analyser;
+      if (!analyserRef.current) {
+        const source = audioContextRef.current.createMediaStreamSource(micStreamRef.current);
+        const analyser = audioContextRef.current.createAnalyser();
+        analyser.fftSize = 64;
+        analyser.smoothingTimeConstant = 0.4;
+        source.connect(analyser);
+        analyserRef.current = analyser;
+      }
 
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
 
       const updateMeter = () => {
         if (!analyserRef.current || !shouldBeListeningRef.current) {
@@ -93,33 +112,24 @@ export function useSpeechRecognition({
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      try {
-        audioContextRef.current.close();
-      } catch (e) {}
-      audioContextRef.current = null;
-    }
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach(t => t.stop());
-      micStreamRef.current = null;
-    }
-    analyserRef.current = null;
     setAudioLevel(0);
   }, []);
 
+  // Gracefully stop listening without killing hardware tracks or locking Web Speech API
   const stopListening = useCallback(() => {
     shouldBeListeningRef.current = false;
+    isStartingRef.current = false;
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
-    if (recognitionRef.current) {
+
+    if (recognitionRef.current && isRecognizingRef.current) {
       try {
-        // Use abort() for instantaneous 0ms audio capture termination
-        recognitionRef.current.abort();
+        recognitionRef.current.stop();
       } catch (e) {
         try {
-          recognitionRef.current.stop();
+          recognitionRef.current.abort();
         } catch (err) {}
       }
     }
@@ -129,9 +139,9 @@ export function useSpeechRecognition({
 
     if (isSpeakingBroadcastingRef.current) {
       isSpeakingBroadcastingRef.current = false;
-      if (onSpeakingStateChange) onSpeakingStateChange(false);
+      if (onSpeakingStateChangeRef.current) onSpeakingStateChangeRef.current(false);
     }
-  }, [onSpeakingStateChange, stopAudioMeter]);
+  }, [stopAudioMeter]);
 
   // Dispatch finalized turn and auto-mute mic (Captures full accumulated text or trailing interim)
   const finalizeTurn = useCallback(() => {
@@ -140,15 +150,14 @@ export function useSpeechRecognition({
     interimTextRef.current = '';
     setInterimText('');
 
-    // Cut off microphone immediately upon turn completion
     stopListening();
 
-    if (fullText && onFinalTranscript) {
-      onFinalTranscript(fullText);
+    if (fullText && onFinalTranscriptRef.current) {
+      onFinalTranscriptRef.current(fullText);
     }
-  }, [onFinalTranscript, stopListening]);
+  }, [stopListening]);
 
-  // Initialize Speech Recognition
+  // Initialize Speech Recognition ONCE or when language changes
   useEffect(() => {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
@@ -162,6 +171,12 @@ export function useSpeechRecognition({
     recognition.maxAlternatives = 1;
     recognition.lang = langMeta.stt;
 
+    recognition.onstart = () => {
+      isRecognizingRef.current = true;
+      isStartingRef.current = false;
+      setIsListening(true);
+    };
+
     recognition.onresult = (event) => {
       // Guard: If we are not actively supposed to be listening or if ducked, ignore lagging audio frames
       if (!shouldBeListeningRef.current || isDuckedRef.current) {
@@ -171,7 +186,7 @@ export function useSpeechRecognition({
       // Notify peer immediately that local user is actively transmitting
       if (!isSpeakingBroadcastingRef.current) {
         isSpeakingBroadcastingRef.current = true;
-        if (onSpeakingStateChange) onSpeakingStateChange(true);
+        if (onSpeakingStateChangeRef.current) onSpeakingStateChangeRef.current(true);
       }
 
       let currentInterim = '';
@@ -188,8 +203,8 @@ export function useSpeechRecognition({
       const activeDisplay = (accumulatedUtteranceRef.current + ' ' + currentInterim).trim();
       interimTextRef.current = activeDisplay;
       setInterimText(activeDisplay);
-      if (onInterimTranscript) {
-        onInterimTranscript(activeDisplay);
+      if (onInterimTranscriptRef.current) {
+        onInterimTranscriptRef.current(activeDisplay);
       }
 
       // Silence auto-mute is active ONLY if strictPushToTalk is explicitly turned off
@@ -204,12 +219,18 @@ export function useSpeechRecognition({
     };
 
     recognition.onerror = (event) => {
+      isStartingRef.current = false;
       if (event.error !== 'no-speech' && event.error !== 'aborted') {
         console.warn('[SpeechRec] Event error:', event.error);
+      }
+      if (event.error === 'not-allowed') {
+        setMicPermission('denied');
       }
     };
 
     recognition.onend = () => {
+      isRecognizingRef.current = false;
+      isStartingRef.current = false;
       if (shouldBeListeningRef.current) {
         try {
           recognition.start();
@@ -219,7 +240,7 @@ export function useSpeechRecognition({
         setInterimText('');
         if (isSpeakingBroadcastingRef.current) {
           isSpeakingBroadcastingRef.current = false;
-          if (onSpeakingStateChange) onSpeakingStateChange(false);
+          if (onSpeakingStateChangeRef.current) onSpeakingStateChangeRef.current(false);
         }
       }
     };
@@ -228,13 +249,30 @@ export function useSpeechRecognition({
 
     return () => {
       shouldBeListeningRef.current = false;
+      isRecognizingRef.current = false;
+      isStartingRef.current = false;
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       try {
         recognition.stop();
       } catch (e) {}
-      stopAudioMeter();
     };
-  }, [finalizeTurn, isDuckedRef, langMeta.stt, onInterimTranscript, onSpeakingStateChange, silenceTimeoutMs, stopAudioMeter, strictPushToTalk]);
+  }, [finalizeTurn, langMeta.stt, silenceTimeoutMs, strictPushToTalk]);
+
+  // Clean teardown of hardware stream only on hook unmount
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        try { audioContextRef.current.close(); } catch (e) {}
+      }
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach(t => t.stop());
+        micStreamRef.current = null;
+      }
+    };
+  }, []);
 
   const startListening = useCallback(async () => {
     if (!recognitionRef.current) return;
@@ -243,21 +281,24 @@ export function useSpeechRecognition({
     setInterimText('');
     shouldBeListeningRef.current = true;
 
-    // Immediately signal transmission start across socket
     if (!isSpeakingBroadcastingRef.current) {
       isSpeakingBroadcastingRef.current = true;
-      if (onSpeakingStateChange) onSpeakingStateChange(true);
+      if (onSpeakingStateChangeRef.current) onSpeakingStateChangeRef.current(true);
     }
 
-    try {
-      recognitionRef.current.lang = langMeta.stt;
-      recognitionRef.current.start();
-      setIsListening(true);
-      await startAudioMeter();
-    } catch (e) {
-      setIsListening(true);
+    startAudioMeter();
+
+    if (!isRecognizingRef.current && !isStartingRef.current) {
+      isStartingRef.current = true;
+      try {
+        recognitionRef.current.lang = langMeta.stt;
+        recognitionRef.current.start();
+      } catch (e) {
+        isStartingRef.current = false;
+      }
     }
-  }, [langMeta.stt, onSpeakingStateChange, startAudioMeter]);
+    setIsListening(true);
+  }, [langMeta.stt, startAudioMeter]);
 
   const toggleListening = useCallback(() => {
     if (isListening) {
