@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getLanguageMeta } from '../utils/languages.js';
+import { getProsodyParams, classifyAndPunctuateIntent } from '../utils/prosodyEngine.js';
 
 export function useSpeechSynthesis({
   onSpeechStart,
@@ -11,7 +12,7 @@ export function useSpeechSynthesis({
   const [activeVoiceName, setActiveVoiceName] = useState('');
   const [availableVoices, setAvailableVoices] = useState([]);
   const [volume, setVolume] = useState(1.0); // 0.0 to 1.0
-  const [speechRate, setSpeechRate] = useState(1.1); // 10% faster for conversational crispness
+  const [speechRate, setSpeechRate] = useState(1.05); // Constant normalized conversational pace (1.05x)
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   const audioContextRef = useRef(null);
@@ -137,7 +138,10 @@ export function useSpeechSynthesis({
 
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const { punctuatedText } = classifyAndPunctuateIntent(text, targetLang);
+    const prosody = getProsodyParams(punctuatedText);
+
+    const utterance = new SpeechSynthesisUtterance(punctuatedText);
     const voice = findBestVoice(targetLang);
     if (voice) {
       utterance.voice = voice;
@@ -146,8 +150,8 @@ export function useSpeechSynthesis({
     const meta = getLanguageMeta(targetLang);
     utterance.lang = meta.stt;
     utterance.volume = Math.min(1.0, volume);
-    utterance.rate = speechRate;
-    utterance.pitch = 1.0;
+    utterance.rate = speechRate || prosody.rate;
+    utterance.pitch = prosody.pitch;
 
     utterance.onstart = () => {
       setIsSpeaking(true);

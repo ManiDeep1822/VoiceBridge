@@ -5,6 +5,7 @@ import time
 from typing import Dict, Any, List
 from services.translator import translate_text
 from services.tts import synthesize_speech
+from services.prosody_engine import enhance_conversational_text, classify_and_punctuate_intent
 
 logger = logging.getLogger("socket_handlers")
 
@@ -267,18 +268,30 @@ def register_socket_events(sio):
             # Notify listener immediately that incoming speech is being translated
             await sio.emit("peer_incoming_speech", {"speakerId": sender["userId"]}, to=peer_sid)
 
-            # 1. Translate text immediately (< 200ms)
-            translated_text = await translate_text(original_text, source_lang, target_lang)
+            # Stage 0: Zero-latency conversational normalization & interrogative intent detection
+            enhanced_original, original_intent = enhance_conversational_text(original_text, source_lang)
+
+            # Stage 1: Fast translation (< 200ms)
+            translated_text = await translate_text(enhanced_original, source_lang, target_lang)
+
+            # Ensure translated sentence carries natural interrogative/exclamatory punctuation
+            punctuated_translated, _ = classify_and_punctuate_intent(translated_text, target_lang)
+            if original_intent == "question" and not punctuated_translated.endswith("?"):
+                punctuated_translated = punctuated_translated.rstrip(".!") + "?"
+            elif original_intent == "exclamation" and not punctuated_translated.endswith("!"):
+                punctuated_translated = punctuated_translated.rstrip(".?") + "!"
 
             # Guard: check if peer is still in room before sending subtitle
             if room_id not in rooms or peer_sid not in rooms[room_id]:
                 logger.info(f"Peer {peer_sid} left room during translation; skipping subtitle/audio emit")
                 return
 
-            # Stage 1: Deliver instant live subtitle text to listener before audio synthesis
+            # Stage 2: Deliver instant live subtitle text to listener with restored question feel
             await sio.emit("peer_incoming_text", {
                 "originalText": original_text,
-                "translatedText": translated_text,
+                "enhancedOriginal": enhanced_original,
+                "translatedText": punctuated_translated,
+                "intent": original_intent,
                 "speakerId": sender["userId"],
                 "sourceLang": source_lang,
                 "targetLang": target_lang
@@ -287,11 +300,19 @@ def register_socket_events(sio):
             # Acknowledge to speaker with live subtitle
             await sio.emit("speech_delivered", {
                 "originalText": original_text,
-                "translatedText": translated_text
+                "enhancedOriginal": enhanced_original,
+                "translatedText": punctuated_translated
             }, to=sid)
 
-            # Stage 2: Fast neural voice synthesis (+15% conversational speed)
-            audio_bytes = await synthesize_speech(translated_text, target_lang, speaker_gender, rate="+15%")
+            # Stage 3: Studio neural voice synthesis (Normalized 1.05x speed, steady baseline pitch with expressive tail inflection)
+            audio_bytes = await synthesize_speech(
+                punctuated_translated, 
+                target_lang, 
+                speaker_gender, 
+                rate="+5%", 
+                volume="+50%",
+                pitch="+0Hz"
+            )
 
             # Guard: check again if peer is still in room before sending audio
             if room_id not in rooms or peer_sid not in rooms[room_id]:
@@ -304,8 +325,8 @@ def register_socket_events(sio):
                 # Deliver accelerated translated speech audio to peer
                 await sio.emit("translated_audio", {
                     "audioBase64": audio_base64,
-                    "translatedText": translated_text,
-                    "originalText": original_text,
+                    "translatedText": punctuated_translated,
+                    "originalText": enhanced_original,
                     "sourceLang": source_lang,
                     "targetLang": target_lang,
                     "speakerId": sender["userId"]

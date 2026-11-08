@@ -57,12 +57,13 @@ async def synthesize_speech(
     text: str, 
     target_lang: str, 
     gender: str = "female", 
-    rate: str = "+15%", 
-    volume: str = "+50%"
+    rate: str = "+5%", 
+    volume: str = "+50%",
+    pitch: str = "+0Hz"
 ) -> bytes:
     """
     Synthesizes text into high-definition audio bytes (MP3 format).
-    Primary: Microsoft Edge Neural TTS (+15% rate).
+    Primary: Microsoft Edge Neural TTS (normalized conversational rate +5%, baseline pitch +0Hz, volume +50%).
     Fallback: Google gTTS.
     """
     if not text or not str(text).strip():
@@ -76,7 +77,7 @@ async def synthesize_speech(
 
     # 1. Primary: Microsoft Edge Neural TTS
     async def _stream_edge():
-        communicate = edge_tts.Communicate(clean_text, voice=voice, rate=rate, volume=volume)
+        communicate = edge_tts.Communicate(clean_text, voice=voice, rate=rate, volume=volume, pitch=pitch)
         audio_chunks = []
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
