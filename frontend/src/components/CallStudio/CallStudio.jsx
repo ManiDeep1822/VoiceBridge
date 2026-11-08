@@ -5,6 +5,7 @@ import {
   Lock, Radio, VolumeX, MessageSquare
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageMeta, getLocaleStrings } from '../../utils/languages.js';
+import { CallerAvatar } from './CallerAvatar.jsx';
 
 export function CallStudio({
   roomId = 'VOX-ROOM-101',
@@ -362,22 +363,22 @@ export function CallStudio({
         {/* Left Calling Bay */}
         <div className="flex-1 flex flex-col justify-between gap-3 overflow-y-auto">
           {/* Dual Calling Stage Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 flex-1 min-h-[300px]">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 flex-1 min-h-0">
             {/* CALLER 1: YOU */}
-            <div className={`rounded-2xl p-4 sm:p-6 flex flex-col justify-between relative transition-all duration-200 ${
+            <div className={`rounded-2xl p-3 sm:p-5 flex flex-col justify-between relative transition-all duration-200 ${
               isListening
                 ? 'bg-slate-900 border-2 border-red-500/80 shadow-2xl shadow-red-950/30'
                 : 'bg-slate-900/80 border border-slate-800'
             }`}>
               {/* Card Header */}
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-3 h-3 rounded-full ${isListening ? 'bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444]' : 'bg-emerald-400'}`} />
-                  <span className="font-bold text-base text-white">{userName} ({loc.you})</span>
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-3 gap-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={`w-2.5 h-2.5 shrink-0 rounded-full ${isListening ? 'bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444]' : 'bg-emerald-400'}`} />
+                  <span className="font-bold text-xs sm:text-base text-white truncate">{userName} ({loc.you})</span>
                 </div>
 
-                <div className="h-9 px-3 rounded-lg bg-slate-800 border border-slate-700 flex items-center text-xs text-white">
-                  <span className="text-slate-400 mr-2">Language:</span>
+                <div className="h-8 sm:h-9 px-2 sm:px-3 rounded-lg bg-slate-800/90 border border-slate-700/80 flex items-center text-[11px] sm:text-xs text-white shrink-0">
+                  <span className="text-slate-400 mr-1.5 hidden sm:inline">Lang:</span>
                   <select
                     value={localLanguage}
                     onChange={(e) => onLocalLanguageChange(e.target.value)}
@@ -393,43 +394,32 @@ export function CallStudio({
               </div>
 
               {/* Center Calling Avatar & Waveform */}
-              <div className="flex-1 flex flex-col items-center justify-center my-6">
-                <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center transition-all duration-200 relative ${
-                  isListening
-                    ? 'bg-red-500/10 border-2 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.25)]'
-                    : 'bg-slate-800 border-2 border-slate-700'
-                }`}>
-                  <Mic className={`w-10 h-10 ${isListening ? 'text-red-400 animate-pulse' : 'text-slate-300'}`} />
-                  {isListening && (
-                    <span className="absolute -bottom-2 text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white px-2.5 py-0.5 rounded-full shadow-md">
-                      Speaking
-                    </span>
-                  )}
-                </div>
+              <div className="flex-1 flex flex-col items-center justify-center my-2 sm:my-4">
+                <CallerAvatar isLocal={true} isSpeaking={isListening} />
 
-                <div className="mt-4 text-center">
-                  <div className="text-base font-bold text-white">
+                <div className="mt-2.5 sm:mt-3 text-center">
+                  <div className="text-xs sm:text-base font-bold text-white">
                     {localMeta.native}
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">
-                    {isListening ? `Transmitting speech (${localAudioLevel}%)` : 'Microphone ready'}
+                  <div className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
+                    {isListening ? `Speaking (${localAudioLevel}%)` : 'Ready to talk'}
                   </div>
                 </div>
               </div>
 
               {/* Desktop Subtitle Deck (Inside Card) */}
-              <div className="hidden lg:flex rounded-xl bg-slate-950/80 border border-slate-800 p-3.5 min-h-[80px] flex-col justify-center">
+              <div className="hidden lg:flex rounded-xl bg-slate-950/80 border border-slate-800 p-3 min-h-[75px] flex-col justify-center">
                 {localInterim ? (
-                  <p className="text-base font-bold text-white leading-normal">
+                  <p className="text-sm font-bold text-white leading-normal">
                     "{localInterim}"
                   </p>
                 ) : latestLocalOriginal ? (
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-white">"{latestLocalOriginal}"</p>
-                    <p className="text-xs text-emerald-400">Translated to {remoteMeta.native}: "{latestLocalTranslated}"</p>
+                    <p className="text-xs font-semibold text-white">"{latestLocalOriginal}"</p>
+                    <p className="text-[11px] text-emerald-400">Translated to {remoteMeta.native}: "{latestLocalTranslated}"</p>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400 italic">
+                  <p className="text-[11px] text-slate-400 italic">
                     {loc.pttHelper}
                   </p>
                 )}
@@ -438,57 +428,46 @@ export function CallStudio({
 
             {/* CALLER 2: REMOTE PEER */}
             {isPeerConnected ? (
-              <div className={`rounded-2xl p-4 sm:p-6 flex flex-col justify-between relative transition-all duration-200 ${
+              <div className={`rounded-2xl p-3 sm:p-5 flex flex-col justify-between relative transition-all duration-200 ${
                 isPeerSpeaking
                   ? 'bg-slate-900 border-2 border-amber-500/80 shadow-2xl shadow-amber-950/30'
                   : 'bg-slate-900/80 border border-slate-800'
               }`}>
                 {/* Peer Header */}
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-3 h-3 rounded-full ${isPeerSpeaking ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]' : 'bg-emerald-400'}`} />
-                    <span className="font-bold text-base text-white">{peerDisplayName}</span>
+                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-3 gap-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-2.5 h-2.5 shrink-0 rounded-full ${isPeerSpeaking ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]' : 'bg-emerald-400'}`} />
+                    <span className="font-bold text-xs sm:text-base text-white truncate">{peerDisplayName}</span>
                   </div>
 
-                  <span className="h-9 px-3 rounded-lg bg-slate-800 border border-slate-700 flex items-center text-xs font-bold text-emerald-400">
+                  <span className="h-8 sm:h-9 px-2 sm:px-3 rounded-lg bg-slate-800/90 border border-slate-700/80 flex items-center text-[11px] sm:text-xs font-bold text-emerald-400 shrink-0">
                     {remoteMeta.native}
                   </span>
                 </div>
 
                 {/* Peer Central Visual */}
-                <div className="flex-1 flex flex-col items-center justify-center my-6">
-                  <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center transition-all duration-200 relative ${
-                    isPeerSpeaking || isRemoteSpeaking
-                      ? 'bg-amber-500/10 border-2 border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.25)]'
-                      : 'bg-slate-800 border-2 border-slate-700'
-                  }`}>
-                    <Volume2 className={`w-10 h-10 ${isPeerSpeaking || isRemoteSpeaking ? 'text-amber-400 animate-pulse' : 'text-slate-300'}`} />
-                    {(isPeerSpeaking || isRemoteSpeaking) && (
-                      <span className="absolute -bottom-2 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-slate-950 px-2.5 py-0.5 rounded-full shadow-md">
-                        {isPeerSpeaking ? 'Talking' : 'Playing Voice'}
-                      </span>
-                    )}
-                  </div>
+                <div className="flex-1 flex flex-col items-center justify-center my-2 sm:my-4">
+                  <CallerAvatar isLocal={false} isSpeaking={isPeerSpeaking || isRemoteSpeaking} />
 
-                  <div className="mt-4 text-center">
-                    <div className="text-base font-bold text-white">
+                  <div className="mt-2.5 sm:mt-3 text-center">
+                    <div className="text-xs sm:text-base font-bold text-white">
                       {remoteMeta.native}
                     </div>
-                    <div className="text-xs text-slate-400 mt-1">
-                      {isPeerSpeaking ? 'Speaking in native tongue...' : isRemoteSpeaking ? 'Playing translated speech' : 'Loudspeaker active'}
+                    <div className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
+                      {isPeerSpeaking ? 'Speaking in native...' : isRemoteSpeaking ? 'Playing translation' : 'Loudspeaker active'}
                     </div>
                   </div>
                 </div>
 
                 {/* Desktop Subtitle Deck (Peer Card) */}
-                <div className="hidden lg:flex rounded-xl bg-slate-950/80 border border-slate-800 p-3.5 min-h-[80px] flex-col justify-center">
+                <div className="hidden lg:flex rounded-xl bg-slate-950/80 border border-slate-800 p-3 min-h-[75px] flex-col justify-center">
                   {latestRemoteTranslated ? (
                     <div className="space-y-1">
-                      <p className="text-base font-bold text-emerald-400">"{latestRemoteTranslated}"</p>
-                      <p className="text-xs text-slate-400">Original: "{latestRemoteOriginal}"</p>
+                      <p className="text-sm font-bold text-emerald-400">"{latestRemoteTranslated}"</p>
+                      <p className="text-[11px] text-slate-400">Original: "{latestRemoteOriginal}"</p>
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-400 italic">
+                    <p className="text-[11px] text-slate-400 italic">
                       When {peerDisplayName} speaks, words will translate into {localMeta.native} instantly.
                     </p>
                   )}
@@ -496,35 +475,35 @@ export function CallStudio({
               </div>
             ) : (
               /* Waiting Card */
-              <div className="rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/40 p-6 flex flex-col justify-between items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-300 mt-4">
-                  <Users className="w-8 h-8" />
+              <div className="rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/40 p-3 sm:p-5 flex flex-col justify-between items-center text-center">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-300 mt-2 sm:mt-4">
+                  <Users className="w-6 h-6 sm:w-7 sm:h-7" />
                 </div>
 
-                <div className="space-y-2 max-w-sm my-4">
-                  <h3 className="text-lg font-bold text-white">
-                    Share Link to Connect Call
+                <div className="space-y-1.5 max-w-sm my-2 sm:my-4">
+                  <h3 className="text-xs sm:text-base font-bold text-white">
+                    Share Link to Connect
                   </h3>
-                  <p className="text-xs text-slate-400">
-                    Invite the other person to join this room. Real-time translation starts automatically once connected.
+                  <p className="text-[10px] sm:text-xs text-slate-400 line-clamp-2 sm:line-clamp-none">
+                    Invite remote caller. Real-time translation starts automatically once connected.
                   </p>
                 </div>
 
-                <div className="w-full flex flex-col sm:flex-row gap-2.5 pt-4 border-t border-slate-800/80">
+                <div className="w-full flex flex-col sm:flex-row gap-2 pt-2 sm:pt-4 border-t border-slate-800/80">
                   <button
                     onClick={handleWhatsAppShare}
-                    className="btn-success h-11 px-5 py-2.5 rounded-xl font-medium text-sm flex-1"
+                    className="btn-success h-11 px-3 sm:px-5 py-2.5 rounded-xl font-medium text-xs sm:text-sm flex-1"
                   >
-                    <MessageCircle className="w-4 h-4 fill-white" />
-                    <span>Share on WhatsApp</span>
+                    <MessageCircle className="w-4 h-4 fill-white shrink-0" />
+                    <span>WhatsApp</span>
                   </button>
 
                   <button
                     onClick={handleCopyLink}
-                    className="btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm flex-1"
+                    className="btn-secondary h-11 px-3 sm:px-5 py-2.5 rounded-xl font-medium text-xs sm:text-sm flex-1"
                   >
-                    <Copy className="w-4 h-4" />
-                    <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
+                    <Copy className="w-4 h-4 shrink-0" />
+                    <span>{copiedLink ? 'Copied' : 'Copy'}</span>
                   </button>
                 </div>
               </div>
@@ -532,14 +511,14 @@ export function CallStudio({
           </div>
 
           {/* UNIQUE MOBILE FLOATING SUBTITLE ISLAND (Dynamic Pill Island) */}
-          <div className="lg:hidden w-full rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 p-4 shadow-2xl flex flex-col justify-center min-h-[90px]">
+          <div className="lg:hidden w-full rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 p-3.5 sm:p-4 shadow-2xl flex flex-col justify-center min-h-[80px]">
             {isListening && localInterim ? (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-red-400">
                   <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
                   <span>You are speaking:</span>
                 </div>
-                <p className="text-base font-bold text-white leading-snug">
+                <p className="text-sm sm:text-base font-bold text-white leading-snug">
                   "{localInterim}"
                 </p>
               </div>
@@ -549,14 +528,14 @@ export function CallStudio({
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>{peerDisplayName} (Translated):</span>
                 </div>
-                <p className="text-base font-bold text-emerald-400 leading-snug">
+                <p className="text-sm sm:text-base font-bold text-emerald-400 leading-snug">
                   "{latestRemoteTranslated}"
                 </p>
               </div>
             ) : latestLocalOriginal ? (
               <div className="space-y-1">
                 <p className="text-xs text-slate-400">Last spoken: "{latestLocalOriginal}"</p>
-                <p className="text-sm font-semibold text-emerald-400">Translated: "{latestLocalTranslated}"</p>
+                <p className="text-xs sm:text-sm font-semibold text-emerald-400">Translated: "{latestLocalTranslated}"</p>
               </div>
             ) : (
               <div className="text-center text-xs text-slate-400 py-1">
@@ -567,9 +546,9 @@ export function CallStudio({
           </div>
 
           {/* Unified Bottom Dock (Standardized Button Sizing) */}
-          <div className="rounded-2xl bg-slate-900/90 backdrop-blur-md border border-slate-800 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="rounded-2xl bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2.5 sm:p-4 flex flex-wrap items-center justify-between gap-2 sm:gap-3 shrink-0">
             {/* Primary PTT Button */}
-            <div className="w-full sm:w-auto flex-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div className="w-full sm:w-auto flex-1 flex items-stretch sm:items-center gap-2">
               <button
                 type="button"
                 disabled={isChannelBusy}
@@ -577,7 +556,7 @@ export function CallStudio({
                 onPointerUp={handlePttPointerUp}
                 onPointerCancel={handlePttPointerCancel}
                 onClick={handlePttClick}
-                className={`btn-base h-12 px-6 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg ${
+                className={`btn-base flex-1 sm:flex-none h-11 px-5 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg ${
                   isChannelBusy
                     ? 'bg-amber-500/10 text-amber-400 border border-amber-500/40 cursor-not-allowed opacity-80'
                     : isListening
@@ -587,17 +566,17 @@ export function CallStudio({
               >
                 {isChannelBusy ? (
                   <>
-                    <Lock className="w-5 h-5 text-amber-400" />
+                    <Lock className="w-4 h-4 text-amber-400" />
                     <span>{loc.channelBusy}</span>
                   </>
                 ) : isListening ? (
                   <>
-                    <Mic className="w-5 h-5 text-white" />
+                    <Mic className="w-4 h-4 text-white" />
                     <span>{loc.tapWhenDone}</span>
                   </>
                 ) : (
                   <>
-                    <Mic className="w-5 h-5 text-white" />
+                    <Mic className="w-4 h-4 text-white" />
                     <span>{loc.tapToSpeak}</span>
                   </>
                 )}
@@ -612,15 +591,16 @@ export function CallStudio({
                 title="Loudspeaker Volume Booster (+6dB)"
               >
                 <Volume2 className="w-4 h-4" />
-                <span>+6dB Boost: {volumeBoost ? 'ON' : 'OFF'}</span>
+                <span className="hidden sm:inline">+6dB:</span>
+                <span>{volumeBoost ? 'ON' : 'OFF'}</span>
               </button>
             </div>
 
             {/* End Call & Fast Actions */}
-            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               <button
                 onClick={onOpenMinutes}
-                className="btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm"
+                className="btn-secondary flex-1 sm:flex-none h-11 px-5 py-2.5 rounded-xl font-medium text-sm"
               >
                 <FileText className="w-4 h-4" />
                 <span>Minutes</span>
@@ -628,10 +608,10 @@ export function CallStudio({
 
               <button
                 onClick={onDisconnect}
-                className="btn-danger h-11 px-5 py-2.5 rounded-xl font-semibold text-sm"
+                className="btn-danger flex-1 sm:flex-none h-11 px-5 py-2.5 rounded-xl font-semibold text-sm"
               >
                 <PhoneOff className="w-4 h-4" />
-                <span>Leave Call</span>
+                <span>Leave</span>
               </button>
             </div>
           </div>

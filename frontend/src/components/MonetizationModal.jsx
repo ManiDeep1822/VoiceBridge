@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, Shield, FileText, BookOpen, CreditCard, Cpu } from 'lucide-react';
+import { X, Check, Shield, FileText, BookOpen, CreditCard, Cpu, Building2 } from 'lucide-react';
 
 export function MonetizationModal({
   isOpen = false,
@@ -40,111 +40,115 @@ export function MonetizationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/90 select-none font-mono text-xs">
-      <div className="bg-[#111111] border border-[#262626] w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-md select-none font-sans text-sm">
+      <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden relative">
         {/* Header */}
-        <div className="bg-[#161616] border-b border-[#262626] px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-[#E61919]" />
-            <span className="font-bold text-white uppercase tracking-wider text-xs">
-              [ CORPORATE PROCUREMENT // LICENSING MATRIX ]
-            </span>
-            <span className="text-[9px] border border-[#333333] bg-[#0E0E0E] text-[#A1A1AA] px-1.5 py-0.2">
-              GST COMPLIANT
-            </span>
+        <div className="bg-slate-800/60 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+              <CreditCard className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-white">
+                Plans & Licensing
+              </h3>
+              <p className="text-xs text-slate-400">
+                Choose the best plan for individuals and enterprise teams
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={onToggleCurrency}
-              className="border border-[#333333] hover:border-white bg-[#0E0E0E] hover:bg-white hover:text-black text-white px-2 py-0.5 text-[10px] uppercase transition-colors"
+              className="btn-secondary h-9 px-3 rounded-lg text-xs font-medium"
             >
-              <span>[ CURRENCY: {currency} ({isINR ? '₹ INR' : '$ USD'}) ]</span>
+              <span>{isINR ? '₹ INR' : '$ USD'}</span>
             </button>
 
             <button
               onClick={onClose}
-              className="border border-[#262626] hover:border-white p-1 text-[#A1A1AA] hover:text-white"
+              className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-4">
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-5">
           {checkoutSuccess && (
-            <div className="border border-[#39FF14] bg-[#0E1F12] text-white p-2.5 text-center flex items-center justify-center gap-2 uppercase font-bold text-xs">
-              <Check className="w-4 h-4 text-[#39FF14]" />
-              <span>[ TIER ACTIVATED: LICENSING TOKENS INJECTED INTO RUNTIME SESSION ]</span>
+            <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 p-3.5 text-center flex items-center justify-center gap-2 font-semibold text-sm">
+              <Check className="w-5 h-5 text-emerald-400" />
+              <span>Plan activated successfully! Features unlocked for this session.</span>
             </div>
           )}
 
           {/* Billing Interval Toggle */}
           <div className="flex justify-center">
-            <div className="border border-[#262626] bg-[#0E0E0E] p-0.5 flex items-center">
+            <div className="rounded-xl border border-slate-700 bg-slate-800/80 p-1 flex items-center">
               <button
                 onClick={() => setSelectedBillingCycle('monthly')}
-                className={`px-3 py-1 uppercase text-[10px] font-bold transition-colors ${
+                className={`h-9 px-4 rounded-lg text-xs font-semibold transition-colors ${
                   selectedBillingCycle === 'monthly'
-                    ? 'bg-white text-black'
-                    : 'text-[#A1A1AA] hover:text-white'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
                 }`}
               >
-                MONTHLY BILLING
+                Monthly
               </button>
               <button
                 onClick={() => setSelectedBillingCycle('annual')}
-                className={`px-3 py-1 uppercase text-[10px] font-bold transition-colors ${
+                className={`h-9 px-4 rounded-lg text-xs font-semibold transition-colors ${
                   selectedBillingCycle === 'annual'
-                    ? 'bg-white text-black'
-                    : 'text-[#A1A1AA] hover:text-white'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
                 }`}
               >
-                ANNUAL BILLING (-20%)
+                Annual (Save 20%)
               </button>
             </div>
           </div>
 
-          {/* Pricing Matrix */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* TIER 01: COMMUNITY */}
-            <div className="border border-[#262626] bg-[#141414] p-4 flex flex-col justify-between space-y-4">
+          {/* Pricing Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* TIER 1: COMMUNITY / FREE */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-800/40 p-5 flex flex-col justify-between space-y-4">
               <div>
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-bold text-[#A1A1AA] uppercase">[01] COMMUNITY</span>
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Community</span>
                   {activeTier === 'free' && (
-                    <span className="text-[9px] border border-[#333333] bg-[#0E0E0E] text-white px-1.5 py-0.2">
-                      CURRENT
+                    <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                      Active
                     </span>
                   )}
                 </div>
 
                 <div className="mb-2">
-                  <span className="text-2xl font-black text-white font-sans">{symbol}0</span>
-                  <span className="text-[10px] text-[#71717A] ml-1">/ LIFETIME</span>
+                  <span className="text-3xl font-extrabold text-white">{symbol}0</span>
+                  <span className="text-xs text-slate-400 ml-1">/ forever</span>
                 </div>
 
-                <p className="text-[11px] text-[#71717A] leading-normal mb-3">
-                  Zero-cost browser-native speech translation with basic vocabulary support.
+                <p className="text-xs text-slate-400 leading-normal mb-4">
+                  Free browser-based live voice translation for personal and casual calls.
                 </p>
 
-                <div className="space-y-1.5 text-[10px] text-[#A1A1AA]">
-                  <div className="flex items-center gap-1.5 text-white">
-                    <Check className="w-3.5 h-3.5 text-white shrink-0" />
-                    <span>Unlimited 2-Way P2P Calls</span>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-slate-200">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Unlimited 2-Way Calls</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-white">
-                    <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <div className="flex items-center gap-2 text-slate-200">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>45+ Core Languages</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[#52525B]">
-                    <X className="w-3.5 h-3.5 shrink-0" />
-                    <span>AI Executive Meeting Minutes</span>
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <X className="w-4 h-4 shrink-0" />
+                    <span>AI Meeting Minutes</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[#52525B]">
-                    <X className="w-3.5 h-3.5 shrink-0" />
-                    <span>Industry Domain Glossaries</span>
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <X className="w-4 h-4 shrink-0" />
+                    <span>Domain Glossaries</span>
                   </div>
                 </div>
               </div>
@@ -152,118 +156,129 @@ export function MonetizationModal({
               <button
                 onClick={() => handleActivate('free')}
                 disabled={activeTier === 'free'}
-                className="w-full py-2 border border-[#333333] hover:border-white bg-[#0E0E0E] hover:bg-white hover:text-black disabled:opacity-40 text-white font-bold text-[10px] uppercase transition-colors"
+                className="btn-secondary w-full h-11 px-5 py-2.5 rounded-xl text-sm font-medium"
               >
-                {activeTier === 'free' ? '[ ACTIVE PLAN ]' : '[ SELECT FREE ]'}
+                {activeTier === 'free' ? 'Current Plan' : 'Select Free'}
               </button>
             </div>
 
-            {/* TIER 02: PRO INDUSTRIAL */}
-            <div className="border border-white bg-[#141414] p-4 flex flex-col justify-between space-y-4 relative">
-              <div className="absolute top-0 right-0 bg-white text-black font-black text-[9px] px-2 py-0.5 uppercase">
-                RECOMMENDED
+            {/* TIER 2: PRO */}
+            <div className="rounded-2xl border-2 border-blue-500 bg-slate-800/80 p-5 flex flex-col justify-between space-y-4 relative shadow-xl shadow-blue-950/30">
+              <div className="absolute -top-3 right-4 bg-blue-600 text-white font-bold text-[11px] px-2.5 py-0.5 rounded-full shadow-md">
+                Popular
               </div>
 
               <div>
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-bold text-white uppercase">[02] PRO INDUSTRIAL</span>
+                  <span className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Professional</span>
+                  {activeTier === 'pro' && (
+                    <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                      Active
+                    </span>
+                  )}
                 </div>
 
                 <div className="mb-2">
-                  <span className="text-2xl font-black text-white font-sans">
+                  <span className="text-3xl font-extrabold text-white">
                     {symbol}{pricing.pro[selectedBillingCycle].toLocaleString()}
                   </span>
-                  <span className="text-[10px] text-[#71717A] ml-1">/ MONTH</span>
+                  <span className="text-xs text-slate-400 ml-1">/ month</span>
                 </div>
 
-                <p className="text-[11px] text-[#A1A1AA] leading-normal mb-3">
-                  Engineered for commercial teams, executive negotiations, and compliance audits.
+                <p className="text-xs text-slate-300 leading-normal mb-4">
+                  For cross-border business calls, international clients, and negotiations.
                 </p>
 
-                <div className="space-y-1.5 text-[10px] text-white">
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-white shrink-0" />
-                    <span>FEATURE 01: AI Executive Minutes</span>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-slate-100">
+                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <span>AI Executive Minutes & Summary</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-white shrink-0" />
-                    <span>FEATURE 02: Jargon Lock (6 Domains)</span>
+                  <div className="flex items-center gap-2 text-slate-100">
+                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <span>Jargon Lock (6 Industry Sectors)</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-white shrink-0" />
-                    <span>Hardware +6dB Loudspeaker Boost</span>
+                  <div className="flex items-center gap-2 text-slate-100">
+                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <span>+6dB Loudspeaker Volume Booster</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-white shrink-0" />
-                    <span>Sub-150ms High-Priority Route</span>
+                  <div className="flex items-center gap-2 text-slate-100">
+                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <span>Priority Low-Latency Route</span>
                   </div>
                 </div>
               </div>
 
               <button
                 onClick={() => handleActivate('pro')}
-                className="w-full py-2 border border-white bg-white hover:bg-[#E5E5E5] text-black font-bold text-[10px] uppercase transition-colors cursor-pointer"
+                className="btn-primary w-full h-11 px-5 py-2.5 rounded-xl text-sm font-semibold"
               >
-                {activeTier === 'pro' ? '[ ACTIVE PLAN ]' : '[ PROVISION PRO INDUSTRIAL ]'}
+                {activeTier === 'pro' ? 'Current Plan' : 'Upgrade to Pro'}
               </button>
             </div>
 
-            {/* TIER 03: ENTERPRISE GLOBAL */}
-            <div className="border border-[#262626] bg-[#141414] p-4 flex flex-col justify-between space-y-4">
+            {/* TIER 3: ENTERPRISE */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-800/40 p-5 flex flex-col justify-between space-y-4">
               <div>
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-bold text-[#A1A1AA] uppercase">[03] ENTERPRISE GLOBAL</span>
+                  <span className="text-xs font-semibold text-purple-400 uppercase tracking-wide">Enterprise</span>
+                  {activeTier === 'enterprise' && (
+                    <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                      Active
+                    </span>
+                  )}
                 </div>
 
                 <div className="mb-2">
-                  <span className="text-2xl font-black text-white font-sans">
+                  <span className="text-3xl font-extrabold text-white">
                     {symbol}{pricing.enterprise[selectedBillingCycle].toLocaleString()}
                   </span>
-                  <span className="text-[10px] text-[#71717A] ml-1">/ MONTH</span>
+                  <span className="text-xs text-slate-400 ml-1">/ month</span>
                 </div>
 
-                <p className="text-[11px] text-[#71717A] leading-normal mb-3">
-                  Multi-seat deployment for multinational enterprises with dedicated cluster nodes.
+                <p className="text-xs text-slate-400 leading-normal mb-4">
+                  Multi-seat enterprise solution with compliance, dedicated servers, and custom SLAs.
                 </p>
 
-                <div className="space-y-1.5 text-[10px] text-white">
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-white shrink-0" />
-                    <span>FEATURE 03: Unlimited Enterprise Seats</span>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-slate-200">
+                    <Check className="w-4 h-4 text-purple-400 shrink-0" />
+                    <span>Unlimited Enterprise Seats</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-white shrink-0" />
-                    <span>Indian GSTIN Corporate Tax Invoicing</span>
+                  <div className="flex items-center gap-2 text-slate-200">
+                    <Check className="w-4 h-4 text-purple-400 shrink-0" />
+                    <span>Indian GSTIN Corporate Tax Invoices</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                  <div className="flex items-center gap-2 text-slate-200">
+                    <Check className="w-4 h-4 text-purple-400 shrink-0" />
                     <span>Dedicated Private WebSocket Node</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-white shrink-0" />
-                    <span>Custom Industry Ontology Training</span>
+                  <div className="flex items-center gap-2 text-slate-200">
+                    <Check className="w-4 h-4 text-purple-400 shrink-0" />
+                    <span>Custom Vocabulary Modeling</span>
                   </div>
                 </div>
               </div>
 
               <button
                 onClick={() => handleActivate('enterprise')}
-                className="w-full py-2 border border-[#E61919] bg-[#E61919] hover:bg-[#CC1414] text-white font-bold text-[10px] uppercase transition-colors cursor-pointer"
+                className="btn-secondary w-full h-11 px-5 py-2.5 rounded-xl text-sm font-semibold"
               >
-                {activeTier === 'enterprise' ? '[ ACTIVE PLAN ]' : '[ DEPLOY ENTERPRISE FLEET ]'}
+                {activeTier === 'enterprise' ? 'Current Plan' : 'Select Enterprise'}
               </button>
             </div>
           </div>
 
-          {/* Corporate Indian GST Verification Panel */}
-          <div className="border border-[#262626] bg-[#0E0E0E] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Corporate GST Verification Panel */}
+          <div className="rounded-xl border border-slate-800 bg-slate-800/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <div className="text-[11px] font-bold text-white uppercase">
-                [ INDIAN CORPORATE GSTIN TAX INVOICE COMPLIANCE ]
+              <div className="text-xs font-semibold text-white flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-400" />
+                <span>Corporate GST Tax Invoice (India)</span>
               </div>
-              <div className="text-[10px] text-[#71717A]">
-                18% Input Tax Credit (ITC) applied automatically to corporate PAN/GST registrations.
-              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                18% Input Tax Credit (ITC) applied automatically to corporate registrations.
+              </p>
             </div>
 
             <div className="flex gap-2">
@@ -273,14 +288,14 @@ export function MonetizationModal({
                 onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
                 placeholder="27AAAAA0000A1Z5"
                 maxLength={15}
-                className="bg-[#161616] border border-[#333333] px-2.5 py-1 text-xs text-white placeholder-[#52525B] focus:outline-none focus:border-white w-44 uppercase"
+                className="bg-slate-800 border border-slate-700 rounded-xl px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-44 uppercase"
               />
               <button
                 type="button"
                 onClick={() => alert(`GSTIN ${gstNumber || 'VERIFIED'}: Invoice eligibility confirmed.`)}
-                className="border border-[#404040] hover:border-white bg-[#1A1A1A] hover:bg-white hover:text-black text-white px-3 py-1 text-[10px] uppercase transition-colors"
+                className="btn-secondary h-11 px-5 py-2.5 rounded-xl text-xs font-medium shrink-0"
               >
-                [ VERIFY ]
+                Verify
               </button>
             </div>
           </div>

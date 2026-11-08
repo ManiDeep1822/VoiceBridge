@@ -112,11 +112,12 @@ export function Navbar({
         {/* Settings Button */}
         <button
           onClick={onOpenSettings}
-          className="btn-secondary h-11 w-11 p-0 rounded-xl flex items-center justify-center text-slate-300 hover:text-white"
+          className="btn-secondary h-11 px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white"
           title="Audio & Language Settings"
           aria-label="Settings"
         >
-          <Settings className="w-5 h-5" />
+          <Settings className="w-4 h-4" />
+          <span className="hidden sm:inline">Settings</span>
         </button>
       </div>
     </header>

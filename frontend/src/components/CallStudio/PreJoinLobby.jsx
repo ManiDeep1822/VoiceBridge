@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PhoneCall, Volume2, Globe, User, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { PhoneCall, Volume2, Globe, User, ArrowRight, Sparkles, CheckCircle2, ChevronDown } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageMeta, getLocaleStrings } from '../../utils/languages.js';
 
 export function PreJoinLobby({
@@ -77,8 +77,8 @@ export function PreJoinLobby({
                   </option>
                 ))}
               </select>
-              <div className="absolute right-4 top-4 text-xs text-slate-400 pointer-events-none">
-                ▼
+              <div className="absolute right-4 top-4 text-slate-400 pointer-events-none flex items-center">
+                <ChevronDown className="w-4 h-4" />
               </div>
             </div>
             <p className="text-xs text-slate-400">

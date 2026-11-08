@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, BookOpen, Lock, Check, Plus, Trash2, ShieldCheck } from 'lucide-react';
+import { X, BookOpen, Plus, Trash2, Check, ShieldCheck } from 'lucide-react';
 import { INDUSTRY_DOMAINS } from '../utils/glossaries.js';
 
 export function GlossaryDrawer({
@@ -18,8 +18,6 @@ export function GlossaryDrawer({
   ]);
 
   if (!isOpen) return null;
-
-  const isProOrEnterprise = activeTier === 'pro' || activeTier === 'enterprise';
 
   const handleAddTerm = (e) => {
     e.preventDefault();
@@ -43,47 +41,59 @@ export function GlossaryDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/85 select-none font-mono text-xs">
-      <div className="w-full max-w-2xl bg-[#111111] border-l border-[#262626] h-full flex flex-col justify-between shadow-2xl">
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/80 backdrop-blur-md select-none font-sans text-sm">
+      <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 h-full flex flex-col justify-between shadow-2xl">
         {/* Header */}
-        <div className="bg-[#161616] border-b border-[#262626] px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-[#E61919]" />
-            <span className="font-bold text-white uppercase tracking-wider text-xs">
-              [ JARGON LOCK // PROPRIETARY TERMINOLOGY ENGINE ]
-            </span>
+        <div className="bg-slate-800/60 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-white">
+                Industry Glossary
+              </h3>
+              <p className="text-xs text-slate-400">
+                Preserve technical jargon and domain terms accurately
+              </p>
+            </div>
           </div>
 
-          <button onClick={onClose} className="border border-[#262626] hover:border-white p-1 text-[#A1A1AA] hover:text-white">
-            <X className="w-4 h-4" />
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4">
-          <p className="text-[11px] text-[#71717A] leading-relaxed">
-            Locks critical specialized jargon into preserved tokens so machine translation models never hallucinate or mistranslate proprietary definitions.
+        <div className="p-5 overflow-y-auto flex-1 space-y-5">
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Locked terminology ensures that proprietary acronyms, legal terms, and medical vocabulary are never hallucinated or distorted during live speech translation.
           </p>
 
           {/* Domain Selection Matrix */}
-          <div>
-            <span className="text-[10px] text-[#71717A] uppercase font-bold">[ SELECT ACTIVE SECTOR DOMAIN ]</span>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-300 block">
+              Active Industry Domain
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {INDUSTRY_DOMAINS.map((domain) => {
                 const isActive = activeDomain === domain.id;
                 return (
                   <button
                     key={domain.id}
                     onClick={() => onSelectDomain(domain.id)}
-                    className={`p-2.5 border text-left uppercase transition-colors ${
+                    className={`p-3 rounded-xl border text-left transition-all ${
                       isActive
-                        ? 'border-white bg-white text-black font-bold'
-                        : 'border-[#262626] bg-[#141414] hover:border-[#404040] text-white'
+                        ? 'border-blue-500 bg-blue-500/15 text-white font-semibold'
+                        : 'border-slate-800 bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white'
                     }`}
                   >
-                    <div className="text-[11px]">{domain.name}</div>
-                    <div className={`text-[9px] mt-1 ${isActive ? 'text-black' : 'text-[#71717A]'}`}>
-                      {domain.lockedCount || 24} TERMS LOCKED
+                    <div className="text-xs font-medium">{domain.name}</div>
+                    <div className={`text-[11px] mt-1 ${isActive ? 'text-blue-400' : 'text-slate-500'}`}>
+                      {domain.lockedCount || 24} terms locked
                     </div>
                   </button>
                 );
@@ -91,49 +101,54 @@ export function GlossaryDrawer({
             </div>
           </div>
 
-          {/* Custom Term Addition Terminal */}
-          <div className="border border-[#262626] bg-[#0E0E0E] p-3 space-y-2">
-            <span className="text-[10px] text-[#71717A] uppercase font-bold">[ ADD CUSTOM PROPRIETARY TERM ]</span>
-            <form onSubmit={handleAddTerm} className="flex flex-col sm:flex-row gap-2">
+          {/* Custom Term Addition */}
+          <div className="rounded-xl border border-slate-800 bg-slate-800/40 p-4 space-y-3">
+            <span className="text-xs font-semibold text-slate-300 block">
+              Add Custom Term
+            </span>
+            <form onSubmit={handleAddTerm} className="flex flex-col gap-2.5">
               <input
                 type="text"
                 value={customTermSource}
                 onChange={(e) => setCustomTermSource(e.target.value)}
-                placeholder="ORIGINAL TERM (e.g. EBITDA)"
-                className="flex-1 bg-[#161616] border border-[#333333] px-2.5 py-1.5 text-xs text-white placeholder-[#52525B] focus:outline-none focus:border-white uppercase"
+                placeholder="Source Term (e.g. EBITDA)"
+                className="w-full h-11 bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-xl px-3.5 text-xs text-white placeholder-slate-500 focus:outline-none"
               />
               <input
                 type="text"
                 value={customTermTarget}
                 onChange={(e) => setCustomTermTarget(e.target.value)}
-                placeholder="LOCKED TRANSLATION SPEC"
-                className="flex-1 bg-[#161616] border border-[#333333] px-2.5 py-1.5 text-xs text-white placeholder-[#52525B] focus:outline-none focus:border-white uppercase"
+                placeholder="Target Translation / Expansion"
+                className="w-full h-11 bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-xl px-3.5 text-xs text-white placeholder-slate-500 focus:outline-none"
               />
               <button
                 type="submit"
-                className="px-4 py-1.5 border border-white bg-white hover:bg-[#E5E5E5] text-black font-bold text-xs uppercase cursor-pointer shrink-0"
+                className="btn-primary w-full h-11 px-5 py-2.5 rounded-xl text-sm font-medium"
               >
-                [ LOCK ]
+                <Plus className="w-4 h-4" />
+                <span>Lock Term</span>
               </button>
             </form>
           </div>
 
           {/* Locked Terms Table */}
-          <div className="border border-[#262626] bg-[#0E0E0E] p-3 space-y-2">
-            <span className="text-[10px] text-[#71717A] uppercase font-bold">[ CURRENTLY LOCKED VOCABULARY ]</span>
-            <div className="space-y-1.5">
+          <div className="rounded-xl border border-slate-800 bg-slate-800/40 p-4 space-y-3">
+            <span className="text-xs font-semibold text-slate-300 block">
+              Currently Locked Vocabulary ({customGlossary.length})
+            </span>
+            <div className="space-y-2">
               {customGlossary.map((item) => (
-                <div key={item.id} className="border border-[#1F1F1F] bg-[#141414] p-2 flex justify-between items-center text-[11px]">
-                  <div className="space-x-2">
-                    <span className="text-white font-bold">{item.source}</span>
-                    <span className="text-[#71717A]">→</span>
-                    <span className="text-[#A1A1AA]">{item.target}</span>
+                <div key={item.id} className="rounded-lg border border-slate-700/60 bg-slate-800/80 p-3 flex justify-between items-center text-xs">
+                  <div className="space-y-0.5">
+                    <span className="text-white font-semibold">{item.source}</span>
+                    <p className="text-slate-400 text-[11px]">{item.target}</p>
                   </div>
                   <button
                     onClick={() => handleRemoveTerm(item.id)}
-                    className="text-[#71717A] hover:text-[#E61919] p-1"
+                    className="w-8 h-8 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-700/60 flex items-center justify-center transition-colors"
+                    title="Remove term"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               ))}
@@ -142,9 +157,12 @@ export function GlossaryDrawer({
         </div>
 
         {/* Footer */}
-        <div className="bg-[#161616] border-t border-[#262626] p-3 flex justify-between items-center text-[10px] text-[#71717A]">
-          <span>PROTECTION ENGINE: ACTIVE</span>
-          <span>ENTERPRISE FEATURE 02</span>
+        <div className="bg-slate-800/60 border-t border-slate-800 p-4 flex justify-between items-center text-xs text-slate-400">
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            Terminology Protection Active
+          </span>
+          <span>Enterprise Grade</span>
         </div>
       </div>
     </div>
