@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle2, Download, Copy, Check, FileText, Clock, UserCheck } from 'lucide-react';
+import { X, CheckCircle2, Download, Copy, Check, FileText, Sparkles, UserCheck } from 'lucide-react';
 
 export function MinutesDrawer({
   isOpen = false,
@@ -14,8 +14,6 @@ export function MinutesDrawer({
 
   if (!isOpen) return null;
 
-  const isProOrEnterprise = activeTier === 'pro' || activeTier === 'enterprise';
-
   const handleGenerate = () => {
     setIsGenerating(true);
 
@@ -23,47 +21,47 @@ export function MinutesDrawer({
       const totalUtterances = transcript.length;
       const speakerCounts = {};
       transcript.forEach(t => {
-        const s = t.speaker || 'OPERATOR';
+        const s = t.speaker || 'Caller';
         speakerCounts[s] = (speakerCounts[s] || 0) + 1;
       });
 
       const decisions = [
-        'Confirmed alignment on technical interface architecture and dual-duplex calling protocols.',
-        'Established 200ms latency ceiling as maximum acceptable threshold for international transmission.',
-        'Agreed to deploy custom domain glossaries for proprietary terminology protection.'
+        'Confirmed alignment on project schedule, deliverable scopes, and technical specifications.',
+        'Agreed on live translation accuracy thresholds and regional terminology support.',
+        'Approved next steps for business review and team follow-up.'
       ];
 
       const actionItems = [
         {
           id: 'act-1',
-          task: 'Provision dedicated Edge-TTS neural voice relays for Indian regional languages (Telugu, Hindi, Tamil).',
-          assignee: 'OP-01 (LOCAL)',
-          priority: 'HIGH',
-          status: 'PENDING'
+          task: 'Finalize meeting minutes and distribute bilingual transcript to all participants.',
+          assignee: 'Host',
+          priority: 'High',
+          status: 'In Progress'
         },
         {
           id: 'act-2',
-          task: 'Distribute bilingual executive briefing and transcript export to international project stakeholders.',
-          assignee: 'OP-02 (REMOTE)',
-          priority: 'MEDIUM',
-          status: 'IN PROGRESS'
+          task: 'Schedule follow-up review call with regional stakeholders.',
+          assignee: 'Partner Team',
+          priority: 'Medium',
+          status: 'Pending'
         },
         {
           id: 'act-3',
-          task: 'Verify PSTN SIP dial-in compliance logs against ISO-27001 / SOC2 Type II requirements.',
-          assignee: 'SECURITY LEAD',
-          priority: 'HIGH',
-          status: 'SCHEDULED'
+          task: 'Verify compliance documentation and business agreement terms.',
+          assignee: 'Operations',
+          priority: 'High',
+          status: 'Scheduled'
         }
       ];
 
       setMinutesData({
-        title: 'EXECUTIVE TELEMETRY MINUTES & BILINGUAL SUMMARY',
+        title: 'Meeting Minutes & Executive Summary',
         generatedAt: new Date().toLocaleString(),
         totalUtterances,
         decisions,
         actionItems,
-        executiveSummary: 'Bi-directional speech translation session executed across P2P WebRTC data channels. All technical terminology verified against active domain dictionaries with zero acoustic collisions.',
+        executiveSummary: 'Multilingual real-time translation call completed successfully. All conversational points and technical requirements were translated and verified with zero dropped utterances.',
         speakerStats: speakerCounts
       });
 
@@ -74,17 +72,17 @@ export function MinutesDrawer({
   const handleCopy = () => {
     if (!minutesData) return;
     const text = `# ${minutesData.title}
-GENERATED: ${minutesData.generatedAt}
-TOTAL UTTERANCES: ${minutesData.totalUtterances}
+Date: ${minutesData.generatedAt}
+Total Utterances: ${minutesData.totalUtterances}
 
-## EXECUTIVE SUMMARY
+## Executive Summary
 ${minutesData.executiveSummary}
 
-## KEY CONCURRENCES
+## Key Agreements
 ${minutesData.decisions.map(d => `- ${d}`).join('\n')}
 
-## EXTRACTED ACTION ITEMS
-${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (OWNER: ${a.assignee})`).join('\n')}
+## Action Deliverables
+${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee})`).join('\n')}
 `;
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -93,90 +91,99 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (OWNER: ${a.assign
 
   const handleDownloadMarkdown = () => {
     if (!minutesData) return;
-    const text = `# ${minutesData.title}\nGENERATED: ${minutesData.generatedAt}\n\n${minutesData.executiveSummary}\n`;
+    const text = `# ${minutesData.title}\nDate: ${minutesData.generatedAt}\n\n${minutesData.executiveSummary}\n`;
     const blob = new Blob([text], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `CALL_MINUTES_${Date.now()}.md`;
+    a.download = `Meeting_Minutes_${Date.now()}.md`;
     a.click();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/85 select-none font-mono text-xs">
-      <div className="w-full max-w-xl bg-[#111111] border-l border-[#262626] h-full flex flex-col justify-between shadow-2xl">
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/80 backdrop-blur-md select-none font-sans text-sm">
+      <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 h-full flex flex-col justify-between shadow-2xl">
         {/* Header */}
-        <div className="bg-[#161616] border-b border-[#262626] px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-[#E61919]" />
-            <span className="font-bold text-white uppercase tracking-wider text-xs">
-              [ EXECUTIVE MEETING MINUTES // DOSSIER ]
-            </span>
+        <div className="bg-slate-800/60 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+              <FileText className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-white">
+                Meeting Minutes & Notes
+              </h3>
+              <p className="text-xs text-slate-400">
+                AI summary and action items from this call
+              </p>
+            </div>
           </div>
 
-          <button onClick={onClose} className="border border-[#262626] hover:border-white p-1 text-[#A1A1AA] hover:text-white">
-            <X className="w-4 h-4" />
+          <button onClick={onClose} className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4">
+        <div className="p-5 overflow-y-auto flex-1 space-y-4">
           {!minutesData ? (
-            <div className="border border-[#262626] bg-[#0E0E0E] p-6 text-center space-y-3">
-              <FileText className="w-8 h-8 text-[#71717A] mx-auto stroke-[1.5]" />
-              <div className="text-white font-bold uppercase text-xs">
-                [ READY TO PARSE CALL TRANSLATION ARCHIVE ]
+            <div className="rounded-2xl border border-slate-800 bg-slate-800/40 p-8 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 mx-auto">
+                <Sparkles className="w-6 h-6" />
               </div>
-              <p className="text-[11px] text-[#71717A] max-w-md mx-auto leading-normal">
-                Generates bilingual executive decisions, structured action deliverables, and speaker participation metrics.
+              <div className="text-white font-bold text-base">
+                Ready to Generate Summary
+              </div>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                Extract key decisions, deliverables, and speaker statistics automatically from this call transcript.
               </p>
 
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="mt-2 px-5 py-2.5 border border-white bg-white hover:bg-[#E5E5E5] text-black font-bold text-xs uppercase transition-colors cursor-pointer"
+                className="btn-primary h-11 px-5 py-2.5 rounded-xl font-semibold text-sm mx-auto mt-2"
               >
-                {isGenerating ? '[ PROCESSING TELEMETRY... ]' : '[ GENERATE EXECUTIVE MINUTES ]'}
+                {isGenerating ? 'Analyzing Speech...' : 'Generate Minutes Now'}
               </button>
             </div>
           ) : (
             <div className="space-y-4">
               {/* Executive Summary */}
-              <div className="border border-[#262626] bg-[#0E0E0E] p-3 space-y-2">
-                <div className="flex justify-between text-[10px] text-[#71717A] uppercase">
-                  <span>EXECUTIVE SUMMARY</span>
+              <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-4 space-y-2">
+                <div className="flex justify-between text-xs text-slate-400 font-medium">
+                  <span>Executive Summary</span>
                   <span>{minutesData.generatedAt}</span>
                 </div>
-                <p className="text-white text-[11px] leading-relaxed">
+                <p className="text-white text-xs leading-relaxed">
                   {minutesData.executiveSummary}
                 </p>
               </div>
 
-              {/* Key Concurrences */}
-              <div className="border border-[#262626] bg-[#0E0E0E] p-3 space-y-2">
-                <span className="text-[10px] text-[#71717A] uppercase font-bold">[ FORMAL CONCURRENCES ]</span>
-                <ul className="space-y-1.5 text-[11px] text-[#A1A1AA]">
+              {/* Key Decisions */}
+              <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-4 space-y-2">
+                <span className="text-xs text-slate-400 font-semibold block">Key Decisions & Agreements</span>
+                <ul className="space-y-2 text-xs text-slate-300">
                   {minutesData.decisions.map((d, i) => (
-                    <li key={i} className="flex items-start gap-1.5">
-                      <span className="text-white font-bold">&gt;</span>
-                      <span className="text-white">{d}</span>
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-blue-400 font-bold">•</span>
+                      <span>{d}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              {/* Action Items */}
-              <div className="border border-[#262626] bg-[#0E0E0E] p-3 space-y-2">
-                <span className="text-[10px] text-[#71717A] uppercase font-bold">[ DELIVERABLES & ACTION ITEMS ]</span>
-                <div className="space-y-1.5">
+              {/* Action Deliverables */}
+              <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-4 space-y-2">
+                <span className="text-xs text-slate-400 font-semibold block">Action Deliverables</span>
+                <div className="space-y-2">
                   {minutesData.actionItems.map((act) => (
-                    <div key={act.id} className="border border-[#1F1F1F] bg-[#141414] p-2 space-y-1">
-                      <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-white font-bold">{act.task}</span>
-                        <span className="text-[#E61919] font-bold">[{act.priority}]</span>
+                    <div key={act.id} className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-white font-medium">{act.task}</span>
+                        <span className="text-red-400 font-semibold text-[11px] px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20">{act.priority}</span>
                       </div>
-                      <div className="text-[9px] text-[#71717A]">
-                        OWNER: {act.assignee} | STATUS: {act.status}
+                      <div className="text-[11px] text-slate-400">
+                        Assigned to: {act.assignee} • Status: {act.status}
                       </div>
                     </div>
                   ))}
@@ -184,21 +191,21 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (OWNER: ${a.assign
               </div>
 
               {/* Export Buttons */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-3 pt-2">
                 <button
                   onClick={handleCopy}
-                  className="flex-1 py-2 border border-[#333333] hover:border-white bg-[#141414] hover:bg-white hover:text-black text-white text-[10px] uppercase flex items-center justify-center gap-1.5 transition-colors"
+                  className="btn-secondary flex-1 h-11 px-5 py-2.5 rounded-xl text-sm font-medium"
                 >
-                  {copied ? <Check className="w-3.5 h-3.5 text-[#39FF14]" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? '[ COPIED ]' : '[ COPY TEXT ]'}</span>
+                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  <span>{copied ? 'Copied' : 'Copy Text'}</span>
                 </button>
 
                 <button
                   onClick={handleDownloadMarkdown}
-                  className="flex-1 py-2 border border-white bg-white hover:bg-[#E5E5E5] text-black font-bold text-[10px] uppercase flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="btn-primary flex-1 h-11 px-5 py-2.5 rounded-xl text-sm font-medium"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>[ EXPORT .MD ]</span>
+                  <Download className="w-4 h-4" />
+                  <span>Download .MD</span>
                 </button>
               </div>
             </div>
@@ -206,9 +213,9 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (OWNER: ${a.assign
         </div>
 
         {/* Footer */}
-        <div className="bg-[#161616] border-t border-[#262626] p-3 flex justify-between items-center text-[10px] text-[#71717A]">
-          <span>CLASSIFICATION: CONFIDENTIAL</span>
-          <span>ENTERPRISE FEATURE 01</span>
+        <div className="bg-slate-800/60 border-t border-slate-800 p-4 flex justify-between items-center text-xs text-slate-400">
+          <span>End-to-End Encrypted</span>
+          <span>VoiceBridge Notes</span>
         </div>
       </div>
     </div>

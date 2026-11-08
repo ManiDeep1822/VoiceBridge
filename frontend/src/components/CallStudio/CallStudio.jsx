@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Mic, Volume2, PhoneOff, Send, Copy, Check, ExternalLink,
-  BookOpen, FileText, Share2, MessageCircle, Globe, Users, ArrowRight,
-  Lock, Radio, MicOff
+  Mic, Volume2, PhoneOff, Send, Copy, Check,
+  FileText, MessageCircle, Globe, Users, ArrowRight,
+  Lock, Radio, VolumeX, MessageSquare
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageMeta, getLocaleStrings } from '../../utils/languages.js';
 
@@ -44,6 +44,8 @@ export function CallStudio({
 }) {
   const [typedMessage, setTypedMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showMobileChat, setShowMobileChat] = useState(false);
+
   const pointerStartTimeRef = useRef(0);
   const wasListeningBeforePointerRef = useRef(false);
   const isPttPointerDownRef = useRef(false);
@@ -72,7 +74,7 @@ export function CallStudio({
   const localMeta = getLanguageMeta(localLanguage);
   const peerActualLang = remotePeer?.language || remoteLanguage;
   const remoteMeta = getLanguageMeta(peerActualLang);
-  const peerDisplayName = remotePeer?.userName || 'Other Person (Remote)';
+  const peerDisplayName = remotePeer?.userName || 'Remote Caller';
 
   const loc = getLocaleStrings(localLanguage);
 
@@ -86,7 +88,6 @@ export function CallStudio({
       const gain = ctx.createGain();
       osc.type = 'sine';
       if (isOpen) {
-        // Chirp UP (mic key down / start)
         osc.frequency.setValueAtTime(440, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(750, ctx.currentTime + 0.04);
         gain.gain.setValueAtTime(0.12, ctx.currentTime);
@@ -96,7 +97,6 @@ export function CallStudio({
         osc.start();
         osc.stop(ctx.currentTime + 0.04);
       } else {
-        // Roger Beep (mic key release / send)
         osc.frequency.setValueAtTime(880, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(550, ctx.currentTime + 0.05);
         gain.gain.setValueAtTime(0.12, ctx.currentTime);
@@ -109,7 +109,7 @@ export function CallStudio({
     } catch (e) {}
   }, []);
 
-  // Desktop Spacebar Hotkey (Dual-Mode: Hold to talk OR Tap once to toggle hands-free)
+  // Desktop Spacebar Hotkey (Dual-Mode: Hold Spacebar to speak OR Tap once to toggle hands-free)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Space' && !e.repeat) {
@@ -142,24 +142,20 @@ export function CallStudio({
         isSpaceKeyDownRef.current = false;
 
         if (holdDuration > 250) {
-          // True Hold-to-Talk release: Immediately finalize and send in 0ms!
+          // True Hold-to-Talk release
           playTactileChirp(false);
           if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
         } else {
-          // Quick tap:
+          // Quick tap
           if (wasAlreadyListening) {
-            // Was already recording; tap sends turn in 0ms!
             playTactileChirp(false);
             if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
-          } else {
-            // Tapped once to start talking: leave mic open!
           }
         }
       }
     };
 
     const handleWindowBlur = () => {
-      // If user tabs away, switches window, or loses focus: stop recording
       if (isSpaceKeyDownRef.current || isPttPointerDownRef.current) {
         isSpaceKeyDownRef.current = false;
         isPttPointerDownRef.current = false;
@@ -211,17 +207,14 @@ export function CallStudio({
     isPttPointerDownRef.current = false;
 
     if (duration > 250) {
-      // True Hold-to-Talk release: Immediately finalize and send in 0ms!
+      // True Hold-to-Talk release
       playTactileChirp(false);
       if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
     } else {
-      // Quick tap:
+      // Quick tap
       if (wasAlreadyListening) {
-        // Was already recording; tap sends turn in 0ms!
         playTactileChirp(false);
         if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
-      } else {
-        // Tapped once to start talking: leave mic open!
       }
     }
   };
@@ -242,7 +235,6 @@ export function CallStudio({
     e?.preventDefault();
   };
 
-  // Accessible, everyday conversational phrases for clear communication
   const COMMON_PHRASES = [
     { label: 'Hello, can you hear me?', text: 'Hello, can you hear my voice clearly?' },
     { label: 'Yes, loud & clear', text: 'Yes, I hear your translated voice loud and clear.' },
@@ -260,7 +252,7 @@ export function CallStudio({
 
   const inviteUrl = typeof window !== 'undefined'
     ? `${window.location.origin}?room=${encodeURIComponent(roomId)}`
-    : `https://voxsynapse.com?room=${encodeURIComponent(roomId)}`;
+    : `https://voicebridge.app?room=${encodeURIComponent(roomId)}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(inviteUrl);
@@ -273,126 +265,126 @@ export function CallStudio({
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
-  const handleOpenSecondTab = () => {
-    window.open(inviteUrl, '_blank');
-  };
-
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0A0A0A] overflow-hidden select-none font-sans text-xs">
-      {/* 1. Header Bar with Clear Room Indicator & Sharing */}
-      <div className="bg-[#111111] border-b border-[#262626] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center border border-[#333333] bg-[#0E0E0E] px-2.5 py-1">
-            <span className="text-[#A1A1AA] text-xs font-mono mr-1.5">{loc.room}:</span>
-            <span className="text-white font-bold text-xs tracking-wider">{roomId}</span>
+    <div className="flex-1 flex flex-col h-full bg-[#0B0F17] overflow-hidden select-none font-sans text-sm">
+      {/* 1. Sleek Top Bar (Sharing & Room Indicator) */}
+      <div className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 py-2.5 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="h-11 px-5 py-2.5 rounded-xl bg-slate-800 border border-slate-700/80 flex items-center text-sm font-medium text-slate-200">
+            <span className="text-slate-400 mr-1.5">{loc.room}:</span>
+            <span className="font-bold text-white tracking-wide">{roomId}</span>
           </div>
 
           {/* Quick WhatsApp Share Button */}
           <button
             onClick={handleWhatsAppShare}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-black font-bold text-xs uppercase transition-colors cursor-pointer"
-            title="Share Call Link directly to WhatsApp"
+            className="btn-success h-11 px-5 py-2.5 rounded-xl font-medium text-sm shadow-sm"
+            title="Share Call Link to WhatsApp"
           >
-            <MessageCircle className="w-4 h-4 fill-black" />
-            <span className="hidden sm:inline">{loc.shareWhatsapp}</span>
-            <span className="sm:hidden">WhatsApp</span>
+            <MessageCircle className="w-4 h-4 fill-white text-white" />
+            <span className="hidden sm:inline">WhatsApp</span>
           </button>
 
           {/* Copy Link Button */}
           <button
             onClick={handleCopyLink}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-[#333333] hover:border-white bg-[#161616] hover:bg-white hover:text-black text-white text-xs font-medium transition-colors"
+            className="btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm"
+            title="Copy Invite Link"
           >
-            {copiedLink ? <Check className="w-3.5 h-3.5 text-[#39FF14]" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedLink ? 'Copied!' : loc.copyLink}</span>
-          </button>
-
-          <button
-            onClick={handleOpenSecondTab}
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 border border-[#333333] hover:border-white text-[#A1A1AA] hover:text-white text-[11px] transition-colors"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>Test 2nd Window</span>
+            {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-300" />}
+            <span>{copiedLink ? 'Copied' : loc.copyLink}</span>
           </button>
         </div>
 
-        {/* Audio Output Status */}
+        {/* Audio Output Status & Test */}
         <div className="flex items-center gap-2">
           {!audioUnlocked ? (
             <button
               onClick={onUnlockAudio}
-              className="border border-[#E61919] bg-[#E61919] text-white px-3 py-1 font-bold text-xs animate-pulse"
+              className="btn-danger h-11 px-5 py-2.5 rounded-xl font-semibold text-sm animate-pulse"
             >
-              🔊 Activate Loudspeaker
+              <Volume2 className="w-4 h-4" />
+              <span>Enable Speaker</span>
             </button>
           ) : (
             <button
               onClick={onTestSpeaker}
-              className="border border-[#333333] bg-[#161616] hover:bg-[#222222] text-white px-2.5 py-1 text-xs"
+              className="btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm hidden sm:flex"
+              title="Test speaker output"
             >
-              🔊 {loc.testSound}
+              <Volume2 className="w-4 h-4 text-slate-300" />
+              <span>{loc.testSound}</span>
             </button>
           )}
 
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 border border-[#262626] bg-[#0E0E0E] text-[11px] text-white">
-            <span className={`w-2 h-2 ${isPeerConnected ? 'bg-[#39FF14]' : 'bg-[#E61919] animate-pulse'}`} />
-            <span>{isPeerConnected ? '2 People Connected' : 'Waiting for Peer'}</span>
-          </div>
+          {/* Mobile Conversation Drawer Toggle */}
+          <button
+            onClick={() => setShowMobileChat(prev => !prev)}
+            className="btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm lg:hidden"
+            title="Toggle Transcript & Messages"
+          >
+            <MessageSquare className="w-4 h-4 text-slate-300" />
+            <span>Chat</span>
+          </button>
         </div>
       </div>
 
-      {/* 2. Clear Visual Turn Indicator Banner (Floor Lock & Strict PTT) */}
-      <div className="border-b border-[#262626] bg-[#0E0E0E] px-4 py-2 flex items-center justify-between text-xs font-mono">
+      {/* 2. Status Banner (Human, Professional Turn Indicator) */}
+      <div className="bg-slate-950/60 border-b border-slate-800/80 px-4 py-2 flex items-center justify-between text-xs">
         <div className="flex items-center gap-2.5">
           {isChannelBusy ? (
-            <div className="flex items-center gap-2 text-[#F59E0B] font-bold text-sm">
-              <span className="w-2.5 h-2.5 bg-[#F59E0B] animate-pulse" />
-              <Lock className="w-4 h-4 text-[#F59E0B]" />
+            <div className="flex items-center gap-2 text-amber-400 font-semibold text-xs sm:text-sm">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]" />
+              <Lock className="w-4 h-4 text-amber-400" />
               <span>{loc.channelBusy} — {isPeerSpeaking ? `${peerDisplayName} is speaking...` : 'Loudspeaker active'}</span>
             </div>
           ) : isListening ? (
-            <div className="flex items-center gap-2 text-[#E61919] font-bold text-sm">
-              <span className="w-2.5 h-2.5 bg-[#E61919] animate-pulse" />
-              <Radio className="w-4 h-4 text-[#E61919]" />
+            <div className="flex items-center gap-2 text-red-400 font-semibold text-xs sm:text-sm">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444]" />
+              <Radio className="w-4 h-4 text-red-400" />
               <span>{loc.speakingNotice}</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-[#39FF14] text-xs font-bold">
-              <span className="w-2.5 h-2.5 bg-[#39FF14]" />
-              <span>{isPeerConnected ? loc.readyYourTurn : 'Share link above to start conversation'}</span>
+            <div className="flex items-center gap-2 text-emerald-400 font-medium text-xs sm:text-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10B981]" />
+              <span>{isPeerConnected ? loc.readyYourTurn : 'Share room link above to start conversation'}</span>
             </div>
           )}
         </div>
 
-        <div className="hidden md:flex items-center gap-2 text-[#71717A] text-[11px]">
-          <span>[STRICT PTT FLOOR LOCKED // ZERO LATENCY]</span>
+        <div className="hidden md:flex items-center gap-2 text-slate-400 text-xs">
+          <span>{isPeerConnected ? '2 Participants Connected' : 'Waiting for Remote Caller'}</span>
         </div>
       </div>
 
-      {/* 3. Main Stage: Two Clear Calling Cards + Right Chat */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-3 gap-3">
+      {/* 3. Main Stage: Responsive Desktop Grid / Mobile Stack */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-3 sm:p-4 gap-3 sm:gap-4">
         {/* Left Calling Bay */}
         <div className="flex-1 flex flex-col justify-between gap-3 overflow-y-auto">
-          {/* Dual Station Calling Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 min-h-[360px]">
+          {/* Dual Calling Stage Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 flex-1 min-h-[300px]">
             {/* CALLER 1: YOU */}
-            <div className="border-2 border-[#262626] bg-[#111111] p-4 sm:p-5 flex flex-col justify-between relative">
+            <div className={`rounded-2xl p-4 sm:p-6 flex flex-col justify-between relative transition-all duration-200 ${
+              isListening
+                ? 'bg-slate-900 border-2 border-red-500/80 shadow-2xl shadow-red-950/30'
+                : 'bg-slate-900/80 border border-slate-800'
+            }`}>
               {/* Card Header */}
-              <div className="flex items-center justify-between border-b border-[#262626] pb-3">
-                <div className="flex items-center gap-2">
-                  <span className={`w-3 h-3 ${isListening ? 'bg-[#E61919] animate-pulse' : 'bg-[#39FF14]'}`} />
-                  <span className="font-extrabold text-sm text-white">{userName} ({loc.you})</span>
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-3 h-3 rounded-full ${isListening ? 'bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444]' : 'bg-emerald-400'}`} />
+                  <span className="font-bold text-base text-white">{userName} ({loc.you})</span>
                 </div>
 
-                <div className="border border-[#333333] bg-[#161616] px-2.5 py-1 text-xs text-white">
-                  <span className="text-[#A1A1AA] mr-1">Language:</span>
+                <div className="h-9 px-3 rounded-lg bg-slate-800 border border-slate-700 flex items-center text-xs text-white">
+                  <span className="text-slate-400 mr-2">Language:</span>
                   <select
                     value={localLanguage}
                     onChange={(e) => onLocalLanguageChange(e.target.value)}
-                    className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                    className="bg-transparent text-blue-400 font-bold focus:outline-none cursor-pointer"
                   >
                     {SUPPORTED_LANGUAGES.map((l) => (
-                      <option key={l.code} value={l.code} className="bg-[#161616] text-white">
+                      <option key={l.code} value={l.code} className="bg-slate-900 text-white">
                         {l.native} ({l.name})
                       </option>
                     ))}
@@ -400,314 +392,337 @@ export function CallStudio({
                 </div>
               </div>
 
-              {/* Central Audio & Status Visual */}
-              <div className="flex-1 flex flex-col items-center justify-center my-4">
-                <div className="w-24 h-24 border-2 border-white/20 bg-[#161616] flex flex-col items-center justify-center p-2 text-center">
-                  <Mic className={`w-8 h-8 ${isListening ? 'text-[#E61919] animate-bounce' : 'text-white'}`} />
-                  <span className="text-[10px] text-white font-bold mt-1">
-                    {isListening ? 'TALKING...' : 'MIC READY'}
-                  </span>
+              {/* Center Calling Avatar & Waveform */}
+              <div className="flex-1 flex flex-col items-center justify-center my-6">
+                <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center transition-all duration-200 relative ${
+                  isListening
+                    ? 'bg-red-500/10 border-2 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.25)]'
+                    : 'bg-slate-800 border-2 border-slate-700'
+                }`}>
+                  <Mic className={`w-10 h-10 ${isListening ? 'text-red-400 animate-pulse' : 'text-slate-300'}`} />
+                  {isListening && (
+                    <span className="absolute -bottom-2 text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white px-2.5 py-0.5 rounded-full shadow-md">
+                      Speaking
+                    </span>
+                  )}
                 </div>
 
-                <div className="mt-3 text-center">
-                  <div className="text-sm font-bold text-white">
-                    {localMeta.native} Channel
+                <div className="mt-4 text-center">
+                  <div className="text-base font-bold text-white">
+                    {localMeta.native}
                   </div>
-                  <div className="text-xs text-[#A1A1AA] mt-0.5">
-                    {isListening ? `Hearing your voice (${localAudioLevel}% dB)` : 'Microphone ready to speak'}
+                  <div className="text-xs text-slate-400 mt-1">
+                    {isListening ? `Transmitting speech (${localAudioLevel}%)` : 'Microphone ready'}
                   </div>
                 </div>
               </div>
 
-              {/* Subtitle Teleprompter (Large comfortable text) */}
-              <div className="border border-[#262626] bg-[#0A0A0A] p-3.5 min-h-[85px] flex flex-col justify-center">
+              {/* Desktop Subtitle Deck (Inside Card) */}
+              <div className="hidden lg:flex rounded-xl bg-slate-950/80 border border-slate-800 p-3.5 min-h-[80px] flex-col justify-center">
                 {localInterim ? (
                   <p className="text-base font-bold text-white leading-normal">
                     "{localInterim}"
                   </p>
                 ) : latestLocalOriginal ? (
                   <div className="space-y-1">
-                    <div className="text-sm font-bold text-white leading-snug">
-                      "{latestLocalOriginal}"
-                    </div>
-                    <div className="text-xs text-[#39FF14] font-medium">
-                      → [{remoteMeta.native}]: "{latestLocalTranslated}"
-                    </div>
+                    <p className="text-sm font-semibold text-white">"{latestLocalOriginal}"</p>
+                    <p className="text-xs text-emerald-400">Translated to {remoteMeta.native}: "{latestLocalTranslated}"</p>
                   </div>
                 ) : (
-                  <p className="text-xs text-[#71717A] leading-relaxed">
-                    {isListening
-                      ? 'Transmitting live speech... Release button or tap again to send immediately (0ms).'
-                      : isChannelBusy
-                        ? 'Floor locked while ' + peerDisplayName + ' is transmitting.'
-                        : 'Hold to Talk or tap once to Speak (PTT) / Spacebar.'}
+                  <p className="text-xs text-slate-400 italic">
+                    {loc.pttHelper}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* CALLER 2: PEER (OR WAITING CARD) */}
+            {/* CALLER 2: REMOTE PEER */}
             {isPeerConnected ? (
-              /* CONNECTED PEER CARD */
-              <div className="border-2 border-[#262626] bg-[#111111] p-4 sm:p-5 flex flex-col justify-between relative">
-                <div className="flex items-center justify-between border-b border-[#262626] pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-3 h-3 ${isPeerSpeaking ? 'bg-amber-400 animate-pulse' : 'bg-[#39FF14]'}`} />
-                    <span className="font-extrabold text-sm text-white">{peerDisplayName}</span>
+              <div className={`rounded-2xl p-4 sm:p-6 flex flex-col justify-between relative transition-all duration-200 ${
+                isPeerSpeaking
+                  ? 'bg-slate-900 border-2 border-amber-500/80 shadow-2xl shadow-amber-950/30'
+                  : 'bg-slate-900/80 border border-slate-800'
+              }`}>
+                {/* Peer Header */}
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-3 h-3 rounded-full ${isPeerSpeaking ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]' : 'bg-emerald-400'}`} />
+                    <span className="font-bold text-base text-white">{peerDisplayName}</span>
                   </div>
 
-                  <div className="border border-[#333333] bg-[#161616] px-2.5 py-1 text-xs text-white font-bold">
+                  <span className="h-9 px-3 rounded-lg bg-slate-800 border border-slate-700 flex items-center text-xs font-bold text-emerald-400">
                     {remoteMeta.native}
+                  </span>
+                </div>
+
+                {/* Peer Central Visual */}
+                <div className="flex-1 flex flex-col items-center justify-center my-6">
+                  <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center transition-all duration-200 relative ${
+                    isPeerSpeaking || isRemoteSpeaking
+                      ? 'bg-amber-500/10 border-2 border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.25)]'
+                      : 'bg-slate-800 border-2 border-slate-700'
+                  }`}>
+                    <Volume2 className={`w-10 h-10 ${isPeerSpeaking || isRemoteSpeaking ? 'text-amber-400 animate-pulse' : 'text-slate-300'}`} />
+                    {(isPeerSpeaking || isRemoteSpeaking) && (
+                      <span className="absolute -bottom-2 text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-slate-950 px-2.5 py-0.5 rounded-full shadow-md">
+                        {isPeerSpeaking ? 'Talking' : 'Playing Voice'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 text-center">
+                    <div className="text-base font-bold text-white">
+                      {remoteMeta.native}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      {isPeerSpeaking ? 'Speaking in native tongue...' : isRemoteSpeaking ? 'Playing translated speech' : 'Loudspeaker active'}
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex-1 flex flex-col items-center justify-center my-4">
-                  <div className="w-24 h-24 border-2 border-white/20 bg-[#161616] flex flex-col items-center justify-center p-2 text-center">
-                    <Volume2 className={`w-8 h-8 ${isRemoteSpeaking ? 'text-[#39FF14] animate-pulse' : 'text-white'}`} />
-                    <span className="text-[10px] text-white font-bold mt-1">
-                      {isPeerSpeaking ? 'TALKING' : isRemoteSpeaking ? 'LOUDSPEAKER' : 'LISTENING'}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 text-center">
-                    <div className="text-sm font-bold text-white">
-                      {remoteMeta.native} Channel
-                    </div>
-                    <div className="text-xs text-[#A1A1AA] mt-0.5">
-                      {isPeerSpeaking ? 'Speaking in their native tongue...' : isRemoteSpeaking ? 'Playing translated speech out loud' : 'Loudspeaker armed'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Subtitle Teleprompter for Peer */}
-                <div className="border border-[#262626] bg-[#0A0A0A] p-3.5 min-h-[85px] flex flex-col justify-center">
+                {/* Desktop Subtitle Deck (Peer Card) */}
+                <div className="hidden lg:flex rounded-xl bg-slate-950/80 border border-slate-800 p-3.5 min-h-[80px] flex-col justify-center">
                   {latestRemoteTranslated ? (
                     <div className="space-y-1">
-                      <div className="text-base font-extrabold text-[#39FF14] leading-snug">
-                        "{latestRemoteTranslated}"
-                      </div>
-                      <div className="text-xs text-[#A1A1AA]">
-                        Original [{remoteMeta.name}]: "{latestRemoteOriginal}"
-                      </div>
+                      <p className="text-base font-bold text-emerald-400">"{latestRemoteTranslated}"</p>
+                      <p className="text-xs text-slate-400">Original: "{latestRemoteOriginal}"</p>
                     </div>
                   ) : (
-                    <p className="text-xs text-[#71717A] leading-relaxed">
-                      When {peerDisplayName} speaks, their words are instantly translated into {localMeta.native} and played out loud through your speaker.
+                    <p className="text-xs text-slate-400 italic">
+                      When {peerDisplayName} speaks, words will translate into {localMeta.native} instantly.
                     </p>
                   )}
                 </div>
               </div>
             ) : (
-              /* WAITING TO CONNECT (ACCESSIBLE INVITATION CARD) */
-              <div className="border-2 border-dashed border-[#333333] bg-[#111111] p-5 sm:p-6 flex flex-col justify-between items-center text-center">
-                <div className="w-16 h-16 bg-[#1A1A1A] border border-[#333333] flex items-center justify-center text-white mb-2">
+              /* Waiting Card */
+              <div className="rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/40 p-6 flex flex-col justify-between items-center text-center">
+                <div className="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-300 mt-4">
                   <Users className="w-8 h-8" />
                 </div>
 
-                <div className="space-y-2 max-w-sm">
-                  <h3 className="text-lg font-extrabold text-white">
-                    కాల్‌లో చేరడానికి లింక్ షేర్ చేయండి
+                <div className="space-y-2 max-w-sm my-4">
+                  <h3 className="text-lg font-bold text-white">
+                    Share Link to Connect Call
                   </h3>
-                  <p className="text-sm text-[#A1A1AA] leading-normal">
-                    Share the call link with the other person. You can easily share directly to WhatsApp.
+                  <p className="text-xs text-slate-400">
+                    Invite the other person to join this room. Real-time translation starts automatically once connected.
                   </p>
                 </div>
 
-                <div className="w-full flex flex-col sm:flex-row gap-2 mt-4 pt-3 border-t border-[#262626]">
-                  {/* WhatsApp Primary Share */}
+                <div className="w-full flex flex-col sm:flex-row gap-2.5 pt-4 border-t border-slate-800/80">
                   <button
                     onClick={handleWhatsAppShare}
-                    className="flex-1 py-3 bg-[#25D366] hover:bg-[#20ba59] text-black font-extrabold text-xs uppercase flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                    className="btn-success h-11 px-5 py-2.5 rounded-xl font-medium text-sm flex-1"
                   >
-                    <MessageCircle className="w-4 h-4 fill-black" />
-                    <span>WhatsApp లో పంపండి</span>
+                    <MessageCircle className="w-4 h-4 fill-white" />
+                    <span>Share on WhatsApp</span>
                   </button>
 
-                  {/* Copy Link Secondary */}
                   <button
                     onClick={handleCopyLink}
-                    className="flex-1 py-3 border border-white bg-white hover:bg-[#E5E5E5] text-black font-extrabold text-xs uppercase flex items-center justify-center gap-2 cursor-pointer"
+                    className="btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm flex-1"
                   >
                     <Copy className="w-4 h-4" />
-                    <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+                    <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Bottom Primary Controls (Giant Mic Button for Rural Ease) */}
-          <div className="border border-[#262626] bg-[#111111] p-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
-            {/* Giant Dual Strict PTT Mic Button with Floor Lock */}
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={isChannelBusy}
-                  onPointerDown={handlePttPointerDown}
-                  onPointerUp={handlePttPointerUp}
-                  onPointerCancel={handlePttPointerCancel}
-                  onClick={handlePttClick}
-                  className={`flex-1 sm:flex-none px-6 py-3.5 font-extrabold text-sm uppercase flex items-center justify-center gap-3 border-2 transition-all select-none ${
-                    isChannelBusy
-                      ? 'border-[#B45309] bg-[#1C1305] text-[#F59E0B] opacity-85 cursor-not-allowed'
-                      : isListening
-                        ? 'border-[#E61919] bg-[#E61919] text-white animate-pulse shadow-[0_0_25px_rgba(230,25,25,0.7)] cursor-pointer'
-                        : 'border-[#39FF14] bg-[#39FF14] text-black hover:bg-[#32e012] cursor-pointer shadow-lg active:translate-y-[1px]'
-                  }`}
-                >
-                  {isChannelBusy ? (
-                    <>
-                      <Lock className="w-5 h-5 text-[#F59E0B]" />
-                      <div className="text-left">
-                        <div className="text-xs font-bold leading-tight">{loc.channelBusy}</div>
-                        <div className="text-[10px] text-[#D97706] font-mono">[PEER TRANSMITTING // FLOOR LOCKED]</div>
-                      </div>
-                    </>
-                  ) : isListening ? (
-                    <>
-                      <Mic className="w-5 h-5 stroke-[2.5]" />
-                      <div className="text-left">
-                        <div className="text-xs font-extrabold leading-tight">{loc.tapWhenDone}</div>
-                        <div className="text-[10px] text-white/90 font-mono">RELEASE (HOLD) OR TAP TO SEND (0ms)</div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <Radio className="w-5 h-5 stroke-[2.5]" />
-                      <div className="text-left">
-                        <div className="text-xs font-extrabold leading-tight">{loc.tapToSpeak}</div>
-                        <div className="text-[10px] text-black/80 font-mono">HOLD TO TALK OR TAP / SPACEBAR</div>
-                      </div>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  onClick={onToggleVolumeBoost}
-                  className={`px-3 py-3.5 border text-xs font-bold uppercase transition-colors ${
-                    volumeBoost ? 'border-white bg-[#1A1A1A] text-white' : 'border-[#333333] bg-[#111111] text-[#71717A]'
-                  }`}
-                  title="Loudspeaker Volume Booster (+6dB)"
-                >
-                  <Volume2 className="w-4 h-4 inline mr-1" />
-                  <span>+6dB Boost: {volumeBoost ? 'ON' : 'OFF'}</span>
-                </button>
+          {/* UNIQUE MOBILE FLOATING SUBTITLE ISLAND (Dynamic Pill Island) */}
+          <div className="lg:hidden w-full rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 p-4 shadow-2xl flex flex-col justify-center min-h-[90px]">
+            {isListening && localInterim ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-red-400">
+                  <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
+                  <span>You are speaking:</span>
+                </div>
+                <p className="text-base font-bold text-white leading-snug">
+                  "{localInterim}"
+                </p>
               </div>
-
-              <div className="text-[11px] text-[#71717A] px-1 font-mono flex items-center justify-between">
-                <span>{isChannelBusy ? 'Channel busy — mic disabled to prevent confusion' : loc.pttHelper}</span>
-                <span className="hidden sm:inline">[0ms PTT]</span>
+            ) : latestRemoteTranslated && (isPeerSpeaking || isRemoteSpeaking) ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>{peerDisplayName} (Translated):</span>
+                </div>
+                <p className="text-base font-bold text-emerald-400 leading-snug">
+                  "{latestRemoteTranslated}"
+                </p>
               </div>
+            ) : latestLocalOriginal ? (
+              <div className="space-y-1">
+                <p className="text-xs text-slate-400">Last spoken: "{latestLocalOriginal}"</p>
+                <p className="text-sm font-semibold text-emerald-400">Translated: "{latestLocalTranslated}"</p>
+              </div>
+            ) : (
+              <div className="text-center text-xs text-slate-400 py-1">
+                <p className="font-medium text-slate-300">{loc.pttHelper}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Dual-Mode: Hold button to talk or tap once to speak hands-free</p>
+              </div>
+            )}
+          </div>
+
+          {/* Unified Bottom Dock (Standardized Button Sizing) */}
+          <div className="rounded-2xl bg-slate-900/90 backdrop-blur-md border border-slate-800 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            {/* Primary PTT Button */}
+            <div className="w-full sm:w-auto flex-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+              <button
+                type="button"
+                disabled={isChannelBusy}
+                onPointerDown={handlePttPointerDown}
+                onPointerUp={handlePttPointerUp}
+                onPointerCancel={handlePttPointerCancel}
+                onClick={handlePttClick}
+                className={`btn-base h-12 px-6 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg ${
+                  isChannelBusy
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/40 cursor-not-allowed opacity-80'
+                    : isListening
+                      ? 'btn-danger shadow-red-950/50 animate-pulse'
+                      : 'btn-primary shadow-blue-950/40'
+                }`}
+              >
+                {isChannelBusy ? (
+                  <>
+                    <Lock className="w-5 h-5 text-amber-400" />
+                    <span>{loc.channelBusy}</span>
+                  </>
+                ) : isListening ? (
+                  <>
+                    <Mic className="w-5 h-5 text-white" />
+                    <span>{loc.tapWhenDone}</span>
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-5 h-5 text-white" />
+                    <span>{loc.tapToSpeak}</span>
+                  </>
+                )}
+              </button>
+
+              {/* Volume Booster Toggle */}
+              <button
+                onClick={onToggleVolumeBoost}
+                className={`btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm ${
+                  volumeBoost ? 'border-blue-500/80 text-blue-400 bg-blue-500/10' : ''
+                }`}
+                title="Loudspeaker Volume Booster (+6dB)"
+              >
+                <Volume2 className="w-4 h-4" />
+                <span>+6dB Boost: {volumeBoost ? 'ON' : 'OFF'}</span>
+              </button>
             </div>
 
-            {/* Fast Tools & End Call */}
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            {/* End Call & Fast Actions */}
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
               <button
                 onClick={onOpenMinutes}
-                className="px-3 py-2 border border-[#333333] hover:border-white bg-[#161616] text-white text-xs font-medium"
+                className="btn-secondary h-11 px-5 py-2.5 rounded-xl font-medium text-sm"
               >
-                <FileText className="w-3.5 h-3.5 inline mr-1" />
+                <FileText className="w-4 h-4" />
                 <span>Minutes</span>
               </button>
 
               <button
                 onClick={onDisconnect}
-                className="px-4 py-2 border border-[#E61919] bg-[#1A0A0A] hover:bg-[#E61919] text-[#E61919] hover:text-white font-bold text-xs uppercase flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="btn-danger h-11 px-5 py-2.5 rounded-xl font-semibold text-sm"
               >
-                <PhoneOff className="w-3.5 h-3.5" />
+                <PhoneOff className="w-4 h-4" />
                 <span>Leave Call</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Right Sidebar: Chat & Conversation Presets */}
-        <div className="w-full lg:w-96 border border-[#262626] bg-[#111111] flex flex-col overflow-hidden shrink-0">
-          <div className="bg-[#161616] border-b border-[#262626] p-3 flex items-center justify-between font-mono">
-            <span className="font-bold text-xs uppercase text-white">
-              CONVERSATION LOG
+        {/* Right Sidebar: Conversation Log & Quick Phrases (Desktop & Mobile Drawer) */}
+        <div className={`w-full lg:w-96 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-slate-800 flex flex-col overflow-hidden shrink-0 ${
+          showMobileChat ? 'fixed inset-4 z-50 lg:static lg:inset-auto' : 'hidden lg:flex'
+        }`}>
+          <div className="p-3.5 border-b border-slate-800 flex items-center justify-between">
+            <span className="font-bold text-sm text-white flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-blue-400" />
+              <span>Conversation Transcript</span>
             </span>
-            <span className="text-[11px] text-[#A1A1AA]">
-              {isPeerConnected ? '2/2 Connected' : 'Waiting for Peer'}
-            </span>
+            {showMobileChat && (
+              <button
+                onClick={() => setShowMobileChat(false)}
+                className="btn-secondary h-8 px-3 rounded-lg text-xs lg:hidden"
+              >
+                Close
+              </button>
+            )}
           </div>
 
-          {/* Everyday Common Phrases */}
-          <div className="p-2.5 border-b border-[#262626] bg-[#0E0E0E] space-y-1.5">
-            <div className="text-[11px] text-[#A1A1AA] font-bold">
-              QUICK PHRASES (TAP TO TRANSLATE):
-            </div>
-            <div className="flex flex-col gap-1">
+          {/* Quick Phrases */}
+          <div className="p-3 border-b border-slate-800/80 bg-slate-950/40 space-y-2">
+            <span className="text-xs font-semibold text-slate-400 block">
+              Quick Tap Responses:
+            </span>
+            <div className="flex flex-col gap-1.5">
               {COMMON_PHRASES.map((qp, idx) => (
                 <button
                   key={idx}
                   onClick={() => onSendTextUtterance(qp.text)}
-                  className="w-full px-2.5 py-1.5 border border-[#262626] hover:border-white bg-[#141414] hover:bg-white hover:text-black text-left text-xs text-[#A1A1AA] hover:text-black transition-colors flex items-center justify-between"
+                  className="w-full h-9 px-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors flex items-center justify-between"
                 >
-                  <span className="font-medium text-white group-hover:text-black">{qp.label}</span>
-                  <span className="text-[10px] text-[#71717A]">&gt;</span>
+                  <span className="truncate">{qp.label}</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Subtitle Dialogue History */}
-          <div className="flex-1 p-3 overflow-y-auto space-y-2 text-xs">
+          {/* Transcript History */}
+          <div className="flex-1 p-3.5 overflow-y-auto space-y-2.5 text-xs">
             {latestLocalOriginal || latestRemoteOriginal ? (
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {latestLocalOriginal && (
-                  <div className="border border-[#262626] bg-[#0E0E0E] p-2.5">
-                    <div className="flex justify-between items-center text-[10px] text-[#71717A] mb-1 font-mono">
-                      <span className="text-white font-bold">{userName} [{localMeta.name}]</span>
-                      <span>JUST NOW</span>
-                    </div>
-                    <div className="text-white font-medium text-sm">&gt; "{latestLocalOriginal}"</div>
-                    <div className="text-[#39FF14] text-xs mt-1">
-                      → [{remoteMeta.name}]: "{latestLocalTranslated}"
-                    </div>
+                  <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+                    <span className="text-[11px] font-semibold text-blue-400">You ({localMeta.name})</span>
+                    <p className="text-white font-medium">{latestLocalOriginal}</p>
+                    {latestLocalTranslated && (
+                      <p className="text-emerald-400 text-[11px] pt-1 border-t border-slate-700/50">
+                        {remoteMeta.name}: {latestLocalTranslated}
+                      </p>
+                    )}
                   </div>
                 )}
-
                 {latestRemoteOriginal && (
-                  <div className="border border-[#333333] bg-[#161616] p-2.5">
-                    <div className="flex justify-between items-center text-[10px] text-[#71717A] mb-1 font-mono">
-                      <span className="text-white font-bold">{peerDisplayName} [{remoteMeta.name}]</span>
-                      <span className="text-[#39FF14]">SPOKEN OUT LOUD</span>
-                    </div>
-                    <div className="text-white font-medium text-sm">&gt; "{latestRemoteOriginal}"</div>
-                    <div className="text-[#39FF14] font-bold text-sm mt-1">
-                      → "{latestRemoteTranslated}"
-                    </div>
+                  <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+                    <span className="text-[11px] font-semibold text-emerald-400">{peerDisplayName} ({remoteMeta.name})</span>
+                    <p className="text-white font-medium">{latestRemoteOriginal}</p>
+                    {latestRemoteTranslated && (
+                      <p className="text-emerald-400 text-[11px] pt-1 border-t border-slate-700/50">
+                        {localMeta.name}: {latestRemoteTranslated}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center p-4 text-[#71717A] space-y-2">
-                <p className="text-xs">
-                  {isPeerConnected
-                    ? 'Call connected! Tap the green mic button below to talk.'
-                    : 'Share the call link on WhatsApp to begin translating.'}
-                </p>
+              <div className="h-full flex items-center justify-center text-center text-slate-500 py-8">
+                <p>Speech and translation history will appear here.</p>
               </div>
             )}
           </div>
 
-          {/* Quick Text Input */}
-          <form onSubmit={handleSend} className="p-2.5 bg-[#0E0E0E] border-t border-[#262626] flex gap-2">
+          {/* Quick Custom Text Sender */}
+          <form onSubmit={handleSend} className="p-3 border-t border-slate-800 flex items-center gap-2 bg-slate-950/40">
             <input
               type="text"
               value={typedMessage}
               onChange={(e) => setTypedMessage(e.target.value)}
-              placeholder={`Type in ${localMeta.native}...`}
-              className="flex-1 bg-[#161616] border border-[#333333] px-3 py-2 text-xs text-white placeholder-[#52525B] focus:outline-none focus:border-white"
+              placeholder="Type a custom message..."
+              className="flex-1 h-11 bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-xl px-4 text-xs text-white placeholder-slate-500 focus:outline-none"
             />
             <button
               type="submit"
-              disabled={!typedMessage.trim()}
-              className="px-4 py-2 bg-white hover:bg-[#E5E5E5] disabled:opacity-30 text-black font-bold text-xs uppercase transition-colors cursor-pointer shrink-0"
+              className="btn-primary h-11 px-5 py-2.5 rounded-xl font-medium text-xs"
             >
-              <Send className="w-3.5 h-3.5" />
+              <Send className="w-4 h-4" />
             </button>
           </form>
         </div>

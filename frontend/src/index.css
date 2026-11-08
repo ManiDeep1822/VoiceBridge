@@ -3,30 +3,28 @@
 @tailwind utilities;
 
 :root {
-  /* Tactical Chassis & Raw Mechanical Substrates */
-  --bg-chassis: #0A0A0A;
-  --bg-panel: #111111;
-  --bg-module: #161616;
-  --bg-module-active: #1F1F1F;
-  --border-tactical: #262626;
-  --border-highlight: #404040;
-  --border-active: #E61919;
+  /* Google Meet / Zoom Professional Slate Theme */
+  --bg-main: #0B0F17;
+  --bg-surface: #111827;
+  --bg-card: #1E293B;
+  --bg-card-hover: #283548;
+  --border-subtle: #334155;
+  --border-card: rgba(51, 65, 85, 0.6);
 
-  /* Utilitarian Hazard & Telemetry Accents (Aviation Red & White Phosphor) */
-  --hazard-red: #E61919;
-  --alert-orange: #FF5500;
-  --phosphor-white: #FFFFFF;
-  --phosphor-green: #39FF14;
+  /* Modern Professional Accents */
+  --accent-primary: #2563EB;
+  --accent-primary-hover: #1D4ED8;
+  --accent-emerald: #10B981;
+  --accent-emerald-hover: #059669;
+  --accent-danger: #EF4444;
+  --accent-amber: #F59E0B;
 
-  /* High Contrast Typography */
-  --text-primary: #FFFFFF;
-  --text-secondary: #A1A1AA;
-  --text-muted: #52525B;
-  --text-ghost: #27272A;
+  /* Typography */
+  --text-main: #F8FAFC;
+  --text-muted: #94A3B8;
+  --text-subtle: #64748B;
 
-  /* Monospace Telemetry */
-  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'Space Mono', 'Courier Prime', monospace;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 * {
@@ -39,94 +37,57 @@ html, body, #root {
   width: 100%;
   height: 100%;
   height: 100dvh;
-  background-color: var(--bg-chassis);
-  color: var(--text-primary);
+  background-color: var(--bg-main);
+  color: var(--text-main);
   overflow: hidden;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Mechanical Brutalist: 90-degree corners strictly enforced across UI */
-.rounded-none-all * {
-  border-radius: 0px !important;
+/* Unified 44px Design System Button Tokens */
+@layer components {
+  .btn-base {
+    @apply h-11 px-5 py-2.5 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-150 select-none cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900;
+  }
+
+  .btn-primary {
+    @apply btn-base bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-900/30 active:scale-[0.98];
+  }
+
+  .btn-success {
+    @apply btn-base bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-900/30 active:scale-[0.98];
+  }
+
+  .btn-danger {
+    @apply btn-base bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-900/30 active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply btn-base bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700/80 hover:border-slate-600 shadow-sm active:scale-[0.98];
+  }
+
+  .btn-glass {
+    @apply btn-base bg-slate-900/70 hover:bg-slate-800/80 backdrop-blur-md text-slate-200 border border-slate-700/60 hover:border-slate-500 shadow-lg active:scale-[0.98];
+  }
+
+  .glass-card {
+    @apply bg-slate-900/80 backdrop-blur-xl border border-slate-800/80 shadow-2xl;
+  }
 }
 
-/* Monospace telemetry utility */
-.font-telemetry {
-  font-family: var(--font-mono);
-  letter-spacing: 0.06em;
-}
-
-/* Micro scanline telemetry overlay (pure CRT simulation) */
-.scanline-overlay {
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.35) 2px,
-    rgba(0, 0, 0, 0.35) 4px
-  );
-  pointer-events: none;
-}
-
-/* Blueprint dot-matrix grid */
-.blueprint-grid {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-
-/* High-contrast crosshair marker */
-.crosshair-corner {
-  position: relative;
-}
-.crosshair-corner::before {
-  content: "+";
-  position: absolute;
-  top: -7px;
-  left: -7px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-  line-height: 1;
-  pointer-events: none;
-}
-
-/* Industrial button tactile response */
-.btn-mechanical {
-  transition: transform 0.05s ease, background-color 0.1s ease;
-  border: 1px solid var(--border-tactical);
-  background: var(--bg-module);
-  color: var(--text-primary);
-  border-radius: 0px !important;
-}
-
-.btn-mechanical:hover {
-  border-color: var(--border-highlight);
-  background: var(--bg-module-active);
-}
-
-.btn-mechanical:active {
-  transform: translate(1px, 1px);
-  background: #262626;
-}
-
-/* Precision engineered mechanical scrollbars */
+/* Smooth custom scrollbars */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
-  border-left: 1px solid var(--border-tactical);
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: var(--border-highlight);
-  border-radius: 0px;
+  background: #334155;
+  border-radius: 9999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #FFFFFF;
+  background: #475569;
 }

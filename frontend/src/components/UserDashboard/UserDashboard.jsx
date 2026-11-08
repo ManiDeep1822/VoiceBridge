@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
-  Clock, PhoneCall, CheckCircle2, FileText, Download,
-  Globe, User, Search, ChevronRight, Activity, Cpu, ArrowUpRight
+  Clock, PhoneCall, CheckCircle2, FileText,
+  Globe, Search, Check, Sparkles, Calendar, ArrowRight
 } from 'lucide-react';
 
 export function UserDashboard({
@@ -15,30 +15,30 @@ export function UserDashboard({
   const [actionItems, setActionItems] = useState([
     {
       id: 'task-1',
-      title: 'Audit medical trial protocol translation and lock clinical oncology nomenclature',
-      assignee: 'OP-01 (YOU)',
-      priority: 'HIGH',
-      status: 'IN PROGRESS',
+      title: 'Review supplier contract pricing terms and confirm shipping schedule',
+      assignee: 'You',
+      priority: 'High',
+      status: 'In Progress',
       room: 'VOX-ROOM-101',
-      date: 'TODAY, 14:15 IST'
+      date: 'Today, 14:15'
     },
     {
       id: 'task-2',
-      title: 'Transmit verified bilingual telemetry summary to Tokyo engineering unit',
-      assignee: 'SARAH LIN (TYO)',
-      priority: 'MEDIUM',
-      status: 'PENDING',
-      room: 'VOX-GLOBAL-7',
-      date: 'YESTERDAY'
+      title: 'Send translated meeting minutes to regional partner team',
+      assignee: 'Sarah Lin',
+      priority: 'Medium',
+      status: 'Pending',
+      room: 'GLOBAL-ROOM-7',
+      date: 'Yesterday'
     },
     {
       id: 'task-3',
-      title: 'File corporate GSTIN tax invoice and calibrate Pro Industrial fleet seats',
-      assignee: 'FINANCE DEPT',
-      priority: 'HIGH',
-      status: 'COMPLETED',
+      title: 'Confirm GST invoice and business licensing documentation',
+      assignee: 'Finance',
+      priority: 'High',
+      status: 'Completed',
       room: 'VOX-ROOM-101',
-      date: '06 NOV 2026'
+      date: '06 Nov'
     }
   ]);
 
@@ -46,45 +46,42 @@ export function UserDashboard({
     {
       id: 'call-101',
       roomId: 'VOX-ROOM-101',
-      peerName: 'ELENA ROSTOVA',
-      sourceLang: '[ENG] ENGLISH',
-      targetLang: '[TEL] TELUGU (తెలుగు)',
+      peerName: 'Elena Rostova',
+      sourceLang: 'English',
+      targetLang: 'Telugu (తెలుగు)',
       duration: '18m 42s',
-      timestamp: 'TODAY, 14:15 IST',
+      timestamp: 'Today, 14:15',
       wordsTranslated: 1840,
-      qualityScore: '99.4%',
-      status: 'LOGGED'
+      status: 'Saved'
     },
     {
       id: 'call-102',
       roomId: 'GLOBAL-P2P-88',
-      peerName: 'CARLOS MENDOZA',
-      sourceLang: '[ENG] ENGLISH',
-      targetLang: '[ESP] SPANISH (ESPAÑOL)',
+      peerName: 'Carlos Mendoza',
+      sourceLang: 'English',
+      targetLang: 'Spanish (Español)',
       duration: '34m 10s',
-      timestamp: 'YESTERDAY, 16:30 IST',
+      timestamp: 'Yesterday, 16:30',
       wordsTranslated: 3420,
-      qualityScore: '99.8%',
-      status: 'LOGGED'
+      status: 'Saved'
     },
     {
       id: 'call-103',
       roomId: 'TOKYO-BRIDGE-01',
-      peerName: 'KENJI TAKAHASHI',
-      sourceLang: '[ENG] ENGLISH',
-      targetLang: '[JPN] JAPANESE (日本語)',
+      peerName: 'Kenji Takahashi',
+      sourceLang: 'English',
+      targetLang: 'Japanese (日本語)',
       duration: '45m 12s',
-      timestamp: '06 NOV 2026',
+      timestamp: '06 Nov',
       wordsTranslated: 4950,
-      qualityScore: '99.2%',
-      status: 'LOGGED'
+      status: 'Saved'
     }
   ]);
 
   const toggleTaskStatus = (id) => {
     setActionItems(prev => prev.map(item => {
       if (item.id === id) {
-        const nextStatus = item.status === 'COMPLETED' ? 'IN PROGRESS' : 'COMPLETED';
+        const nextStatus = item.status === 'Completed' ? 'In Progress' : 'Completed';
         return { ...item, status: nextStatus };
       }
       return item;
@@ -98,128 +95,127 @@ export function UserDashboard({
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0A0A0A] p-4 sm:p-6 overflow-y-auto w-full space-y-4 select-none font-mono text-xs">
+    <div className="flex-1 flex flex-col h-full bg-[#0B0F17] p-4 sm:p-6 overflow-y-auto w-full space-y-5 select-none font-sans text-sm">
       {/* Top Banner & Fast Launch */}
-      <div className="border border-[#262626] bg-[#111111] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 bg-[#E61919]" />
-            <h1 className="text-lg font-black text-white uppercase tracking-tight font-sans">
-              OPERATOR WORKSPACE // FLIGHT LOG
+      <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              Call Workspace
             </h1>
-            <span className="text-[10px] px-2 py-0.5 border border-[#333333] bg-[#161616] text-white">
-              ACCOUNT: {activeTier.toUpperCase()}
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-semibold border border-blue-500/20 uppercase">
+              {activeTier} Plan
             </span>
           </div>
-          <p className="text-[11px] text-[#71717A] max-w-xl">
-            Audit logs for cross-language sessions, AI-extracted executive deliverables, and compliance documentation.
+          <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
+            Review past multilingual call recordings, meeting summaries, and actionable task deliverables.
           </p>
         </div>
 
         <button
           onClick={() => onJoinRoom('VOX-ROOM-101')}
-          className="border border-white bg-white hover:bg-[#E5E5E5] text-black font-bold px-4 py-2 text-xs uppercase flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+          className="btn-primary h-11 px-5 py-2.5 rounded-xl text-sm font-semibold shrink-0"
         >
-          <PhoneCall className="w-3.5 h-3.5" />
-          <span>[ LAUNCH LIVE STUDIO ]</span>
+          <PhoneCall className="w-4 h-4" />
+          <span>Start Live Call</span>
         </button>
       </div>
 
-      {/* KPI Telemetry Metrics Grid (Zero border radius, 1px divider lines) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="border border-[#262626] bg-[#111111] p-3 space-y-1">
-          <div className="flex justify-between text-[10px] text-[#71717A]">
-            <span>TOTAL DURATION</span>
-            <Clock className="w-3.5 h-3.5" />
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <span>Total Call Time</span>
+            <Clock className="w-4 h-4 text-blue-400" />
           </div>
-          <div className="text-2xl font-black text-white font-sans">98H 04M</div>
-          <div className="text-[10px] text-[#A1A1AA]">+14.2% OVER PRIOR CYCLE</div>
+          <div className="text-2xl font-bold text-white">98h 04m</div>
+          <div className="text-xs text-emerald-400 font-medium">+14% this month</div>
         </div>
 
-        <div className="border border-[#262626] bg-[#111111] p-3 space-y-1">
-          <div className="flex justify-between text-[10px] text-[#71717A]">
-            <span>WORDS TRANSLATED</span>
-            <Globe className="w-3.5 h-3.5" />
+        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <span>Words Translated</span>
+            <Globe className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="text-2xl font-black text-white font-sans">104,210</div>
-          <div className="text-[10px] text-[#A1A1AA]">12 GLOBAL CHANNEL PAIRS</div>
+          <div className="text-2xl font-bold text-white">104,210</div>
+          <div className="text-xs text-slate-400">Across 12 languages</div>
         </div>
 
-        <div className="border border-[#262626] bg-[#111111] p-3 space-y-1">
-          <div className="flex justify-between text-[10px] text-[#71717A]">
-            <span>DELIVERABLES LOGGED</span>
-            <CheckCircle2 className="w-3.5 h-3.5" />
+        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <span>Action Items</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl font-black text-white font-sans">42 TASKS</div>
-          <div className="text-[10px] text-[#A1A1AA]">38 CONFIRMED OR IN-FLIGHT</div>
+          <div className="text-2xl font-bold text-white">42 Tasks</div>
+          <div className="text-xs text-slate-400">38 completed</div>
         </div>
 
-        <div className="border border-[#262626] bg-[#111111] p-3 space-y-1">
-          <div className="flex justify-between text-[10px] text-[#71717A]">
-            <span>MEAN LATENCY</span>
-            <Activity className="w-3.5 h-3.5" />
+        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <span>Audio Quality</span>
+            <Sparkles className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-2xl font-black text-white font-sans">138 MS</div>
-          <div className="text-[10px] text-[#39FF14]">P2P DUPLEX OPTIMIZED</div>
+          <div className="text-2xl font-bold text-white">Studio HD</div>
+          <div className="text-xs text-emerald-400 font-medium">Neural synthesis active</div>
         </div>
       </div>
 
       {/* Main Split: Audit Table + Task Matrix */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1">
-        {/* Left 8 Cols: Session Audit Records */}
-        <div className="lg:col-span-8 border border-[#262626] bg-[#111111] p-4 flex flex-col justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1">
+        {/* Left 8 Cols: Session History */}
+        <div className="lg:col-span-8 rounded-2xl bg-slate-900 border border-slate-800 p-5 flex flex-col justify-between shadow-lg">
           <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#262626] pb-3 mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4 mb-4">
               <div>
-                <h3 className="text-xs font-bold uppercase text-white tracking-wider">
-                  [ CALL SESSION AUDIT LOGS ]
+                <h3 className="text-base font-bold text-white">
+                  Call History & Transcripts
                 </h3>
-                <p className="text-[10px] text-[#71717A]">
-                  Archived transcripts, bilingual minutes, and legal teleprompter records.
+                <p className="text-xs text-slate-400">
+                  Access conversation logs, translated minutes, and past room records.
                 </p>
               </div>
 
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-[#52525B] absolute left-2.5 top-2" />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
                 <input
                   type="text"
                   value={filterQuery}
                   onChange={(e) => setFilterQuery(e.target.value)}
-                  placeholder="FILTER ARCHIVE..."
-                  className="bg-[#161616] border border-[#333333] pl-8 pr-2.5 py-1 text-[11px] text-white placeholder-[#52525B] focus:outline-none focus:border-white uppercase w-48"
+                  placeholder="Search calls or rooms..."
+                  className="h-11 bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-full sm:w-56"
                 />
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
-                  <tr className="border-b border-[#262626] text-[#71717A] text-[10px] uppercase">
-                    <th className="pb-2">ROOM // PEER</th>
-                    <th className="pb-2">TRANSLATION ROUTE</th>
-                    <th className="pb-2">DURATION</th>
-                    <th className="pb-2">TIMESTAMP</th>
-                    <th className="pb-2 text-right">ACTION</th>
+                  <tr className="border-b border-slate-800 text-slate-400 text-xs">
+                    <th className="pb-3 font-semibold">Caller & Room</th>
+                    <th className="pb-3 font-semibold">Language Route</th>
+                    <th className="pb-3 font-semibold">Duration</th>
+                    <th className="pb-3 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1F1F1F]">
-                  {filteredHistory.map((call) => (
-                    <tr key={call.id} className="hover:bg-[#161616] transition-colors">
-                      <td className="py-2.5">
-                        <div className="font-bold text-white">{call.peerName}</div>
-                        <div className="text-[10px] text-[#71717A]">{call.roomId}</div>
+                <tbody className="divide-y divide-slate-800/60">
+                  {filteredHistory.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3">
+                        <div className="font-semibold text-white">{item.peerName}</div>
+                        <div className="text-xs text-slate-400">{item.roomId} • {item.timestamp}</div>
                       </td>
-                      <td className="py-2.5 text-white">
-                        <span>{call.sourceLang}</span> → <span className="font-bold">{call.targetLang}</span>
+                      <td className="py-3 text-slate-300">
+                        <span>{item.sourceLang}</span>
+                        <span className="text-slate-500 mx-1.5">→</span>
+                        <span className="text-emerald-400 font-medium">{item.targetLang}</span>
                       </td>
-                      <td className="py-2.5 text-[#A1A1AA]">{call.duration}</td>
-                      <td className="py-2.5 text-[#71717A]">{call.timestamp}</td>
-                      <td className="py-2.5 text-right">
+                      <td className="py-3 text-slate-300">{item.duration}</td>
+                      <td className="py-3 text-right">
                         <button
-                          onClick={onOpenMinutes}
-                          className="px-2 py-0.5 border border-[#404040] hover:border-white bg-[#1A1A1A] hover:bg-white hover:text-black text-white text-[10px] uppercase transition-colors"
+                          onClick={() => onJoinRoom(item.roomId)}
+                          className="btn-secondary h-9 px-4 rounded-lg text-xs font-medium inline-flex"
                         >
-                          [ MINUTES ]
+                          Rejoin
                         </button>
                       </td>
                     </tr>
@@ -228,64 +224,59 @@ export function UserDashboard({
               </table>
             </div>
           </div>
-
-          <div className="pt-3 border-t border-[#262626] flex items-center justify-between text-[10px] text-[#71717A]">
-            <span>LOGGED SESSIONS: {filteredHistory.length}</span>
-            <button
-              onClick={onOpenMinutes}
-              className="text-white hover:underline flex items-center gap-1 uppercase font-bold"
-            >
-              <span>[ EXPORT FULL AUDIT DOSSIER ]</span>
-              <ChevronRight className="w-3 h-3" />
-            </button>
-          </div>
         </div>
 
-        {/* Right 4 Cols: Extracted Action Items Matrix */}
-        <div className="lg:col-span-4 border border-[#262626] bg-[#111111] p-4 flex flex-col justify-between">
+        {/* Right 4 Cols: Extracted Action Items */}
+        <div className="lg:col-span-4 rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4 shadow-lg flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-[#262626] pb-3 mb-3">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
               <div>
-                <h3 className="text-xs font-bold uppercase text-white tracking-wider">
-                  [ EXTRACTED DELIVERABLES ]
+                <h3 className="text-base font-bold text-white">
+                  Action Items
                 </h3>
-                <p className="text-[10px] text-[#71717A]">
-                  Auto-parsed action points from speech dialogue.
+                <p className="text-xs text-slate-400">
+                  AI-extracted deliverables from calls
                 </p>
               </div>
-              <span className="text-[9px] border border-[#333333] bg-[#161616] text-[#A1A1AA] px-1.5 py-0.5">
-                ACTIVE
-              </span>
+
+              <button
+                onClick={onOpenMinutes}
+                className="btn-secondary h-9 px-3.5 rounded-lg text-xs font-medium"
+              >
+                Minutes
+              </button>
             </div>
 
-            <div className="space-y-2">
-              {actionItems.map((item) => (
+            <div className="space-y-3">
+              {actionItems.map((task) => (
                 <div
-                  key={item.id}
-                  onClick={() => toggleTaskStatus(item.id)}
-                  className={`p-2.5 border cursor-pointer transition-colors ${
-                    item.status === 'COMPLETED'
-                      ? 'border-[#262626] bg-[#0E0E0E] opacity-60'
-                      : 'border-[#333333] bg-[#141414] hover:border-white'
+                  key={task.id}
+                  onClick={() => toggleTaskStatus(task.id)}
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                    task.status === 'Completed'
+                      ? 'bg-slate-950/40 border-slate-800 opacity-60'
+                      : 'bg-slate-800/70 border-slate-700 hover:border-slate-600'
                   }`}
                 >
-                  <div className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      checked={item.status === 'COMPLETED'}
-                      onChange={() => {}}
-                      className="mt-0.5 accent-[#E61919] cursor-pointer"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-[11px] leading-snug ${item.status === 'COMPLETED' ? 'line-through text-[#52525B]' : 'text-white'}`}>
-                        {item.title}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 ${
+                      task.status === 'Completed'
+                        ? 'bg-emerald-600 border-emerald-500 text-white'
+                        : 'border-slate-600'
+                    }`}>
+                      {task.status === 'Completed' && <Check className="w-3.5 h-3.5" />}
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className={`text-xs font-medium ${
+                        task.status === 'Completed' ? 'line-through text-slate-400' : 'text-slate-100'
+                      }`}>
+                        {task.title}
                       </p>
-                      <div className="flex items-center gap-2 mt-1.5 text-[9px] text-[#71717A] uppercase">
-                        <span>OWNER: <strong className="text-white">{item.assignee}</strong></span>
-                        <span>|</span>
-                        <span className={item.priority === 'HIGH' ? 'text-[#E61919] font-bold' : 'text-amber-400'}>
-                          PRIORITY: {item.priority}
-                        </span>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                        <span>{task.assignee}</span>
+                        <span>•</span>
+                        <span>{task.date}</span>
                       </div>
                     </div>
                   </div>
@@ -294,12 +285,14 @@ export function UserDashboard({
             </div>
           </div>
 
-          <div className="pt-3 border-t border-[#262626] mt-3">
+          <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
+            <span className="text-xs text-slate-400">Upgrade for cloud sync</span>
             <button
               onClick={onOpenPricing}
-              className="w-full py-2 border border-white bg-white hover:bg-[#E5E5E5] text-black font-bold text-xs uppercase flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1"
             >
-              <span>[ UPGRADE FLEET CAPACITY: ₹2,999/MO ]</span>
+              <span>View Plans</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

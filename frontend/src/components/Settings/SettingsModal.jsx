@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Volume2, Mic, Settings, Sliders, CheckCircle2, RefreshCw } from 'lucide-react';
+import { X, Volume2, Mic, Settings, Sliders, CheckCircle2, User } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from '../../utils/languages.js';
 
 export function SettingsModal({
@@ -29,105 +29,115 @@ export function SettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 select-none font-mono text-xs">
-      <div className="bg-[#111111] border border-[#262626] w-full max-w-lg shadow-2xl overflow-hidden relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md select-none font-sans text-sm">
+      <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative space-y-4">
         {/* Modal Header */}
-        <div className="bg-[#161616] border-b border-[#262626] px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-[#E61919]" />
+        <div className="bg-slate-800/60 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+              <Settings className="w-4 h-4" />
+            </div>
             <div>
-              <h3 className="font-bold text-xs uppercase text-white tracking-wider">
-                [ HARDWARE CALIBRATION // AUDIO & DIALECT SPEC ]
+              <h3 className="font-bold text-base text-white">
+                Audio & Voice Settings
               </h3>
-              <p className="text-[10px] text-[#71717A]">
-                Calibrate input transceivers, loudspeaker gain, and speech rate.
+              <p className="text-xs text-slate-400">
+                Configure your speaker output, microphone level, and speech rate.
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="border border-[#262626] hover:border-white p-1 text-[#A1A1AA] hover:text-white"
+            className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 space-y-4">
+        <div className="p-5 space-y-4">
           {/* 1. Loudspeaker Output & Audio Test */}
-          <div className="border border-[#262626] bg-[#0E0E0E] p-3 space-y-3">
+          <div className="rounded-xl bg-slate-800/40 border border-slate-700/60 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <span className="font-bold text-white uppercase">[01] LOUDSPEAKER OUTPUT BRIDGE</span>
-                <p className="text-[10px] text-[#71717A]">Hardware amplification & audio test</p>
+                <span className="font-semibold text-white text-sm">Loudspeaker Output</span>
+                <p className="text-xs text-slate-400">Test speaker playback and volume</p>
               </div>
 
               <button
                 type="button"
                 onClick={handleSpeakerTest}
-                className="px-3 py-1 border border-[#333333] hover:border-white bg-[#1A1A1A] hover:bg-white hover:text-black text-white text-[10px] uppercase transition-colors"
+                className="btn-secondary h-11 px-5 py-2.5 rounded-xl text-sm font-medium"
               >
-                {testingSpeaker ? '[ EMITTING TONE... ]' : '[ EMIT TEST TONE ]'}
+                <Volume2 className="w-4 h-4" />
+                <span>{testingSpeaker ? 'Playing...' : 'Test Speaker'}</span>
               </button>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-[#1F1F1F]">
-              <span className="text-[#A1A1AA]">+6dB GAIN BOOST:</span>
+            <div className="flex items-center justify-between pt-3 border-t border-slate-700/60">
+              <span className="text-slate-300 text-xs font-medium">Loudspeaker Volume Boost:</span>
               <button
                 onClick={onToggleVolumeBoost}
-                className={`px-3 py-0.5 border text-[10px] font-bold uppercase ${
-                  volumeBoost ? 'border-white bg-white text-black' : 'border-[#333333] bg-[#161616] text-[#71717A]'
+                className={`btn-base h-11 px-5 py-2.5 rounded-xl text-sm font-medium ${
+                  volumeBoost ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-800 text-slate-400 border border-slate-700'
                 }`}
               >
-                {volumeBoost ? 'ACTIVE (+6dB)' : 'OFF (0dB)'}
+                {volumeBoost ? '+6dB Active' : 'Off (Standard)'}
               </button>
             </div>
           </div>
 
           {/* 2. Microphone Hardware Sensor */}
-          <div className="border border-[#262626] bg-[#0E0E0E] p-3 space-y-2">
+          <div className="rounded-xl bg-slate-800/40 border border-slate-700/60 p-4 space-y-2">
             <div className="flex justify-between items-center">
-              <span className="font-bold text-white uppercase">[02] MICROPHONE SENSITIVITY VU</span>
-              <span className="text-[10px] text-white">{audioLevel}% dB</span>
+              <span className="font-semibold text-white text-sm flex items-center gap-2">
+                <Mic className="w-4 h-4 text-emerald-400" />
+                <span>Microphone Input Level</span>
+              </span>
+              <span className="text-xs font-mono font-medium text-emerald-400">{audioLevel}%</span>
             </div>
-            <div className="w-full bg-[#161616] border border-[#262626] h-2">
+            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
               <div
-                className="bg-white h-full transition-all duration-75"
+                className="bg-emerald-500 h-full rounded-full transition-all duration-75"
                 style={{ width: `${Math.min(100, audioLevel * 1.5)}%` }}
               />
             </div>
           </div>
 
           {/* 3. Neural Voice Persona & Speed */}
-          <div className="border border-[#262626] bg-[#0E0E0E] p-3 space-y-3">
+          <div className="rounded-xl bg-slate-800/40 border border-slate-700/60 p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-white uppercase">[03] VOICE PERSONA & RATE</span>
-              <span className="text-[10px] text-white">{speechRate}x SPEED</span>
+              <span className="font-semibold text-white text-sm">Voice Persona & Speed</span>
+              <span className="text-xs font-semibold text-blue-400">{speechRate}x Speed</span>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 onClick={() => onVoiceGenderChange('female')}
-                className={`flex-1 py-1 border text-[10px] uppercase font-bold ${
-                  voiceGender === 'female' ? 'border-white bg-white text-black' : 'border-[#333333] bg-[#161616] text-[#71717A]'
+                className={`btn-base flex-1 h-11 px-5 py-2.5 rounded-xl text-sm font-medium ${
+                  voiceGender === 'female'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-slate-800 text-slate-300 border border-slate-700'
                 }`}
               >
-                FEMALE NEURAL
+                Female Voice
               </button>
               <button
                 onClick={() => onVoiceGenderChange('male')}
-                className={`flex-1 py-1 border text-[10px] uppercase font-bold ${
-                  voiceGender === 'male' ? 'border-white bg-white text-black' : 'border-[#333333] bg-[#161616] text-[#71717A]'
+                className={`btn-base flex-1 h-11 px-5 py-2.5 rounded-xl text-sm font-medium ${
+                  voiceGender === 'male'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-slate-800 text-slate-300 border border-slate-700'
                 }`}
               >
-                MALE NEURAL
+                Male Voice
               </button>
             </div>
 
-            <div className="space-y-1">
-              <div className="flex justify-between text-[10px] text-[#71717A]">
-                <span>CONVERSATIONAL RATE</span>
+            <div className="space-y-1.5 pt-1">
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Conversational Pace</span>
                 <span>{speechRate}x</span>
               </div>
               <input
@@ -137,19 +147,19 @@ export function SettingsModal({
                 step="0.05"
                 value={speechRate}
                 onChange={(e) => onSpeechRateChange(parseFloat(e.target.value))}
-                className="w-full accent-white bg-[#1A1A1A] cursor-pointer"
+                className="w-full accent-blue-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
               />
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="bg-[#161616] border-t border-[#262626] px-4 py-2.5 flex justify-end">
+        <div className="bg-slate-800/60 border-t border-slate-800 px-5 py-3 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 border border-white bg-white hover:bg-[#E5E5E5] text-black font-bold text-xs uppercase cursor-pointer"
+            className="btn-primary h-11 px-5 py-2.5 rounded-xl font-semibold text-sm"
           >
-            [ CLOSE & APPLY ]
+            Done
           </button>
         </div>
       </div>

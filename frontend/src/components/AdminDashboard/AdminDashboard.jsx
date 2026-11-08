@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShieldCheck, Activity, Users, Server, IndianRupee, Zap,
-  CheckCircle2, AlertTriangle, RefreshCw, Lock, ArrowUpRight, Cpu
+  ShieldCheck, Activity, Users, Server,
+  CheckCircle2, RefreshCw, PhoneCall, ArrowRight
 } from 'lucide-react';
 
 export function AdminDashboard({
@@ -14,7 +14,6 @@ export function AdminDashboard({
 
   const isINR = currency === 'INR';
 
-  // Fetch real live rooms from backend
   const fetchLiveRooms = async () => {
     setIsLoadingRooms(true);
     try {
@@ -38,203 +37,181 @@ export function AdminDashboard({
   }, [backendUrl]);
 
   const orgUsers = [
-    { id: 'USR-01', name: 'RAJESH SHARMA', email: 'rajesh@enterprise.in', role: 'SUPER ADMIN', tier: 'ENTERPRISE GLOBAL', status: 'ACTIVE' },
-    { id: 'USR-02', name: 'ELENA ROSTOVA', email: 'elena@vanguard.de', role: 'OPERATOR', tier: 'PRO INDUSTRIAL', status: 'IN CALL' },
-    { id: 'USR-03', name: 'MARCUS VANCE', email: 'marcus@defense.gov', role: 'COMPLIANCE AUDITOR', tier: 'ENTERPRISE GLOBAL', status: 'ACTIVE' },
-    { id: 'USR-04', name: 'PRIYA PATEL', email: 'priya@techcorp.in', role: 'OPERATOR', tier: 'PRO INDUSTRIAL', status: 'STANDBY' }
+    { id: 'USR-01', name: 'Rajesh Sharma', email: 'rajesh@enterprise.in', role: 'Administrator', tier: 'Enterprise', status: 'Active' },
+    { id: 'USR-02', name: 'Elena Rostova', email: 'elena@vanguard.de', role: 'Operator', tier: 'Pro', status: 'In Call' },
+    { id: 'USR-03', name: 'Marcus Vance', email: 'marcus@defense.gov', role: 'Auditor', tier: 'Enterprise', status: 'Active' },
+    { id: 'USR-04', name: 'Priya Patel', email: 'priya@techcorp.in', role: 'Operator', tier: 'Pro', status: 'Ready' }
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0A0A0A] p-4 sm:p-6 overflow-y-auto w-full space-y-4 select-none font-mono text-xs">
-      {/* Admin Header Bar */}
-      <div className="border border-[#262626] bg-[#111111] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 bg-[#E61919]" />
-            <h1 className="text-lg font-black text-white uppercase tracking-tight font-sans">
-              ENTERPRISE ADMIN TELEMETRY CONSOLE
+    <div className="flex-1 flex flex-col h-full bg-[#0B0F17] p-4 sm:p-6 overflow-y-auto w-full space-y-5 select-none font-sans text-sm">
+      {/* Header Bar */}
+      <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              Admin Console
             </h1>
-            <span className="text-[10px] px-2 py-0.5 border border-[#333333] bg-[#161616] text-[#A1A1AA]">
-              SECURITY CLEARANCE: L3
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
+              Operational
             </span>
           </div>
-          <p className="text-[11px] text-[#71717A] max-w-xl">
-            Real-time fleet supervision, cluster health diagnostics, active WebSocket room audits, and GST compliance.
+          <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
+            Real-time session monitoring, system health metrics, active room management, and enterprise seats.
           </p>
         </div>
 
         <button
           onClick={fetchLiveRooms}
           disabled={isLoadingRooms}
-          className="border border-[#333333] hover:border-white bg-[#161616] hover:bg-white hover:text-black text-white px-3 py-1.5 text-xs uppercase flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+          className="btn-secondary h-11 px-5 py-2.5 rounded-xl text-sm font-medium shrink-0"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoadingRooms ? 'animate-spin' : ''}`} />
-          <span>[ SYNC FLEET TELEMETRY ]</span>
+          <RefreshCw className={`w-4 h-4 ${isLoadingRooms ? 'animate-spin text-blue-400' : ''}`} />
+          <span>Refresh Status</span>
         </button>
       </div>
 
-      {/* Top Telemetry & Revenue KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="border border-[#262626] bg-[#111111] p-3 space-y-1">
-          <div className="flex justify-between text-[10px] text-[#71717A]">
-            <span>ARR RUN-RATE</span>
-            <span className="text-white font-bold">{isINR ? '₹ INR' : '$ USD'}</span>
+      {/* KPI Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <span>Monthly Run-Rate</span>
+            <span className="font-semibold text-white">{isINR ? '₹ INR' : '$ USD'}</span>
           </div>
-          <div className="text-2xl font-black text-white font-sans">
+          <div className="text-2xl font-bold text-white">
             {isINR ? '₹ 29,80,000' : '$ 35,760'}
           </div>
-          <div className="text-[10px] text-[#A1A1AA]">CORPORATE GST COMPLIANT</div>
+          <div className="text-xs text-slate-400 font-medium">Enterprise licenses</div>
         </div>
 
-        <div className="border border-[#262626] bg-[#111111] p-3 space-y-1">
-          <div className="flex justify-between text-[10px] text-[#71717A]">
-            <span>ACTIVE LIVE SESSIONS</span>
-            <Activity className="w-3.5 h-3.5" />
+        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <span>Active Live Rooms</span>
+            <Activity className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl font-black text-white font-sans">
-            {liveRoomsData.total_rooms} ROOMS
+          <div className="text-2xl font-bold text-white">
+            {liveRoomsData.total_rooms} Rooms
           </div>
-          <div className="text-[10px] text-[#39FF14]">WEBSOCKET REALTIME DUPLEX</div>
+          <div className="text-xs text-emerald-400 font-medium">Real-time WebRTC channels</div>
         </div>
 
-        <div className="border border-[#262626] bg-[#111111] p-3 space-y-1">
-          <div className="flex justify-between text-[10px] text-[#71717A]">
-            <span>TRANSLATION P95 LATENCY</span>
-            <Zap className="w-3.5 h-3.5" />
+        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <span>Translation Engine</span>
+            <Server className="w-4 h-4 text-blue-400" />
           </div>
-          <div className="text-2xl font-black text-white font-sans">124 MS</div>
-          <div className="text-[10px] text-[#A1A1AA]">SLA THRESHOLD: &lt; 250MS</div>
+          <div className="text-2xl font-bold text-white">Google Neural</div>
+          <div className="text-xs text-emerald-400 font-medium">Sub-200ms processing</div>
         </div>
 
-        <div className="border border-[#262626] bg-[#111111] p-3 space-y-1">
-          <div className="flex justify-between text-[10px] text-[#71717A]">
-            <span>CLUSTER HEALTH</span>
-            <Server className="w-3.5 h-3.5" />
+        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <span>System Health</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl font-black text-white font-sans">99.99%</div>
-          <div className="text-[10px] text-[#39FF14]">ALL 4 BRIDGES ONLINE</div>
+          <div className="text-2xl font-bold text-white">99.98%</div>
+          <div className="text-xs text-emerald-400 font-medium">All clusters healthy</div>
         </div>
       </div>
 
-      {/* Main Admin Section: Real Live Calls Fleet + Cluster Health */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1">
-        {/* Left 8 Cols: Live Connected Rooms Table */}
-        <div className="lg:col-span-8 border border-[#262626] bg-[#111111] p-4 flex flex-col justify-between">
+      {/* Main Split: Live Rooms + User Seats */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1">
+        {/* Active Rooms */}
+        <div className="lg:col-span-6 rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4 shadow-lg flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-[#262626] pb-3 mb-3">
+            <div className="border-b border-slate-800 pb-4 mb-4 flex items-center justify-between">
               <div>
-                <h3 className="text-xs font-bold uppercase text-white tracking-wider">
-                  [ ACTIVE WEBSOCKET ROOM TELEMETRY ]
+                <h3 className="text-base font-bold text-white">
+                  Active Call Sessions
                 </h3>
-                <p className="text-[10px] text-[#71717A]">
-                  Real-time participant sessions connected to signaling server.
+                <p className="text-xs text-slate-400">
+                  Real-time rooms currently hosting live callers
                 </p>
               </div>
-              <span className="text-[9px] border border-[#333333] bg-[#161616] text-[#A1A1AA] px-1.5 py-0.5">
-                POLLING: 6S
+
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                {liveRoomsData.total_rooms} Live
               </span>
             </div>
 
-            {Object.keys(liveRoomsData.rooms).length === 0 ? (
-              <div className="border border-[#262626] bg-[#0E0E0E] p-8 text-center text-[#71717A] text-xs space-y-2">
-                <p>[ NO PEER CALLS CURRENTLY ACTIVE IN REGISTRY ]</p>
-                <p className="text-[#52525B]">
-                  Launch a room from Call Studio to initiate real-time socket telemetry.
-                </p>
+            {Object.keys(liveRoomsData.rooms || {}).length > 0 ? (
+              <div className="space-y-3">
+                {Object.entries(liveRoomsData.rooms).map(([roomId, room]) => (
+                  <div key={roomId} className="p-3.5 rounded-xl bg-slate-800/70 border border-slate-700/60 flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-white text-sm">{roomId}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">
+                        {room.participant_count || 1} Participant(s) • Live Voice Stream
+                      </div>
+                    </div>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]" />
+                  </div>
+                ))}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-[#262626] text-[#71717A] text-[10px] uppercase">
-                      <th className="pb-2">ROOM IDENTIFIER</th>
-                      <th className="pb-2">PARTICIPANTS</th>
-                      <th className="pb-2">ROUTE</th>
-                      <th className="pb-2">SOCKET STATUS</th>
-                      <th className="pb-2 text-right">ACTION</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#1F1F1F]">
-                    {Object.entries(liveRoomsData.rooms).map(([rId, participants]) => (
-                      <tr key={rId} className="hover:bg-[#161616] transition-colors">
-                        <td className="py-2.5 font-bold text-white">{rId}</td>
-                        <td className="py-2.5 text-[#A1A1AA]">
-                          {participants.length} / 2 LINKED
-                        </td>
-                        <td className="py-2.5 text-white">
-                          {participants.map(p => p.language?.toUpperCase() || 'EN').join(' ↔ ')}
-                        </td>
-                        <td className="py-2.5">
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] border border-[#333333] bg-[#161616] text-white">
-                            <span className="w-1.5 h-1.5 bg-[#39FF14]" />
-                            P2P DUPLEX
-                          </span>
-                        </td>
-                        <td className="py-2.5 text-right">
-                          <button
-                            onClick={() => window.open(window.location.origin + '?room=' + encodeURIComponent(rId), '_blank')}
-                            className="px-2 py-0.5 border border-[#404040] hover:border-white bg-[#1A1A1A] hover:bg-white hover:text-black text-white text-[10px] uppercase transition-colors"
-                          >
-                            [ INSPECT ]
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="text-center py-10 text-slate-500 text-xs">
+                <PhoneCall className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p>No active call rooms at this moment.</p>
+                <p className="text-[11px] text-slate-600 mt-0.5">When callers join from Call Studio, they will appear here in real time.</p>
               </div>
             )}
           </div>
-
-          <div className="pt-3 border-t border-[#262626] flex items-center justify-between text-[10px] text-[#71717A]">
-            <span>CLUSTER NODES: 4/4 SYNCHRONIZED</span>
-            <span>END-TO-END ENCRYPTED</span>
-          </div>
         </div>
 
-        {/* Right 4 Cols: Fleet Operator Seats Management */}
-        <div className="lg:col-span-4 border border-[#262626] bg-[#111111] p-4 flex flex-col justify-between">
+        {/* Organization Members */}
+        <div className="lg:col-span-6 rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4 shadow-lg flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-[#262626] pb-3 mb-3">
+            <div className="border-b border-slate-800 pb-4 mb-4 flex items-center justify-between">
               <div>
-                <h3 className="text-xs font-bold uppercase text-white tracking-wider">
-                  [ FLEET OPERATOR SEATS ]
+                <h3 className="text-base font-bold text-white">
+                  Team Members & Seats
                 </h3>
-                <p className="text-[10px] text-[#71717A]">
-                  Active enterprise seats and role authorizations.
+                <p className="text-xs text-slate-400">
+                  Provisioned operator licenses and access roles
                 </p>
               </div>
-              <span className="text-[9px] border border-[#333333] bg-[#161616] text-[#A1A1AA] px-1.5 py-0.5">
-                4 SEATS
-              </span>
+
+              <button
+                onClick={onOpenPricing}
+                className="btn-secondary h-9 px-3.5 rounded-lg text-xs font-medium"
+              >
+                Add Seats
+              </button>
             </div>
 
-            <div className="space-y-2">
-              {orgUsers.map((usr) => (
-                <div key={usr.id} className="border border-[#262626] bg-[#141414] p-2.5 space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-white text-xs">{usr.name}</span>
-                    <span className="text-[9px] border border-[#333333] bg-[#1A1A1A] text-white px-1.5 py-0.2">
-                      {usr.status}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-[#71717A]">{usr.email}</div>
-                  <div className="flex justify-between items-center text-[9px] text-[#A1A1AA] pt-1 border-t border-[#1F1F1F]">
-                    <span>ROLE: {usr.role}</span>
-                    <span>{usr.tier}</span>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 text-xs">
+                    <th className="pb-3 font-semibold">User</th>
+                    <th className="pb-3 font-semibold">Role</th>
+                    <th className="pb-3 font-semibold">Plan</th>
+                    <th className="pb-3 font-semibold text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {orgUsers.map((u) => (
+                    <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3">
+                        <div className="font-semibold text-white">{u.name}</div>
+                        <div className="text-xs text-slate-400">{u.email}</div>
+                      </td>
+                      <td className="py-3 text-slate-300">{u.role}</td>
+                      <td className="py-3 text-slate-300">{u.tier}</td>
+                      <td className="py-3 text-right">
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                          u.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                          u.status === 'In Call' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                          'bg-slate-800 text-slate-400'
+                        }`}>
+                          {u.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-
-          <div className="pt-3 border-t border-[#262626] mt-3">
-            <button
-              onClick={onOpenPricing}
-              className="w-full py-2 border border-white bg-white hover:bg-[#E5E5E5] text-black font-bold text-xs uppercase flex items-center justify-center gap-2 transition-colors cursor-pointer"
-            >
-              <span>[ PROVISION ENTERPRISE SEATS ]</span>
-            </button>
           </div>
         </div>
       </div>
