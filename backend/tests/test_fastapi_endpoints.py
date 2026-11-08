@@ -43,6 +43,28 @@ def test_tts_endpoint():
     empty_res = client.post("/api/tts", json={"text": "", "target_lang": "en"})
     assert empty_res.status_code == 400
 
+def test_minutes_endpoint():
+    payload = {
+        "transcript": [
+            {"speaker": "Op1", "originalText": "Hello", "translatedText": "Hola"}
+        ],
+        "tier": "pro"
+    }
+    res = client.post("/api/minutes", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert "summary" in data
+    assert "decisions" in data
+    assert len(data["decisions"]) > 0
+    assert "action_items" in data
+
+def test_glossary_endpoint():
+    res = client.post("/api/glossary", json={"domain": "medical"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["domain"] == "medical"
+    assert data["status"] == "active"
+
 def test_api_unknown_returns_404_json_not_html():
     res = client.get("/api/nonexistent_endpoint")
     assert res.status_code == 404

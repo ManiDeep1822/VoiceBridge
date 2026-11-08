@@ -1,115 +1,435 @@
-import React, { useState, useEffect } from 'react';
-import Lobby from './components/Lobby';
-import CallRoom from './components/CallRoom';
-import ErrorBoundary from './components/ErrorBoundary';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Navbar } from './components/Navigation/Navbar';
+import { CallStudio } from './components/CallStudio/CallStudio';
+import { PreJoinLobby } from './components/CallStudio/PreJoinLobby';
+import { UserDashboard } from './components/UserDashboard/UserDashboard';
+import { AdminDashboard } from './components/AdminDashboard/AdminDashboard';
+import { SettingsModal } from './components/Settings/SettingsModal';
+import { MonetizationModal } from './components/MonetizationModal';
+import { MinutesDrawer } from './components/MinutesDrawer';
+import { GlossaryDrawer } from './components/GlossaryDrawer';
 
-const getInitialRoomId = () => {
-  if (typeof window === 'undefined') return '';
-  if (window.location.hash) {
-    const hash = window.location.hash.replace(/^#\/?/, '');
-    if (hash.includes('room=')) {
-      const parts = hash.split('room=')[1];
-      return parts.split('&')[0].replace(/[^a-zA-Z0-9_-]/g, '').trim();
-    }
-  }
-  const params = new URLSearchParams(window.location.search);
-  const searchRoom = params.get('room');
-  if (searchRoom) {
-    return searchRoom.replace(/[^a-zA-Z0-9_-]/g, '').trim();
-  }
-  return '';
-};
+import { useSpeechRecognition } from './hooks/useSpeechRecognition';
+import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
+import { useWebRTC } from './hooks/useWebRTC';
+import { translateTextFast } from './utils/translator';
+import { getLanguageMeta } from './utils/languages';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('lobby'); // 'lobby' | 'call'
-  const [activeRoomId, setActiveRoomId] = useState(getInitialRoomId);
-  const [selectedLanguage, setSelectedLanguage] = useState(() => {
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      const saved = window.sessionStorage.getItem('voicebridge_language');
-      if (saved) return saved;
-    }
-    return getInitialRoomId() ? 'hi' : 'te';
-  });
-  const [voiceGender, setVoiceGender] = useState(() => {
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      const saved = window.sessionStorage.getItem('voicebridge_voice_gender');
-      if (saved) return saved;
-    }
-    return 'female';
-  });
+  // Navigation & View State
+  const [activeTab, setActiveTab] = useState('studio'); // 'studio' | 'user-dashboard' | 'admin-dashboard'
+  const [hasJoinedMeeting, setHasJoinedMeeting] = useState(false);
 
-  // Sync room from URL if shared via link or browser back/forward button
+  // Persistent User & Room Identifier
+  const userIdRef = useRef(`OP-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [userName, setUserName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('name') || `Caller ${Math.floor(100 + Math.random() * 900)}`;
+    }
+    return 'Operator';
+  });
+  const [roomId, setRoomId] = useState('VOX-ROOM-101');
+
+  // Languages & Domain Jargon
+  const [localLanguage, setLocalLanguage] = useState('en');
+  const [remoteLanguage, setRemoteLanguage] = useState('te'); // Default English <-> Telugu
+  const [activeDomain, setActiveDomain] = useState('general');
+  const [voiceGender, setVoiceGender] = useState('female');
+  const [volumeBoost, setVolumeBoost] = useState(true);
+
+  // Commercial Tier & Currency
+  const [activeTier, setActiveTier] = useState('free'); // 'free' | 'pro' | 'enterprise'
+  const [currency, setCurrency] = useState('INR'); // Default Indian Rupee (₹ INR)
+
+  // Modals Visibility
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isMinutesOpen, setIsMinutesOpen] = useState(false);
+  const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
+
+  // Live Utterance State
+  const [latestLocalOriginal, setLatestLocalOriginal] = useState('');
+  const [latestLocalTranslated, setLatestLocalTranslated] = useState('');
+  const [latestRemoteOriginal, setLatestRemoteOriginal] = useState('');
+  const [latestRemoteTranslated, setLatestRemoteTranslated] = useState('');
+
+  // Conversation Audit Transcript
+  const [transcript, setTranscript] = useState([
+    {
+      id: 'init-msg',
+      speaker: 'System',
+      isLocal: false,
+      originalText: 'VOXSYNAPSE PRIME Duplex Telemetry Ready. End-to-End Encrypted.',
+      translatedText: 'VOXSYNAPSE PRIME Duplex Telemetry Ready. End-to-End Encrypted.',
+      sourceLang: 'en',
+      targetLang: 'en',
+      timestamp: Date.now() - 30000
+    }
+  ]);
+
+  // Read URL Room Parameter (e.g. ?room=VOX-ROOM-101)
   useEffect(() => {
-    const parseUrl = () => {
-      const urlRoom = getInitialRoomId();
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlRoom = params.get('room');
       if (urlRoom) {
-        setActiveRoomId(urlRoom);
-      } else {
-        // Navigated back to base URL
-        setCurrentView((prev) => (prev === 'call' ? 'lobby' : prev));
-        setActiveRoomId('');
+        setRoomId(urlRoom.toUpperCase());
       }
-    };
-
-    parseUrl();
-    window.addEventListener('hashchange', parseUrl);
-    window.addEventListener('popstate', parseUrl);
-    return () => {
-      window.removeEventListener('hashchange', parseUrl);
-      window.removeEventListener('popstate', parseUrl);
-    };
+      const urlLang = params.get('lang');
+      if (urlLang) {
+        setLocalLanguage(urlLang.toLowerCase());
+      }
+    }
   }, []);
 
-  const handleJoinRoom = ({ roomId, language, voiceGender }) => {
-    setActiveRoomId(roomId);
-    setSelectedLanguage(language);
-    setVoiceGender(voiceGender);
-    window.location.hash = `room=${roomId}`;
-    setCurrentView('call');
-  };
+  // Backend Origin (Localhost dev OR Render production backend)
+  const backendUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:8000'
+    : (import.meta.env.VITE_BACKEND_URL || 'https://voicebridge-backend.onrender.com');
 
-  const handleLeaveCall = () => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.sessionStorage.removeItem('voicebridge_in_call');
-      } catch (e) {}
-      if (window.history && window.history.replaceState) {
-        window.history.replaceState(null, '', window.location.pathname);
-      } else {
-        window.location.hash = '';
+  // 1. Loudspeaker Speech Synthesis Hook (TTS Out Loud)
+  const {
+    isSpeaking: isTTSActive,
+    speak,
+    stopSpeech,
+    audioUnlocked,
+    unlockAudio,
+    playTestSound,
+    speechRate,
+    setSpeechRate
+  } = useSpeechSynthesis({
+    volumeBoost,
+    preferredEngine: 'hybrid'
+  });
+
+  // 2. WebRTC & Socket.IO Calling Hook (P2P Duplex without raw audio pass-through)
+  const {
+    connectionState,
+    remotePeer,
+    isPeerSpeaking,
+    pingMs,
+    errorMsg: webrtcError,
+    connect: connectWebRTC,
+    disconnect: disconnectWebRTC,
+    emitSpeakingState,
+    emitSpeechSegment,
+    updateLanguage: updatePeerLanguage
+  } = useWebRTC({
+    backendUrl,
+    roomId,
+    userId: userIdRef.current,
+    userName,
+    language: localLanguage,
+    voiceGender,
+    onRemoteTextReceived: (data) => {
+      handleRemoteIncomingData(data);
+    },
+    onRemoteAudioReceived: (data) => {
+      handleRemoteAudioReceived(data);
+    },
+    onRemoteSpeechEnded: () => {
+      handleRemoteSpeechEnded();
+    }
+  });
+
+  // 3. Speech Recognition Hook (STT In with 1.0s silence auto-mute)
+  const {
+    isListening,
+    interimText: localInterim,
+    audioLevel: localAudioLevel,
+    startListening,
+    stopListening,
+    toggleListening,
+    finalizeTurn,
+    micStream
+  } = useSpeechRecognition({
+    language: localLanguage,
+    isDucked: isTTSActive,
+    silenceTimeoutMs: 1000,
+    onSpeakingStateChange: (speaking) => {
+      emitSpeakingState(speaking);
+    },
+    onFinalTranscript: async (finalText) => {
+      await handleDispatchUtterance(finalText);
+    }
+  });
+
+  // Dispatch an utterance (from Microphone speech OR from quick text input box)
+  const handleDispatchUtterance = useCallback(async (text) => {
+    if (!text || !text.trim()) return;
+
+    unlockAudio();
+    setLatestLocalOriginal(text);
+
+    // Target language is peer's language if connected; else fallback to remoteLanguage
+    const targetLang = remotePeer?.language || remoteLanguage;
+
+    // 1. Instant Client-Side Translation (<150ms)
+    const translated = await translateTextFast(text, localLanguage, targetLang, activeDomain, backendUrl);
+    setLatestLocalTranslated(translated);
+
+    // 2. Append to transcript audit log
+    const utteranceId = `local-${Date.now()}`;
+    setTranscript(prev => [
+      ...prev,
+      {
+        id: utteranceId,
+        speaker: `${userName} (You)`,
+        isLocal: true,
+        originalText: text,
+        translatedText: translated,
+        sourceLang: localLanguage,
+        targetLang: targetLang,
+        timestamp: Date.now()
       }
+    ]);
+
+    // 3. Emit speech segment to remote peer (strictly sent to the real connected peer)
+    emitSpeechSegment(text, localLanguage);
+  }, [activeDomain, backendUrl, emitSpeechSegment, localLanguage, remoteLanguage, remotePeer, unlockAudio, userName]);
+
+  // Audio fallback timer refs to guarantee speech is played EXACTLY ONCE
+  const pendingAudioFallbackRef = useRef(null);
+  const pendingFallbackTextRef = useRef('');
+
+  // Handle Incoming Remote Subtitles from Connected Peer (<200ms)
+  const handleRemoteIncomingData = useCallback((data) => {
+    unlockAudio();
+
+    const orig = data.originalText || '';
+    const trans = data.translatedText || orig;
+
+    setLatestRemoteOriginal(orig);
+    setLatestRemoteTranslated(trans);
+
+    const peerLabel = remotePeer?.userName || 'Peer 2';
+
+    setTranscript(prev => [
+      ...prev,
+      {
+        id: `peer-${Date.now()}`,
+        speaker: peerLabel,
+        isLocal: false,
+        originalText: orig,
+        translatedText: trans,
+        sourceLang: data.sourceLang || remoteLanguage,
+        targetLang: data.targetLang || localLanguage,
+        timestamp: Date.now()
+      }
+    ]);
+
+    // Subtitle delivers instantly. Do NOT speak immediately here:
+    // The backend synthesizes high-fidelity Edge Neural TTS and delivers it via translated_audio (~400ms).
+    // To prevent double audio while ensuring speech is never skipped if backend fails, schedule a 1500ms fallback.
+    if (pendingAudioFallbackRef.current) {
+      clearTimeout(pendingAudioFallbackRef.current);
+      pendingAudioFallbackRef.current = null;
     }
-    setActiveRoomId('');
-    setCurrentView('lobby');
+
+    pendingFallbackTextRef.current = trans;
+    pendingAudioFallbackRef.current = setTimeout(() => {
+      speak(trans, localLanguage);
+      pendingAudioFallbackRef.current = null;
+      pendingFallbackTextRef.current = '';
+    }, 1500);
+  }, [localLanguage, remoteLanguage, remotePeer, speak, unlockAudio]);
+
+  // Handle Incoming Base64 Audio from Connected Peer (from Edge-TTS backend)
+  const handleRemoteAudioReceived = useCallback((data) => {
+    // Backend neural audio arrived: cancel fallback timer immediately
+    if (pendingAudioFallbackRef.current) {
+      clearTimeout(pendingAudioFallbackRef.current);
+      pendingAudioFallbackRef.current = null;
+    }
+    pendingFallbackTextRef.current = '';
+
+    if (data.audioBase64) {
+      speak(data.translatedText, localLanguage, data.audioBase64);
+    }
+  }, [localLanguage, speak]);
+
+  // Handle Peer Speech Ended (e.g. backend TTS completed or failed early)
+  const handleRemoteSpeechEnded = useCallback(() => {
+    if (pendingAudioFallbackRef.current && pendingFallbackTextRef.current) {
+      clearTimeout(pendingAudioFallbackRef.current);
+      pendingAudioFallbackRef.current = null;
+      speak(pendingFallbackTextRef.current, localLanguage);
+      pendingFallbackTextRef.current = '';
+    }
+  }, [localLanguage, speak]);
+
+  // Language update handlers
+  const handleLocalLanguageChange = (newLang) => {
+    setLocalLanguage(newLang);
+    updatePeerLanguage(newLang, voiceGender, userName);
   };
 
-  const handleClearDefaultRoom = () => {
-    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
-      window.history.replaceState(null, '', window.location.pathname);
-    } else {
-      window.location.hash = '';
-    }
-    setActiveRoomId('');
+  const handleRemoteLanguageChange = (newLang) => {
+    setRemoteLanguage(newLang);
+  };
+
+  // Pre-join entry handler
+  const handleJoinMeeting = () => {
+    setHasJoinedMeeting(true);
+    unlockAudio();
+    connectWebRTC(roomId);
+  };
+
+  // Leave room handler
+  const handleLeaveRoom = () => {
+    disconnectWebRTC();
+    setHasJoinedMeeting(false);
   };
 
   return (
-    <div className="min-h-screen bg-dark-950 text-white font-sans">
-      <ErrorBoundary onReset={handleLeaveCall}>
-        {currentView === 'lobby' ? (
-          <Lobby 
-            onJoinRoom={handleJoinRoom} 
-            defaultRoomId={activeRoomId} 
-            onClearDefaultRoom={handleClearDefaultRoom}
+    <div className="w-full h-full flex flex-col bg-[#0A0A0A] text-[#FFFFFF] select-none relative overflow-hidden font-mono rounded-none-all">
+      {!hasJoinedMeeting ? (
+        /* Pre-Join Meeting Lobby (Zoom / Google Meet Style) */
+        <PreJoinLobby
+          roomId={roomId}
+          userName={userName}
+          onUserNameChange={setUserName}
+          selectedLanguage={localLanguage}
+          onLanguageChange={setLocalLanguage}
+          onJoinMeeting={handleJoinMeeting}
+          audioLevel={localAudioLevel}
+          onTestAudio={playTestSound}
+        />
+      ) : (
+        /* In-Meeting Experience */
+        <>
+          {/* 1. Global Navigation Bar */}
+          <Navbar
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
+            connectionState={connectionState}
+            activeTier={activeTier}
+            currency={currency}
+            onOpenPricing={() => setIsPricingOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            roomParticipantCount={remotePeer ? 2 : 1}
           />
-        ) : (
-          <CallRoom 
-            roomId={activeRoomId} 
-            language={selectedLanguage} 
-            voiceGender={voiceGender} 
-            onLeaveCall={handleLeaveCall} 
+
+          {/* 2. Main Portal Routing Stage */}
+          <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+            {activeTab === 'studio' && (
+              <CallStudio
+                roomId={roomId}
+                userName={userName}
+                onRoomIdChange={setRoomId}
+                connectionState={connectionState}
+                remotePeer={remotePeer}
+                onConnect={() => connectWebRTC(roomId)}
+                onDisconnect={handleLeaveRoom}
+                localLanguage={localLanguage}
+                remoteLanguage={remotePeer?.language || remoteLanguage}
+                onLocalLanguageChange={handleLocalLanguageChange}
+                onRemoteLanguageChange={handleRemoteLanguageChange}
+                isListening={isListening}
+                onToggleMic={toggleListening}
+                onFinalizeTurn={finalizeTurn}
+                localAudioLevel={localAudioLevel}
+                isPeerSpeaking={isPeerSpeaking}
+                isRemoteSpeaking={isTTSActive}
+                isLocalSpeakingTTS={isTTSActive}
+                localInterim={localInterim}
+                latestLocalOriginal={latestLocalOriginal}
+                latestLocalTranslated={latestLocalTranslated}
+                latestRemoteOriginal={latestRemoteOriginal}
+                latestRemoteTranslated={latestRemoteTranslated}
+                onSendTextUtterance={handleDispatchUtterance}
+                onReplayAudio={() => {
+                  if (latestRemoteTranslated) speak(latestRemoteTranslated, localLanguage);
+                }}
+                onTestSpeaker={playTestSound}
+                onOpenMinutes={() => setIsMinutesOpen(true)}
+                onOpenGlossary={() => setIsGlossaryOpen(true)}
+                activeDomain={activeDomain}
+                volumeBoost={volumeBoost}
+                onToggleVolumeBoost={() => setVolumeBoost(prev => !prev)}
+                audioUnlocked={audioUnlocked}
+                onUnlockAudio={unlockAudio}
+              />
+            )}
+
+            {activeTab === 'user-dashboard' && (
+              <UserDashboard
+                onJoinRoom={(targetRoom) => {
+                  setRoomId(targetRoom);
+                  connectWebRTC(targetRoom);
+                  setActiveTab('studio');
+                }}
+                onOpenMinutes={() => setIsMinutesOpen(true)}
+                onOpenPricing={() => setIsPricingOpen(true)}
+                activeTier={activeTier}
+                currency={currency}
+              />
+            )}
+
+            {activeTab === 'admin-dashboard' && (
+              <AdminDashboard
+                backendUrl={backendUrl}
+                currency={currency}
+                onOpenPricing={() => setIsPricingOpen(true)}
+              />
+            )}
+          </main>
+
+          {/* 3. Settings & Audio Hardware Modal */}
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            localLanguage={localLanguage}
+            onLocalLanguageChange={handleLocalLanguageChange}
+            remoteLanguage={remoteLanguage}
+            onRemoteLanguageChange={handleRemoteLanguageChange}
+            volumeBoost={volumeBoost}
+            onToggleVolumeBoost={() => setVolumeBoost(prev => !prev)}
+            onTestSpeaker={playTestSound}
+            speechRate={speechRate}
+            onSpeechRateChange={setSpeechRate}
+            audioLevel={localAudioLevel}
+            voiceGender={voiceGender}
+            onVoiceGenderChange={setVoiceGender}
           />
-        )}
-      </ErrorBoundary>
+
+          {/* 4. Enterprise Commercial Monetization Modal (₹ INR / $ USD) */}
+          <MonetizationModal
+            isOpen={isPricingOpen}
+            onClose={() => setIsPricingOpen(false)}
+            activeTier={activeTier}
+            onSelectTier={(tier) => setActiveTier(tier)}
+            currency={currency}
+            onToggleCurrency={() => setCurrency(prev => prev === 'INR' ? 'USD' : 'INR')}
+          />
+
+          {/* 5. Feature 01: AI Corporate Executive Meeting Minutes Drawer */}
+          <MinutesDrawer
+            isOpen={isMinutesOpen}
+            onClose={() => setIsMinutesOpen(false)}
+            transcript={transcript}
+            activeTier={activeTier}
+            onOpenUpgrade={() => {
+              setIsMinutesOpen(false);
+              setIsPricingOpen(true);
+            }}
+          />
+
+          {/* 6. Feature 02: Enterprise Domain Glossaries & Jargon Lock Drawer */}
+          <GlossaryDrawer
+            isOpen={isGlossaryOpen}
+            onClose={() => setIsGlossaryOpen(false)}
+            activeDomain={activeDomain}
+            onSelectDomain={(domain) => setActiveDomain(domain)}
+            activeTier={activeTier}
+            onOpenUpgrade={() => {
+              setIsGlossaryOpen(false);
+              setIsPricingOpen(true);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -62,6 +62,7 @@ def register_socket_events(sio):
             data = {}
         room_id = str(data.get("roomId", "")).strip()
         user_id = str(data.get("userId", f"user_{sid[:5]}")).strip()
+        user_name = str(data.get("userName", f"Caller {user_id[-4:]}")).strip()
         language = str(data.get("language", "te")).strip()
         voice_gender = str(data.get("voiceGender", "female")).strip()
 
@@ -112,6 +113,7 @@ def register_socket_events(sio):
 
         rooms[room_id][sid] = {
             "userId": user_id,
+            "userName": user_name,
             "language": language,
             "voiceGender": voice_gender,
             "isMuted": False,
@@ -169,15 +171,19 @@ def register_socket_events(sio):
         if room_id and room_id in rooms and sid in rooms[room_id]:
             new_lang = str(data.get("language", "te")).strip()
             new_gender = str(data.get("voiceGender", "female")).strip()
+            new_name = str(data.get("userName") or rooms[room_id][sid].get("userName", "")).strip()
             rooms[room_id][sid]["language"] = new_lang
             rooms[room_id][sid]["voiceGender"] = new_gender
+            if new_name:
+                rooms[room_id][sid]["userName"] = new_name
 
             # Notify peer of updated language and voice persona
             for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
                     await sio.emit("peer_language_updated", {
                         "peerLanguage": new_lang,
-                        "voiceGender": new_gender
+                        "voiceGender": new_gender,
+                        "userName": new_name
                     }, to=peer_sid)
 
     @sio.event
@@ -191,6 +197,24 @@ def register_socket_events(sio):
             for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
                     await sio.emit("peer_mute_changed", {"isMuted": is_muted}, to=peer_sid)
+
+    @sio.event
+    async def speaking_state(sid, data=None):
+        """
+        Emitted when a caller starts or stops speaking into their mic.
+        data: { "isSpeaking": bool }
+        """
+        if not isinstance(data, dict):
+            data = {}
+        room_id = sid_to_room.get(sid)
+        if room_id and room_id in rooms:
+            sender = rooms[room_id].get(sid)
+            for peer_sid in list(rooms[room_id].keys()):
+                if peer_sid != sid:
+                    await sio.emit("peer_speaking_state", {
+                        "isSpeaking": bool(data.get("isSpeaking", False)),
+                        "speakerId": sender.get("userId") if sender else "Peer"
+                    }, to=peer_sid)
 
     @sio.event
     async def speech_segment(sid, data=None):

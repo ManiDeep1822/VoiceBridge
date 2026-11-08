@@ -7,34 +7,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        dark: {
-          950: '#090a0f',
-          900: '#0f121d',
-          850: '#151928',
-          800: '#1b2034',
-          700: '#272e4a',
+        canvas: '#07090C',
+        surface: {
+          DEFAULT: '#0B0D11',
+          elevated: '#13171F',
+          muted: '#181C26',
         },
-        brand: {
-          cyan: '#00f2fe',
-          blue: '#4facfe',
-          violet: '#7f00ff',
-          pink: '#e100ff',
-        }
-      },
-      animation: {
-        'pulse-glow': 'pulseGlow 2.5s infinite ease-in-out',
-        'ripple': 'ripple 2s linear infinite',
-      },
-      keyframes: {
-        pulseGlow: {
-          '0%, 100%': { opacity: '0.4', transform: 'scale(0.98)' },
-          '50%': { opacity: '0.9', transform: 'scale(1.03)' },
+        border: {
+          subtle: '#1E232E',
+          active: '#2E3547',
+          focus: '#3B82F6',
         },
-        ripple: {
-          '0%': { transform: 'scale(0.95)', opacity: '0.8' },
-          '100%': { transform: 'scale(1.6)', opacity: '0' },
-        }
-      }
+        status: {
+          synced: '#10B981',
+          buffering: '#F59E0B',
+          drift: '#EF4444',
+          host: '#8B5CF6',
+        },
+      },
+      fontFamily: {
+        mono: ['"JetBrains Mono"', 'Menlo', 'Monaco', 'Consolas', '"Courier New"', 'monospace'],
+        sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+      },
+      borderRadius: {
+        sm: '4px',
+        DEFAULT: '4px',
+        md: '6px',
+        lg: '8px',
+      },
     },
   },
   plugins: [],

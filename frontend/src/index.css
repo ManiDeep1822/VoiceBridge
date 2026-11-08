@@ -3,151 +3,130 @@
 @tailwind utilities;
 
 :root {
-  --bg-main: #121418;
-  --bg-surface: #1a1d24;
-  --bg-surface-hover: #22262f;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(255, 255, 255, 0.2);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent-emerald: #10b981;
-  --accent-blue: #3b82f6;
-  --danger: #ef4444;
+  /* Tactical Chassis & Raw Mechanical Substrates */
+  --bg-chassis: #0A0A0A;
+  --bg-panel: #111111;
+  --bg-module: #161616;
+  --bg-module-active: #1F1F1F;
+  --border-tactical: #262626;
+  --border-highlight: #404040;
+  --border-active: #E61919;
+
+  /* Utilitarian Hazard & Telemetry Accents (Aviation Red & White Phosphor) */
+  --hazard-red: #E61919;
+  --alert-orange: #FF5500;
+  --phosphor-white: #FFFFFF;
+  --phosphor-green: #39FF14;
+
+  /* High Contrast Typography */
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --text-muted: #52525B;
+  --text-ghost: #27272A;
+
+  /* Monospace Telemetry */
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'Space Mono', 'Courier Prime', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-html, body {
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
   margin: 0;
   padding: 0;
   width: 100%;
-  min-height: 100%;
-  min-height: 100dvh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-  overflow-x: hidden;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-/* Dynamic screen container for full mobile viewport consistency */
-.dynamic-screen {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
   height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--bg-main);
-}
-
-/* Safe area insets for mobile devices */
-.safe-area-bottom {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
-}
-
-.safe-area-top {
-  padding-top: max(0.75rem, env(safe-area-inset-top));
-}
-
-/* Clean, modern scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-/* Studio Participant Card */
-.studio-tile {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 1.25rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.studio-tile-active {
-  border-color: rgba(16, 185, 129, 0.6);
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
-}
-
-/* Clean Google Meet style Caption Bar */
-.caption-bar {
-  background: rgba(18, 20, 24, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-subtle);
-}
-
-/* Tactile Control Buttons */
-.control-btn {
-  background-color: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--bg-chassis);
   color: var(--text-primary);
-  transition: all 0.15s ease-in-out;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.control-btn:hover {
-  background-color: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.16);
+/* Mechanical Brutalist: 90-degree corners strictly enforced across UI */
+.rounded-none-all * {
+  border-radius: 0px !important;
 }
 
-.control-btn-active {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
+/* Monospace telemetry utility */
+.font-telemetry {
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
 }
 
-.control-btn-danger {
-  background-color: #dc2626;
-  border-color: #dc2626;
-  color: #ffffff;
-}
-.control-btn-danger:hover {
-  background-color: #b91c1c;
-  border-color: #b91c1c;
-}
-
-/* Equalizer Bars */
-@keyframes eq-pulse {
-  0%, 100% {
-    height: 4px;
-  }
-  50% {
-    height: 18px;
-  }
+/* Micro scanline telemetry overlay (pure CRT simulation) */
+.scanline-overlay {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.35) 2px,
+    rgba(0, 0, 0, 0.35) 4px
+  );
+  pointer-events: none;
 }
 
-.eq-bar {
-  width: 3px;
-  border-radius: 2px;
-  background-color: #10b981;
-  animation: eq-pulse 0.8s ease-in-out infinite;
+/* Blueprint dot-matrix grid */
+.blueprint-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
-.eq-bar:nth-child(2) { animation-delay: 0.15s; }
-.eq-bar:nth-child(3) { animation-delay: 0.3s; }
-.eq-bar:nth-child(4) { animation-delay: 0.45s; }
+/* High-contrast crosshair marker */
+.crosshair-corner {
+  position: relative;
+}
+.crosshair-corner::before {
+  content: "+";
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1;
+  pointer-events: none;
+}
 
-/* Mobile drawer sheet */
-@media (max-width: 640px) {
-  .mobile-drawer-sheet {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    max-height: 80vh;
-    border-top-left-radius: 1.5rem;
-    border-top-right-radius: 1.5rem;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.7);
-  }
+/* Industrial button tactile response */
+.btn-mechanical {
+  transition: transform 0.05s ease, background-color 0.1s ease;
+  border: 1px solid var(--border-tactical);
+  background: var(--bg-module);
+  color: var(--text-primary);
+  border-radius: 0px !important;
+}
+
+.btn-mechanical:hover {
+  border-color: var(--border-highlight);
+  background: var(--bg-module-active);
+}
+
+.btn-mechanical:active {
+  transform: translate(1px, 1px);
+  background: #262626;
+}
+
+/* Precision engineered mechanical scrollbars */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0A0A;
+  border-left: 1px solid var(--border-tactical);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-highlight);
+  border-radius: 0px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FFFFFF;
 }
