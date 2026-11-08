@@ -89,7 +89,49 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
             return clean
         return ""
 
-    # Option 1: Try Gemini if API key is present (non-blocking async with 3.5s timeout)
+    # Option 1: Ultra-high-speed primary Google Translate API via client=gtx (sub-100ms latency)
+    try:
+        url = (
+            f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={src}&tl={tgt}&dt=t&q="
+            + urllib.parse.quote(text)
+        )
+        async with aiohttp.ClientSession() as session:
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=2.5)) as resp:
+                if resp.status == 200:
+                    raw_data = await resp.text()
+                    data = json.loads(raw_data)
+                    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
+                        translated = "".join(part[0] for part in data[0] if isinstance(part, list) and len(part) > 0 and isinstance(part[0], str))
+                        res = _cache_and_return(translated)
+                        if res:
+                            return res
+    except Exception as e:
+        print(f"[Translator] Primary Google translate endpoint failed: {e}")
+
+    # Option 2: Fallback Google Translate endpoint via client=dict-chrome-ex
+    try:
+        url_fallback = (
+            f"https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl={src}&tl={tgt}&q="
+            + urllib.parse.quote(text)
+        )
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url_fallback, timeout=aiohttp.ClientTimeout(total=2.5)) as resp:
+                if resp.status == 200:
+                    raw_data = await resp.text()
+                    data = json.loads(raw_data)
+                    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], str):
+                        res = _cache_and_return(data[0])
+                        if res:
+                            return res
+                    elif isinstance(data, str):
+                        res = _cache_and_return(data)
+                        if res:
+                            return res
+    except Exception as e:
+        print(f"[Translator] Secondary Google translate endpoint failed: {e}")
+
+    # Option 3: Gemini translation fallback if API key is present
     if GEMINI_API_KEY:
         client = _get_gemini_client()
         if client:
@@ -112,53 +154,13 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
                         contents=prompt
                     )
 
-                response = await asyncio.wait_for(_call_gemini(), timeout=3.5)
+                response = await asyncio.wait_for(_call_gemini(), timeout=1.8)
                 if response and response.text and response.text.strip():
                     res = _cache_and_return(response.text)
                     if res:
                         return res
             except Exception as e:
                 print(f"[Translator] Gemini translation fallback due to: {e}")
-
-    # Option 2: High-speed primary Google Translate API via client=gtx
-    try:
-        url = (
-            f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={src}&tl={tgt}&dt=t&q="
-            + urllib.parse.quote(text)
-        )
-        async with aiohttp.ClientSession() as session:
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:
-                if resp.status == 200:
-                    raw_data = await resp.text()
-                    data = json.loads(raw_data)
-                    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
-                        translated = "".join(part[0] for part in data[0] if isinstance(part, list) and len(part) > 0 and isinstance(part[0], str))
-                        res = _cache_and_return(translated)
-                        if res:
-                            return res
-    except Exception as e:
-        print(f"[Translator] Primary Google translate endpoint failed: {e}")
-
-    # Option 3: Fallback Google Translate endpoint via client=dict-chrome-ex
-    try:
-        url_fallback = (
-            f"https://translate.googleapis.com/translate_a/single?client=dict-chrome-ex&sl={src}&tl={tgt}&dt=t&q="
-            + urllib.parse.quote(text)
-        )
-        async with aiohttp.ClientSession() as session:
-            headers = {"User-Agent": "Mozilla/5.0 (Chrome-Extension; dict-chrome-ex)"}
-            async with session.get(url_fallback, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:
-                if resp.status == 200:
-                    raw_data = await resp.text()
-                    data = json.loads(raw_data)
-                    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
-                        translated = "".join(part[0] for part in data[0] if isinstance(part, list) and len(part) > 0 and isinstance(part[0], str))
-                        res = _cache_and_return(translated)
-                        if res:
-                            return res
-    except Exception as e:
-        print(f"[Translator] Secondary Google translate endpoint failed: {e}")
 
     # Option 4: Fallback using MyMemory with strict warning guard
     try:

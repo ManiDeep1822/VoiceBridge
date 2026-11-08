@@ -304,12 +304,12 @@ def register_socket_events(sio):
                 "translatedText": punctuated_translated
             }, to=sid)
 
-            # Stage 3: Studio neural voice synthesis (Normalized 1.05x speed, steady baseline pitch with expressive tail inflection)
+            # Stage 3: Studio neural voice synthesis (Natural human conversational cadence +3%, steady baseline pitch with expressive tail inflection)
             audio_bytes = await synthesize_speech(
                 punctuated_translated, 
                 target_lang, 
                 speaker_gender, 
-                rate="+5%", 
+                rate="+3%", 
                 volume="+50%",
                 pitch="+0Hz"
             )

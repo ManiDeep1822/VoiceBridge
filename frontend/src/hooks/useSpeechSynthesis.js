@@ -12,7 +12,7 @@ export function useSpeechSynthesis({
   const [activeVoiceName, setActiveVoiceName] = useState('');
   const [availableVoices, setAvailableVoices] = useState([]);
   const [volume, setVolume] = useState(1.0); // 0.0 to 1.0
-  const [speechRate, setSpeechRate] = useState(1.05); // Constant normalized conversational pace (1.05x)
+  const [speechRate, setSpeechRate] = useState(1.03); // Natural human conversational pace (1.03x)
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   const audioContextRef = useRef(null);
@@ -222,14 +222,16 @@ export function useSpeechSynthesis({
     // Unlock audio context
     initAudioGain();
 
-    // If backend Edge-TTS base64 is already supplied
-    if (backendAudioBase64 && (preferredEngine === 'edge-tts' || preferredEngine === 'hybrid')) {
+    // If backend Edge-TTS base64 is supplied
+    if (backendAudioBase64) {
       const ok = await playBase64Audio(backendAudioBase64);
       if (ok) return;
     }
 
-    // Default to immediate local Web Speech API
-    speakTextLocal(cleanText, targetLang);
+    // Only fallback to browser Web Speech API if engine is explicitly NOT locked to edge-tts
+    if (preferredEngine !== 'edge-tts') {
+      speakTextLocal(cleanText, targetLang);
+    }
   }, [initAudioGain, playBase64Audio, preferredEngine, speakTextLocal, stopSpeech]);
 
   // Play Audible Test Sound

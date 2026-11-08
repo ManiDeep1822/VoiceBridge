@@ -100,7 +100,7 @@ export default function App() {
     setSpeechRate
   } = useSpeechSynthesis({
     volumeBoost,
-    preferredEngine: 'hybrid'
+    preferredEngine: 'edge-tts'
   });
 
   // 2. WebRTC & Socket.IO Calling Hook (P2P Duplex without raw audio pass-through)
@@ -146,7 +146,7 @@ export default function App() {
   } = useSpeechRecognition({
     language: localLanguage,
     isDucked: isTTSActive,
-    silenceTimeoutMs: 1000,
+    silenceTimeoutMs: 650, // 650ms Balanced Silence Auto-Mute (optimized turn-taking latency)
     onSpeakingStateChange: (speaking) => {
       emitSpeakingState(speaking);
     },
@@ -165,35 +165,32 @@ export default function App() {
     // Target language is peer's language if connected; else fallback to remoteLanguage
     const targetLang = remotePeer?.language || remoteLanguage;
 
-    // 1. Instant Client-Side Translation (<150ms)
-    const translated = await translateTextFast(text, localLanguage, targetLang, activeDomain, backendUrl);
-    setLatestLocalTranslated(translated);
-
-    // 2. Append to transcript audit log
-    const utteranceId = `local-${Date.now()}`;
-    setTranscript(prev => [
-      ...prev,
-      {
-        id: utteranceId,
-        speaker: `${userName} (You)`,
-        isLocal: true,
-        originalText: text,
-        translatedText: translated,
-        sourceLang: localLanguage,
-        targetLang: targetLang,
-        timestamp: Date.now()
-      }
-    ]);
-
-    // 3. Emit speech segment to remote peer (strictly sent to the real connected peer)
+    // 1. Dispatch speech segment to remote peer immediately across socket (0ms non-blocking)
     emitSpeechSegment(text, localLanguage);
+
+    // 2. Perform local translation in parallel for local transcript display
+    translateTextFast(text, localLanguage, targetLang, activeDomain, backendUrl).then((translated) => {
+      setLatestLocalTranslated(translated);
+      const utteranceId = `local-${Date.now()}`;
+      setTranscript(prev => [
+        ...prev,
+        {
+          id: utteranceId,
+          speaker: `${userName} (You)`,
+          isLocal: true,
+          originalText: text,
+          translatedText: translated,
+          sourceLang: localLanguage,
+          targetLang: targetLang,
+          timestamp: Date.now()
+        }
+      ]);
+    }).catch(err => {
+      console.warn('[LocalTranslation] Error in local preview:', err);
+    });
   }, [activeDomain, backendUrl, emitSpeechSegment, localLanguage, remoteLanguage, remotePeer, unlockAudio, userName]);
 
-  // Audio fallback timer refs to guarantee speech is played EXACTLY ONCE
-  const pendingAudioFallbackRef = useRef(null);
-  const pendingFallbackTextRef = useRef('');
-
-  // Handle Incoming Remote Subtitles from Connected Peer (<200ms)
+  // Handle Incoming Remote Subtitles from Connected Peer (<150ms)
   const handleRemoteIncomingData = useCallback((data) => {
     unlockAudio();
 
@@ -218,46 +215,19 @@ export default function App() {
         timestamp: Date.now()
       }
     ]);
+  }, [localLanguage, remoteLanguage, remotePeer, unlockAudio]);
 
-    // Subtitle delivers instantly. Do NOT speak immediately here:
-    // The backend synthesizes high-fidelity Edge Neural TTS and delivers it via translated_audio (~400ms).
-    // To prevent double audio while ensuring speech is never skipped if backend fails, schedule a 1500ms fallback.
-    if (pendingAudioFallbackRef.current) {
-      clearTimeout(pendingAudioFallbackRef.current);
-      pendingAudioFallbackRef.current = null;
-    }
-
-    pendingFallbackTextRef.current = trans;
-    pendingAudioFallbackRef.current = setTimeout(() => {
-      speak(trans, localLanguage);
-      pendingAudioFallbackRef.current = null;
-      pendingFallbackTextRef.current = '';
-    }, 1500);
-  }, [localLanguage, remoteLanguage, remotePeer, speak, unlockAudio]);
-
-  // Handle Incoming Base64 Audio from Connected Peer (from Edge-TTS backend)
+  // Handle Incoming Base64 Audio from Connected Peer (Authoritative Studio Neural Voice)
   const handleRemoteAudioReceived = useCallback((data) => {
-    // Backend neural audio arrived: cancel fallback timer immediately
-    if (pendingAudioFallbackRef.current) {
-      clearTimeout(pendingAudioFallbackRef.current);
-      pendingAudioFallbackRef.current = null;
-    }
-    pendingFallbackTextRef.current = '';
-
     if (data.audioBase64) {
       speak(data.translatedText, localLanguage, data.audioBase64);
     }
   }, [localLanguage, speak]);
 
-  // Handle Peer Speech Ended (e.g. backend TTS completed or failed early)
+  // Handle Peer Speech Ended
   const handleRemoteSpeechEnded = useCallback(() => {
-    if (pendingAudioFallbackRef.current && pendingFallbackTextRef.current) {
-      clearTimeout(pendingAudioFallbackRef.current);
-      pendingAudioFallbackRef.current = null;
-      speak(pendingFallbackTextRef.current, localLanguage);
-      pendingFallbackTextRef.current = '';
-    }
-  }, [localLanguage, speak]);
+    // Pure Neural audio playback managed via active audio element
+  }, []);
 
   // Language update handlers
   const handleLocalLanguageChange = (newLang) => {
