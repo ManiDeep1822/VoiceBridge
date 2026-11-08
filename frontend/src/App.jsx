@@ -133,7 +133,7 @@ export default function App() {
     }
   });
 
-  // 3. Speech Recognition Hook (STT In with 1.0s silence auto-mute)
+  // 3. Speech Recognition Hook (Strict Push-to-Talk with 0ms Release Dispatch)
   const {
     isListening,
     interimText: localInterim,
@@ -146,7 +146,7 @@ export default function App() {
   } = useSpeechRecognition({
     language: localLanguage,
     isDucked: isTTSActive,
-    silenceTimeoutMs: 650, // 650ms Balanced Silence Auto-Mute (optimized turn-taking latency)
+    strictPushToTalk: true, // Strict Push-to-Talk eliminates ambient noise and 100% of silence delay
     onSpeakingStateChange: (speaking) => {
       emitSpeakingState(speaking);
     },
@@ -297,6 +297,7 @@ export default function App() {
                 onLocalLanguageChange={handleLocalLanguageChange}
                 onRemoteLanguageChange={handleRemoteLanguageChange}
                 isListening={isListening}
+                onStartListening={startListening}
                 onToggleMic={toggleListening}
                 onFinalizeTurn={finalizeTurn}
                 localAudioLevel={localAudioLevel}

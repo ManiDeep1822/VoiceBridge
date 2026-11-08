@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Mic, Volume2, PhoneOff, Send, Copy, Check, ExternalLink,
-  BookOpen, FileText, Share2, MessageCircle, Globe, Users, ArrowRight
+  BookOpen, FileText, Share2, MessageCircle, Globe, Users, ArrowRight,
+  Lock, Radio, MicOff
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageMeta, getLocaleStrings } from '../../utils/languages.js';
 
@@ -18,6 +19,7 @@ export function CallStudio({
   onLocalLanguageChange,
   onRemoteLanguageChange,
   isListening = false,
+  onStartListening,
   onToggleMic,
   onFinalizeTurn,
   localAudioLevel = 0,
@@ -42,6 +44,11 @@ export function CallStudio({
 }) {
   const [typedMessage, setTypedMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
+  const pointerStartTimeRef = useRef(0);
+  const isHoldingRef = useRef(false);
+
+  // Floor Lock: When peer is transmitting or translated audio is active on loudspeaker, lock caller mic
+  const isChannelBusy = isPeerSpeaking || isRemoteSpeaking;
 
   const isPeerConnected = Boolean(remotePeer) && connectionState === 'connected';
 
@@ -51,6 +58,111 @@ export function CallStudio({
   const peerDisplayName = remotePeer?.userName || 'Other Person (Remote)';
 
   const loc = getLocaleStrings(localLanguage);
+
+  // Tactical Walkie-Talkie Chirps
+  const playTactileChirp = useCallback((isOpen) => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      if (isOpen) {
+        // Chirp UP (mic key down)
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(750, ctx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.04);
+      } else {
+        // Roger Beep (mic key release / send)
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(550, ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.05);
+      }
+    } catch (e) {}
+  }, []);
+
+  // Desktop Spacebar Hotkey (Hold Spacebar to speak, release to send)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space' && !e.repeat) {
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+        if (isChannelBusy) return;
+        e.preventDefault();
+        if (!isListening) {
+          playTactileChirp(true);
+          if (onStartListening) onStartListening();
+        }
+      }
+    };
+
+    const handleKeyUp = (e) => {
+      if (e.code === 'Space') {
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+        if (isChannelBusy) return;
+        e.preventDefault();
+        if (isListening) {
+          playTactileChirp(false);
+          if (onFinalizeTurn) onFinalizeTurn();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isChannelBusy, isListening, onFinalizeTurn, onStartListening, playTactileChirp]);
+
+  // Dual Strict PTT Event Handlers (Hold-to-Talk + Tap-to-Latch)
+  const handlePttPointerDown = (e) => {
+    if (isChannelBusy) return;
+    if (isListening) return; // If already latched, click handles finalization
+
+    pointerStartTimeRef.current = Date.now();
+    isHoldingRef.current = true;
+    playTactileChirp(true);
+    if (onStartListening) onStartListening();
+  };
+
+  const handlePttPointerUp = (e) => {
+    if (isChannelBusy) return;
+    const duration = Date.now() - pointerStartTimeRef.current;
+    isHoldingRef.current = false;
+
+    if (isListening) {
+      if (duration > 350) {
+        // True Hold-to-Talk: released after holding >350ms -> Immediate 0ms send!
+        playTactileChirp(false);
+        if (onFinalizeTurn) onFinalizeTurn();
+      }
+      // If duration <= 350ms, it was a quick tap -> Leave latched open!
+    }
+  };
+
+  const handlePttClick = (e) => {
+    if (isChannelBusy) return;
+    const duration = Date.now() - pointerStartTimeRef.current;
+    if (isListening && duration <= 350) {
+      // Tap-to-Send: Caller was already latched open and tapped again to complete turn -> Immediate 0ms send!
+      playTactileChirp(false);
+      if (onFinalizeTurn) onFinalizeTurn();
+    }
+  };
 
   // Accessible, everyday conversational phrases for clear communication
   const COMMON_PHRASES = [
@@ -151,34 +263,31 @@ export function CallStudio({
         </div>
       </div>
 
-      {/* 2. Clear Visual Turn Indicator Banner (Dual Language) */}
-      <div className="border-b border-[#262626] bg-[#0E0E0E] px-4 py-2 flex items-center justify-between text-xs">
+      {/* 2. Clear Visual Turn Indicator Banner (Floor Lock & Strict PTT) */}
+      <div className="border-b border-[#262626] bg-[#0E0E0E] px-4 py-2 flex items-center justify-between text-xs font-mono">
         <div className="flex items-center gap-2.5">
-          {isPeerSpeaking ? (
-            <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-              <span className="w-2.5 h-2.5 bg-amber-400 animate-pulse" />
-              <span>{loc.peerSpeaking} ({peerDisplayName} is speaking...)</span>
-            </div>
-          ) : isRemoteSpeaking || isLocalSpeakingTTS ? (
-            <div className="flex items-center gap-2 text-[#39FF14] font-bold text-sm">
-              <span className="w-2.5 h-2.5 bg-[#39FF14]" />
-              <span>{loc.translatingLoud} (Speaking translation out loud)</span>
+          {isChannelBusy ? (
+            <div className="flex items-center gap-2 text-[#F59E0B] font-bold text-sm">
+              <span className="w-2.5 h-2.5 bg-[#F59E0B] animate-pulse" />
+              <Lock className="w-4 h-4 text-[#F59E0B]" />
+              <span>{loc.channelBusy} — {isPeerSpeaking ? `${peerDisplayName} is speaking...` : 'Loudspeaker active'}</span>
             </div>
           ) : isListening ? (
             <div className="flex items-center gap-2 text-[#E61919] font-bold text-sm">
               <span className="w-2.5 h-2.5 bg-[#E61919] animate-pulse" />
+              <Radio className="w-4 h-4 text-[#E61919]" />
               <span>{loc.speakingNotice}</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-[#A1A1AA] text-xs">
-              <span className="w-2 h-2 bg-[#404040]" />
+            <div className="flex items-center gap-2 text-[#39FF14] text-xs font-bold">
+              <span className="w-2.5 h-2.5 bg-[#39FF14]" />
               <span>{isPeerConnected ? loc.readyYourTurn : 'Share link above to start conversation'}</span>
             </div>
           )}
         </div>
 
         <div className="hidden md:flex items-center gap-2 text-[#71717A] text-[11px]">
-          <span>Loudspeaker: {volumeBoost ? '+6dB Active' : 'Normal'}</span>
+          <span>[STRICT PTT FLOOR LOCKED // ZERO LATENCY]</span>
         </div>
       </div>
 
@@ -250,8 +359,10 @@ export function CallStudio({
                 ) : (
                   <p className="text-xs text-[#71717A] leading-relaxed">
                     {isListening
-                      ? 'Speak clearly in ' + localMeta.native + '. Translation will automatically send when you stop speaking.'
-                      : 'Tap the green "Tap to Speak" button below to talk.'}
+                      ? 'Transmitting live speech... Release button or tap again to send immediately (0ms).'
+                      : isChannelBusy
+                        ? 'Floor locked while ' + peerDisplayName + ' is transmitting.'
+                        : 'Hold to Talk or tap once to Speak (PTT) / Spacebar.'}
                   </p>
                 )}
               </div>
@@ -349,30 +460,66 @@ export function CallStudio({
 
           {/* Bottom Primary Controls (Giant Mic Button for Rural Ease) */}
           <div className="border border-[#262626] bg-[#111111] p-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
-            {/* Giant Mic Button */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button
-                onClick={onToggleMic}
-                className={`flex-1 sm:flex-none px-6 py-3.5 font-extrabold text-sm uppercase flex items-center justify-center gap-3 border-2 transition-all cursor-pointer shadow-lg ${
-                  isListening
-                    ? 'border-[#E61919] bg-[#E61919] text-white animate-pulse'
-                    : 'border-[#39FF14] bg-[#39FF14] text-black hover:bg-[#32e012]'
-                }`}
-              >
-                <Mic className="w-5 h-5 stroke-[2.5]" />
-                <span>{isListening ? loc.tapWhenDone : loc.tapToSpeak}</span>
-              </button>
+            {/* Giant Dual Strict PTT Mic Button with Floor Lock */}
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isChannelBusy}
+                  onPointerDown={handlePttPointerDown}
+                  onPointerUp={handlePttPointerUp}
+                  onClick={handlePttClick}
+                  className={`flex-1 sm:flex-none px-6 py-3.5 font-extrabold text-sm uppercase flex items-center justify-center gap-3 border-2 transition-all select-none ${
+                    isChannelBusy
+                      ? 'border-[#B45309] bg-[#1C1305] text-[#F59E0B] opacity-85 cursor-not-allowed'
+                      : isListening
+                        ? 'border-[#E61919] bg-[#E61919] text-white animate-pulse shadow-[0_0_25px_rgba(230,25,25,0.7)] cursor-pointer'
+                        : 'border-[#39FF14] bg-[#39FF14] text-black hover:bg-[#32e012] cursor-pointer shadow-lg active:translate-y-[1px]'
+                  }`}
+                >
+                  {isChannelBusy ? (
+                    <>
+                      <Lock className="w-5 h-5 text-[#F59E0B]" />
+                      <div className="text-left">
+                        <div className="text-xs font-bold leading-tight">{loc.channelBusy}</div>
+                        <div className="text-[10px] text-[#D97706] font-mono">[PEER TRANSMITTING // FLOOR LOCKED]</div>
+                      </div>
+                    </>
+                  ) : isListening ? (
+                    <>
+                      <Mic className="w-5 h-5 stroke-[2.5]" />
+                      <div className="text-left">
+                        <div className="text-xs font-extrabold leading-tight">{loc.tapWhenDone}</div>
+                        <div className="text-[10px] text-white/90 font-mono">RELEASE (HOLD) OR TAP TO SEND (0ms)</div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Radio className="w-5 h-5 stroke-[2.5]" />
+                      <div className="text-left">
+                        <div className="text-xs font-extrabold leading-tight">{loc.tapToSpeak}</div>
+                        <div className="text-[10px] text-black/80 font-mono">HOLD TO TALK OR TAP / SPACEBAR</div>
+                      </div>
+                    </>
+                  )}
+                </button>
 
-              <button
-                onClick={onToggleVolumeBoost}
-                className={`px-3 py-3.5 border text-xs font-bold uppercase transition-colors ${
-                  volumeBoost ? 'border-white bg-[#1A1A1A] text-white' : 'border-[#333333] bg-[#111111] text-[#71717A]'
-                }`}
-                title="Loudspeaker Volume Booster (+6dB)"
-              >
-                <Volume2 className="w-4 h-4 inline mr-1" />
-                <span>+6dB Boost: {volumeBoost ? 'ON' : 'OFF'}</span>
-              </button>
+                <button
+                  onClick={onToggleVolumeBoost}
+                  className={`px-3 py-3.5 border text-xs font-bold uppercase transition-colors ${
+                    volumeBoost ? 'border-white bg-[#1A1A1A] text-white' : 'border-[#333333] bg-[#111111] text-[#71717A]'
+                  }`}
+                  title="Loudspeaker Volume Booster (+6dB)"
+                >
+                  <Volume2 className="w-4 h-4 inline mr-1" />
+                  <span>+6dB Boost: {volumeBoost ? 'ON' : 'OFF'}</span>
+                </button>
+              </div>
+
+              <div className="text-[11px] text-[#71717A] px-1 font-mono flex items-center justify-between">
+                <span>{isChannelBusy ? 'Channel busy — mic disabled to prevent confusion' : loc.pttHelper}</span>
+                <span className="hidden sm:inline">[0ms PTT]</span>
+              </div>
             </div>
 
             {/* Fast Tools & End Call */}

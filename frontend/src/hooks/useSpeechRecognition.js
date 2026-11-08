@@ -7,7 +7,8 @@ export function useSpeechRecognition({
   onInterimTranscript,
   onSpeakingStateChange,
   isDucked = false,
-  silenceTimeoutMs = 1000 // 1.0s silence detection as selected by user
+  silenceTimeoutMs = 0,
+  strictPushToTalk = true // Strict Push-to-Talk eliminates all silence timeout lag and ambient noise
 }) {
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');
@@ -26,6 +27,7 @@ export function useSpeechRecognition({
 
   const silenceTimerRef = useRef(null);
   const accumulatedUtteranceRef = useRef('');
+  const interimTextRef = useRef('');
   const isSpeakingBroadcastingRef = useRef(false);
 
   const langMeta = getLanguageMeta(language);
@@ -126,13 +128,14 @@ export function useSpeechRecognition({
     }
   }, [onSpeakingStateChange, stopAudioMeter]);
 
-  // Dispatch finalized turn and auto-mute mic
+  // Dispatch finalized turn and auto-mute mic (Captures full accumulated text or trailing interim)
   const finalizeTurn = useCallback(() => {
-    const fullText = accumulatedUtteranceRef.current.trim();
+    const fullText = (accumulatedUtteranceRef.current.trim() || interimTextRef.current.trim());
     accumulatedUtteranceRef.current = '';
+    interimTextRef.current = '';
     setInterimText('');
 
-    // Auto-mute microphone after completing turn
+    // Auto-mute microphone immediately upon turn completion
     stopListening();
 
     if (fullText && onFinalTranscript) {
@@ -159,7 +162,7 @@ export function useSpeechRecognition({
         return;
       }
 
-      // Notify peer that local user has started speaking
+      // Notify peer immediately that local user is actively transmitting
       if (!isSpeakingBroadcastingRef.current) {
         isSpeakingBroadcastingRef.current = true;
         if (onSpeakingStateChange) onSpeakingStateChange(true);
@@ -177,18 +180,21 @@ export function useSpeechRecognition({
       }
 
       const activeDisplay = (accumulatedUtteranceRef.current + ' ' + currentInterim).trim();
+      interimTextRef.current = activeDisplay;
       setInterimText(activeDisplay);
       if (onInterimTranscript) {
         onInterimTranscript(activeDisplay);
       }
 
-      // Reset 1.0s silence detection timer
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
+      // Silence auto-mute is active ONLY if strictPushToTalk is explicitly turned off
+      if (!strictPushToTalk && silenceTimeoutMs > 0) {
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+        }
+        silenceTimerRef.current = setTimeout(() => {
+          finalizeTurn();
+        }, silenceTimeoutMs);
       }
-      silenceTimerRef.current = setTimeout(() => {
-        finalizeTurn();
-      }, silenceTimeoutMs);
     };
 
     recognition.onerror = (event) => {
@@ -222,13 +228,21 @@ export function useSpeechRecognition({
       } catch (e) {}
       stopAudioMeter();
     };
-  }, [finalizeTurn, isDuckedRef, langMeta.stt, onInterimTranscript, onSpeakingStateChange, silenceTimeoutMs, stopAudioMeter]);
+  }, [finalizeTurn, isDuckedRef, langMeta.stt, onInterimTranscript, onSpeakingStateChange, silenceTimeoutMs, stopAudioMeter, strictPushToTalk]);
 
   const startListening = useCallback(async () => {
     if (!recognitionRef.current) return;
     accumulatedUtteranceRef.current = '';
+    interimTextRef.current = '';
     setInterimText('');
     shouldBeListeningRef.current = true;
+
+    // Immediately signal transmission start across socket
+    if (!isSpeakingBroadcastingRef.current) {
+      isSpeakingBroadcastingRef.current = true;
+      if (onSpeakingStateChange) onSpeakingStateChange(true);
+    }
+
     try {
       recognitionRef.current.lang = langMeta.stt;
       recognitionRef.current.start();
@@ -237,7 +251,7 @@ export function useSpeechRecognition({
     } catch (e) {
       setIsListening(true);
     }
-  }, [langMeta.stt, startAudioMeter]);
+  }, [langMeta.stt, onSpeakingStateChange, startAudioMeter]);
 
   const toggleListening = useCallback(() => {
     if (isListening) {
