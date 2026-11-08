@@ -8,22 +8,30 @@ export function useSpeechRecognition({
   onSpeakingStateChange,
   isDucked = false,
   silenceTimeoutMs = 0,
-  strictPushToTalk = true
+  strictPushToTalk = true,
+  backendUrl = ''
 }) {
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');
   const [audioLevel, setAudioLevel] = useState(0); // 0 to 100 dB scale
   const [hasSupport, setHasSupport] = useState(true);
   const [micPermission, setMicPermission] = useState('prompt');
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
 
   const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const micStreamRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const mobilePulseTimerRef = useRef(null);
   const shouldBeListeningRef = useRef(false);
   const isRecognizingRef = useRef(false);
   const isStartingRef = useRef(false);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+
+  // Detect mobile operating system to avoid Android Google Speech Services hardware conflicts
+  const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   // Keep mutable callbacks in stable refs to prevent useEffect teardown loops
   const onFinalTranscriptRef = useRef(onFinalTranscript);
@@ -45,8 +53,21 @@ export function useSpeechRecognition({
 
   const langMeta = getLanguageMeta(language);
 
-  // Initialize and Maintain Audio Meter with Persistent Mic Stream
+  // Initialize and Maintain Audio Meter: Decoupled on mobile to avoid Google Speech lockup
   const startAudioMeter = useCallback(async () => {
+    // On mobile devices, avoid opening concurrent getUserMedia while SpeechRecognition runs
+    if (isMobile) {
+      if (mobilePulseTimerRef.current) clearInterval(mobilePulseTimerRef.current);
+      mobilePulseTimerRef.current = setInterval(() => {
+        if (shouldBeListeningRef.current) {
+          setAudioLevel(Math.floor(35 + Math.random() * 45));
+        } else {
+          setAudioLevel(0);
+        }
+      }, 120);
+      return;
+    }
+
     try {
       if (!micStreamRef.current) {
         micStreamRef.current = await navigator.mediaDevices.getUserMedia({
@@ -105,9 +126,13 @@ export function useSpeechRecognition({
       console.warn('[AudioMeter] Microphone access error:', err);
       setMicPermission('denied');
     }
-  }, []);
+  }, [isMobile]);
 
   const stopAudioMeter = useCallback(() => {
+    if (mobilePulseTimerRef.current) {
+      clearInterval(mobilePulseTimerRef.current);
+      mobilePulseTimerRef.current = null;
+    }
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
@@ -275,6 +300,14 @@ export function useSpeechRecognition({
   }, []);
 
   const startListening = useCallback(async () => {
+    // If on mobile, ensure any lingering getUserMedia track is stopped to give exclusive hardware control to SpeechRecognition
+    if (isMobile && micStreamRef.current) {
+      try {
+        micStreamRef.current.getTracks().forEach(t => t.stop());
+      } catch (e) {}
+      micStreamRef.current = null;
+    }
+
     if (!recognitionRef.current) return;
     accumulatedUtteranceRef.current = '';
     interimTextRef.current = '';
@@ -298,7 +331,7 @@ export function useSpeechRecognition({
       }
     }
     setIsListening(true);
-  }, [langMeta.stt, startAudioMeter]);
+  }, [isMobile, langMeta.stt, startAudioMeter]);
 
   const toggleListening = useCallback(() => {
     if (isListening) {

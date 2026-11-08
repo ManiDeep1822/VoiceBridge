@@ -1,5 +1,5 @@
 import React from 'react';
-import { PhoneCall, LayoutDashboard, ShieldCheck, Settings, CreditCard } from 'lucide-react';
+import { PhoneCall, LayoutDashboard, ShieldCheck, Settings, CreditCard, LogOut } from 'lucide-react';
 
 export function Navbar({
   activeTab = 'studio',
@@ -8,7 +8,10 @@ export function Navbar({
   activeTier = 'free',
   currency = 'INR',
   onOpenPricing,
-  onOpenSettings
+  onOpenSettings,
+  currentUser = null,
+  onLogout,
+  onOpenLogin
 }) {
   const isINR = currency === 'INR';
 
@@ -86,7 +89,7 @@ export function Navbar({
       </div>
 
       {/* Right: Actions & Controls */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2 sm:gap-2.5">
         {/* Connection State Badge */}
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/60 text-xs font-medium">
           <span className={`w-2 h-2 rounded-full ${
@@ -104,10 +107,10 @@ export function Navbar({
         {/* Pricing Tier Button */}
         <button
           onClick={onOpenPricing}
-          className="btn-secondary h-11 px-5 py-2.5 rounded-xl text-sm font-medium"
+          className="btn-secondary h-11 px-3 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-medium"
           title="Plans & Pricing"
         >
-          <CreditCard className="w-4 h-4 text-slate-300" />
+          <CreditCard className="w-4 h-4 text-slate-300 shrink-0" />
           <span className="hidden sm:inline">{isINR ? '₹' : '$'} Plan:</span>
           <span className="font-semibold text-white uppercase">{activeTier}</span>
         </button>
@@ -115,13 +118,42 @@ export function Navbar({
         {/* Settings Button */}
         <button
           onClick={onOpenSettings}
-          className="btn-secondary h-11 px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white"
+          className="btn-secondary h-11 px-3 sm:px-5 py-2.5 rounded-xl flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-300 hover:text-white"
           title="Audio & Language Settings"
           aria-label="Settings"
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline">Settings</span>
         </button>
+
+        {/* User Profile & Sign Out OR Sign In */}
+        {currentUser ? (
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="h-11 px-3 rounded-xl bg-slate-800/80 border border-slate-700/60 hidden lg:flex items-center gap-2 text-xs text-white">
+              <div className="w-6 h-6 rounded-lg bg-blue-600/30 text-blue-400 font-bold flex items-center justify-center text-[11px]">
+                {currentUser.name ? currentUser.name[0] : 'U'}
+              </div>
+              <span className="font-medium truncate max-w-[90px]">{currentUser.name}</span>
+            </div>
+
+            <button
+              onClick={onLogout}
+              className="btn-secondary h-11 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-red-400 hover:border-red-500/40"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onOpenLogin}
+            className="btn-primary h-11 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold"
+            title="Sign In to Operator Workspace"
+          >
+            <span>Sign In</span>
+          </button>
+        )}
       </div>
     </header>
   );

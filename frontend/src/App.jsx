@@ -8,12 +8,15 @@ import { SettingsModal } from './components/Settings/SettingsModal';
 import { MonetizationModal } from './components/MonetizationModal';
 import { MinutesDrawer } from './components/MinutesDrawer';
 import { GlossaryDrawer } from './components/GlossaryDrawer';
+import { UserLogin } from './components/Auth/UserLogin';
+import { AdminLogin } from './components/Auth/AdminLogin';
 
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
 import { useWebRTC } from './hooks/useWebRTC';
 import { translateTextFast } from './utils/translator';
 import { getLanguageMeta } from './utils/languages';
+import { callRecorder } from './utils/callRecorder';
 
 export default function App() {
   // Navigation & View State
@@ -47,6 +50,68 @@ export default function App() {
   // Commercial Tier & Currency
   const [activeTier, setActiveTier] = useState('free'); // 'free' | 'pro' | 'enterprise'
   const [currency, setCurrency] = useState('INR'); // Default Indian Rupee (₹ INR)
+
+  // Authentication & Role Separation State
+  const [currentUser, setCurrentUser] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('voicebridge_user') || localStorage.getItem('voicebridge_admin');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return null;
+  });
+
+  const [authView, setAuthView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('auth') === 'admin') return 'admin-login';
+      if (params.get('auth') === 'login') return 'user-login';
+    }
+    return 'app';
+  });
+
+  const [isGuestJoin] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('mode') === 'join';
+    }
+    return false;
+  });
+
+  const handleUserLoginSuccess = (user) => {
+    setCurrentUser(user);
+    setUserName(user.name);
+    setAuthView('app');
+  };
+
+  const handleAdminLoginSuccess = (admin) => {
+    setCurrentUser(admin);
+    setUserName(admin.name);
+    setActiveTab('admin-dashboard');
+    setAuthView('app');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('voicebridge_user');
+      localStorage.removeItem('voicebridge_admin');
+    } catch (e) {}
+    setAuthView('user-login');
+  };
+
+  const handleSelectTab = (tab) => {
+    if (tab === 'admin-dashboard') {
+      if (currentUser?.role === 'Administrator') {
+        setActiveTab('admin-dashboard');
+      } else {
+        setAuthView('admin-login');
+      }
+      return;
+    }
+    setActiveTab(tab);
+  };
 
   // Modals Visibility
   const [isPricingOpen, setIsPricingOpen] = useState(false);
@@ -227,8 +292,10 @@ export default function App() {
   const handleRemoteAudioReceived = useCallback((data) => {
     if (data.audioBase64) {
       speak(data.translatedText, localLanguage, data.audioBase64);
+      // Zero-latency buffer capture for call recording
+      callRecorder.addBase64AudioChunk(data.audioBase64, remotePeer?.userName || 'Remote Caller', data.translatedText);
     }
-  }, [localLanguage, speak]);
+  }, [localLanguage, remotePeer, speak]);
 
   // Handle Peer Speech Ended
   const handleRemoteSpeechEnded = useCallback(() => {
@@ -260,10 +327,22 @@ export default function App() {
 
   return (
     <div className="w-full h-full flex flex-col bg-[#0B0F17] text-white select-none relative overflow-hidden font-sans">
-      {!hasJoinedMeeting ? (
+      {authView === 'user-login' ? (
+        <UserLogin
+          onLoginSuccess={handleUserLoginSuccess}
+          onSwitchToAdmin={() => setAuthView('admin-login')}
+          onJoinGuestRoom={() => setAuthView('app')}
+        />
+      ) : authView === 'admin-login' ? (
+        <AdminLogin
+          onAdminLoginSuccess={handleAdminLoginSuccess}
+          onSwitchToUser={() => setAuthView('user-login')}
+        />
+      ) : !hasJoinedMeeting ? (
         /* Pre-Join Meeting Lobby (Zoom / Google Meet Style) */
         <PreJoinLobby
           roomId={roomId}
+          onRoomIdChange={setRoomId}
           userName={userName}
           onUserNameChange={setUserName}
           selectedLanguage={localLanguage}
@@ -271,6 +350,7 @@ export default function App() {
           onJoinMeeting={handleJoinMeeting}
           audioLevel={localAudioLevel}
           onTestAudio={playTestSound}
+          isGuestJoin={isGuestJoin}
         />
       ) : (
         /* In-Meeting Experience */
@@ -278,12 +358,15 @@ export default function App() {
           {/* 1. Global Navigation Bar */}
           <Navbar
             activeTab={activeTab}
-            onSelectTab={setActiveTab}
+            onSelectTab={handleSelectTab}
             connectionState={connectionState}
             activeTier={activeTier}
             currency={currency}
             onOpenPricing={() => setIsPricingOpen(true)}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onOpenLogin={() => setAuthView('user-login')}
             roomParticipantCount={remotePeer ? 2 : 1}
           />
 

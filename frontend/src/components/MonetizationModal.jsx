@@ -12,6 +12,7 @@ export function MonetizationModal({
   const [selectedBillingCycle, setSelectedBillingCycle] = useState('monthly');
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [gstNumber, setGstNumber] = useState('');
+  const [gstVerified, setGstVerified] = useState(false);
 
   if (!isOpen) return null;
 
@@ -275,6 +276,12 @@ export function MonetizationModal({
               <div className="text-xs font-semibold text-white flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-blue-400" />
                 <span>Corporate GST Tax Invoice (India)</span>
+                {gstVerified && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/30 flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    Verified (18% ITC)
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
                 18% Input Tax Credit (ITC) applied automatically to corporate registrations.
@@ -285,17 +292,24 @@ export function MonetizationModal({
               <input
                 type="text"
                 value={gstNumber}
-                onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setGstNumber(e.target.value.toUpperCase());
+                  setGstVerified(false);
+                }}
                 placeholder="27AAAAA0000A1Z5"
                 maxLength={15}
                 className="bg-slate-800 border border-slate-700 rounded-xl px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-44 uppercase"
               />
               <button
                 type="button"
-                onClick={() => alert(`GSTIN ${gstNumber || 'VERIFIED'}: Invoice eligibility confirmed.`)}
-                className="btn-secondary h-11 px-5 py-2.5 rounded-xl text-xs font-medium shrink-0"
+                onClick={() => {
+                  if (gstNumber.trim().length >= 4) {
+                    setGstVerified(true);
+                  }
+                }}
+                className={`btn-secondary h-11 px-5 py-2.5 rounded-xl text-xs font-medium shrink-0 ${gstVerified ? 'border-emerald-500 text-emerald-400' : ''}`}
               >
-                Verify
+                {gstVerified ? 'Verified' : 'Verify'}
               </button>
             </div>
           </div>

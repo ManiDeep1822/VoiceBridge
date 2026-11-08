@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
-import { PhoneCall, Volume2, Globe, User, ArrowRight, CheckCircle2, ChevronDown } from 'lucide-react';
+import { PhoneCall, Volume2, Globe, User, ArrowRight, CheckCircle2, ChevronDown, RefreshCw } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageMeta, getLocaleStrings } from '../../utils/languages.js';
 
 export function PreJoinLobby({
   roomId = 'VOX-ROOM-101',
+  onRoomIdChange,
   userName = 'Operator',
   onUserNameChange,
   selectedLanguage = 'en',
   onLanguageChange,
   onJoinMeeting,
   audioLevel = 0,
-  onTestAudio
+  onTestAudio,
+  isGuestJoin = false
 }) {
   const [testingSound, setTestingSound] = useState(false);
+  const [customRoom, setCustomRoom] = useState(roomId);
+  const [showRoomInput, setShowRoomInput] = useState(false);
+
   const langMeta = getLanguageMeta(selectedLanguage);
   const loc = getLocaleStrings(selectedLanguage);
 
@@ -20,6 +25,20 @@ export function PreJoinLobby({
     setTestingSound(true);
     if (onTestAudio) onTestAudio();
     setTimeout(() => setTestingSound(false), 2000);
+  };
+
+  const handleGenerateRoom = () => {
+    const randomId = `VOX-${Math.floor(100 + Math.random() * 900)}`;
+    if (onRoomIdChange) onRoomIdChange(randomId);
+    setCustomRoom(randomId);
+  };
+
+  const handleSaveCustomRoom = (e) => {
+    e?.preventDefault();
+    if (customRoom.trim() && onRoomIdChange) {
+      onRoomIdChange(customRoom.trim().toUpperCase());
+      setShowRoomInput(false);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -37,19 +56,49 @@ export function PreJoinLobby({
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10B981]" />
               <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">
-                Enterprise Voice Bridge
+                {isGuestJoin ? 'Guest Call Invitation' : 'Enterprise Voice Bridge'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {loc.joinCall}
+              {isGuestJoin ? 'Join Live Call' : loc.joinCall}
             </h1>
           </div>
 
-          <div className="px-3.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-medium text-slate-200">
-            <span className="text-slate-400 mr-1.5">Room:</span>
-            <span className="font-bold text-white">{roomId}</span>
+          <div className="flex items-center gap-2">
+            <div className="px-3.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-medium text-slate-200">
+              <span className="text-slate-400 mr-1.5">Room:</span>
+              <span className="font-bold text-white">{roomId}</span>
+            </div>
+
+            {!isGuestJoin && (
+              <button
+                type="button"
+                onClick={handleGenerateRoom}
+                title="Generate new room ID"
+                className="btn-secondary h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
+                <span className="hidden xs:inline">New</span>
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Room configuration banner for hosts */}
+        {!isGuestJoin && showRoomInput && (
+          <form onSubmit={handleSaveCustomRoom} className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 flex gap-2">
+            <input
+              type="text"
+              value={customRoom}
+              onChange={(e) => setCustomRoom(e.target.value.toUpperCase())}
+              placeholder="Enter Room Code (e.g. ROOM-55)"
+              className="flex-1 h-9 px-3 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white uppercase focus:outline-none focus:border-blue-500"
+            />
+            <button type="submit" className="btn-primary h-9 px-3 rounded-lg text-xs font-medium">
+              Save
+            </button>
+          </form>
+        )}
 
         {/* Form Controls */}
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -91,7 +140,7 @@ export function PreJoinLobby({
             <label className="text-sm font-semibold text-slate-200 flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <User className="w-4 h-4 text-slate-300" />
-                <span>{loc.nameLabel}</span>
+                <span>{isGuestJoin ? 'Your Name (Guest)' : loc.nameLabel}</span>
               </span>
               <span className="text-[11px] text-slate-400">Required</span>
             </label>

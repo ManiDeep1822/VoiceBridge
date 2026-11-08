@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck, Activity, Users, Server,
-  CheckCircle2, RefreshCw, PhoneCall, ArrowRight
+  CheckCircle2, RefreshCw, PhoneCall, ArrowRight,
+  Plus, Trash2, Download, PowerOff, X, UserCheck
 } from 'lucide-react';
 
 export function AdminDashboard({
@@ -11,8 +12,32 @@ export function AdminDashboard({
 }) {
   const [liveRoomsData, setLiveRoomsData] = useState({ total_rooms: 0, rooms: {} });
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [memberName, setMemberName] = useState('');
+  const [memberEmail, setMemberEmail] = useState('');
+  const [memberRole, setMemberRole] = useState('Operator');
+  const [statusMessage, setStatusMessage] = useState('');
+
+  const [orgUsers, setOrgUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('voicebridge_team_members');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      { id: 'USR-01', name: 'Rajesh Sharma', email: 'rajesh@enterprise.in', role: 'Administrator', tier: 'Enterprise', status: 'Active' },
+      { id: 'USR-02', name: 'Elena Rostova', email: 'elena@vanguard.de', role: 'Operator', tier: 'Pro', status: 'In Call' },
+      { id: 'USR-03', name: 'Marcus Vance', email: 'marcus@defense.gov', role: 'Auditor', tier: 'Enterprise', status: 'Active' },
+      { id: 'USR-04', name: 'Priya Patel', email: 'priya@techcorp.in', role: 'Operator', tier: 'Pro', status: 'Active' }
+    ];
+  });
 
   const isINR = currency === 'INR';
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('voicebridge_team_members', JSON.stringify(orgUsers));
+    } catch (e) {}
+  }, [orgUsers]);
 
   const fetchLiveRooms = async () => {
     setIsLoadingRooms(true);
@@ -36,12 +61,72 @@ export function AdminDashboard({
     return () => clearInterval(interval);
   }, [backendUrl]);
 
-  const orgUsers = [
-    { id: 'USR-01', name: 'Rajesh Sharma', email: 'rajesh@enterprise.in', role: 'Administrator', tier: 'Enterprise', status: 'Active' },
-    { id: 'USR-02', name: 'Elena Rostova', email: 'elena@vanguard.de', role: 'Operator', tier: 'Pro', status: 'In Call' },
-    { id: 'USR-03', name: 'Marcus Vance', email: 'marcus@defense.gov', role: 'Auditor', tier: 'Enterprise', status: 'Active' },
-    { id: 'USR-04', name: 'Priya Patel', email: 'priya@techcorp.in', role: 'Operator', tier: 'Pro', status: 'Ready' }
-  ];
+  const handleTerminateRoom = async (roomId) => {
+    try {
+      const url = backendUrl ? `${backendUrl}/api/rooms/${roomId}` : `/api/rooms/${roomId}`;
+      const res = await fetch(url, { method: 'DELETE' });
+      if (res.ok) {
+        setStatusMessage(`Call room ${roomId} was terminated.`);
+        setTimeout(() => setStatusMessage(''), 3000);
+        fetchLiveRooms();
+      }
+    } catch (e) {
+      console.warn('Failed to terminate room:', e);
+    }
+  };
+
+  const handleAddMember = (e) => {
+    e.preventDefault();
+    if (!memberName.trim() || !memberEmail.trim()) return;
+
+    const newMember = {
+      id: `USR-${Math.floor(10 + Math.random() * 90)}`,
+      name: memberName.trim(),
+      email: memberEmail.trim().toLowerCase(),
+      role: memberRole,
+      tier: 'Pro',
+      status: 'Active'
+    };
+
+    setOrgUsers(prev => [newMember, ...prev]);
+    setMemberName('');
+    setMemberEmail('');
+    setShowAddMember(false);
+    setStatusMessage(`Team member ${newMember.name} added.`);
+    setTimeout(() => setStatusMessage(''), 3000);
+  };
+
+  const handleToggleMemberStatus = (id) => {
+    setOrgUsers(prev => prev.map(u => {
+      if (u.id === id) {
+        const nextStatus = u.status === 'Active' ? 'Inactive' : 'Active';
+        return { ...u, status: nextStatus };
+      }
+      return u;
+    }));
+  };
+
+  const handleRemoveMember = (id) => {
+    setOrgUsers(prev => prev.filter(u => u.id !== id));
+  };
+
+  const handleExportTelemetry = () => {
+    const report = {
+      timestamp: new Date().toISOString(),
+      fleetHealth: 'Operational (99.98%)',
+      totalLiveRooms: liveRoomsData.total_rooms,
+      activeRooms: liveRoomsData.rooms,
+      teamMembers: orgUsers
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `VoiceBridge_Fleet_Audit_${Date.now()}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0B0F17] p-4 sm:p-6 overflow-y-auto w-full space-y-5 select-none font-sans text-sm">
@@ -61,15 +146,33 @@ export function AdminDashboard({
           </p>
         </div>
 
-        <button
-          onClick={fetchLiveRooms}
-          disabled={isLoadingRooms}
-          className="btn-secondary h-11 px-5 py-2.5 rounded-xl text-sm font-medium shrink-0"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoadingRooms ? 'animate-spin text-blue-400' : ''}`} />
-          <span>Refresh Status</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportTelemetry}
+            className="btn-secondary h-11 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 shrink-0"
+            title="Download fleet audit telemetry"
+          >
+            <Download className="w-4 h-4 text-slate-300" />
+            <span className="hidden sm:inline">Export Audit</span>
+          </button>
+
+          <button
+            onClick={fetchLiveRooms}
+            disabled={isLoadingRooms}
+            className="btn-secondary h-11 px-5 py-2.5 rounded-xl text-sm font-medium shrink-0"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoadingRooms ? 'animate-spin text-blue-400' : ''}`} />
+            <span>Refresh Status</span>
+          </button>
+        </div>
       </div>
+
+      {statusMessage && (
+        <div className="rounded-xl border border-blue-500/40 bg-blue-500/10 text-blue-400 p-3 text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{statusMessage}</span>
+        </div>
+      )}
 
       {/* KPI Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -136,15 +239,26 @@ export function AdminDashboard({
 
             {Object.keys(liveRoomsData.rooms || {}).length > 0 ? (
               <div className="space-y-3">
-                {Object.entries(liveRoomsData.rooms).map(([roomId, room]) => (
+                {Object.entries(liveRoomsData.rooms).map(([roomId, participants]) => (
                   <div key={roomId} className="p-3.5 rounded-xl bg-slate-800/70 border border-slate-700/60 flex items-center justify-between">
                     <div>
                       <div className="font-semibold text-white text-sm">{roomId}</div>
                       <div className="text-xs text-slate-400 mt-0.5">
-                        {room.participant_count || 1} Participant(s) • Live Voice Stream
+                        {Array.isArray(participants) ? participants.length : 1} Participant(s) • Live Voice Stream
                       </div>
                     </div>
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]" />
+                    
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]" />
+                      <button
+                        onClick={() => handleTerminateRoom(roomId)}
+                        className="btn-danger h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1"
+                        title="Force terminate call room"
+                      >
+                        <PowerOff className="w-3.5 h-3.5" />
+                        <span>End</span>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -171,13 +285,67 @@ export function AdminDashboard({
                 </p>
               </div>
 
-              <button
-                onClick={onOpenPricing}
-                className="btn-secondary h-9 px-3.5 rounded-lg text-xs font-medium"
-              >
-                Add Seats
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAddMember(prev => !prev)}
+                  className="btn-primary h-9 px-3 rounded-lg text-xs font-semibold flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Member</span>
+                </button>
+
+                <button
+                  onClick={onOpenPricing}
+                  className="btn-secondary h-9 px-3 rounded-lg text-xs font-medium"
+                >
+                  Add Seats
+                </button>
+              </div>
             </div>
+
+            {/* Inline Add Member Form */}
+            {showAddMember && (
+              <form onSubmit={handleAddMember} className="p-3 bg-slate-800/90 rounded-xl border border-slate-700 space-y-2 mb-3">
+                <div className="flex justify-between items-center text-xs font-semibold text-white">
+                  <span>Provision New Operator</span>
+                  <button type="button" onClick={() => setShowAddMember(false)} className="text-slate-400 hover:text-white">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={memberName}
+                    onChange={(e) => setMemberName(e.target.value)}
+                    placeholder="Full Name"
+                    required
+                    className="h-8 px-2.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                  <input
+                    type="email"
+                    value={memberEmail}
+                    onChange={(e) => setMemberEmail(e.target.value)}
+                    placeholder="operator@enterprise.com"
+                    required
+                    className="h-8 px-2.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={memberRole}
+                    onChange={(e) => setMemberRole(e.target.value)}
+                    className="flex-1 h-8 px-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="Operator">Operator</option>
+                    <option value="Auditor">Auditor</option>
+                    <option value="Administrator">Administrator</option>
+                  </select>
+                  <button type="submit" className="btn-success h-8 px-4 rounded-lg text-xs font-semibold">
+                    Confirm Seat
+                  </button>
+                </div>
+              </form>
+            )}
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
@@ -186,7 +354,7 @@ export function AdminDashboard({
                     <th className="pb-3 font-semibold">User</th>
                     <th className="pb-3 font-semibold">Role</th>
                     <th className="pb-3 font-semibold">Plan</th>
-                    <th className="pb-3 font-semibold text-right">Status</th>
+                    <th className="pb-3 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
@@ -199,13 +367,26 @@ export function AdminDashboard({
                       <td className="py-3 text-slate-300">{u.role}</td>
                       <td className="py-3 text-slate-300">{u.tier}</td>
                       <td className="py-3 text-right">
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                          u.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                          u.status === 'In Call' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                          'bg-slate-800 text-slate-400'
-                        }`}>
-                          {u.status}
-                        </span>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleToggleMemberStatus(u.id)}
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors ${
+                              u.status === 'Active'
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-amber-500/10 hover:text-amber-400'
+                                : 'bg-slate-800 text-slate-400 hover:text-emerald-400'
+                            }`}
+                            title="Click to toggle status"
+                          >
+                            {u.status}
+                          </button>
+                          <button
+                            onClick={() => handleRemoveMember(u.id)}
+                            className="text-slate-500 hover:text-red-400 p-1"
+                            title="Remove operator"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

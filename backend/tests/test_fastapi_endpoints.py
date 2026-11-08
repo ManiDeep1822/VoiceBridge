@@ -65,6 +65,25 @@ def test_glossary_endpoint():
     assert data["domain"] == "medical"
     assert data["status"] == "active"
 
+def test_stt_fallback_endpoint():
+    # Empty audio rejection
+    empty_res = client.post("/api/stt", json={"audio_base64": "", "language": "en"})
+    assert empty_res.status_code == 400
+
+    # Non-empty base64 string
+    res = client.post("/api/stt", json={"audio_base64": "UklGRiQAAABXQVZFRm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=", "language": "en"})
+    assert res.status_code == 200
+    data = res.json()
+    assert "transcript" in data
+    assert "language" in data
+
+def test_delete_room_endpoint():
+    # Test terminating non-existent room
+    res = client.delete("/api/rooms/TEST_ROOM_999")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "not_found"
+
 def test_api_unknown_returns_404_json_not_html():
     res = client.get("/api/nonexistent_endpoint")
     assert res.status_code == 404

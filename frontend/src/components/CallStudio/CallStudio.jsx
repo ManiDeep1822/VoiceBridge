@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Mic, Volume2, PhoneOff, Send, Copy, Check,
   FileText, MessageCircle, Globe, Users, ArrowRight,
-  Lock, Radio, VolumeX, MessageSquare
+  Lock, Radio, VolumeX, MessageSquare, Disc
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageMeta, getLocaleStrings } from '../../utils/languages.js';
 import { CallerAvatar } from './CallerAvatar.jsx';
+import { callRecorder } from '../../utils/callRecorder.js';
 
 export function CallStudio({
   roomId = 'VOX-ROOM-101',
@@ -46,6 +47,54 @@ export function CallStudio({
   const [typedMessage, setTypedMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const recordTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (isRecording) {
+      recordTimerRef.current = setInterval(() => {
+        setRecordSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+      setRecordSeconds(0);
+    }
+    return () => {
+      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    };
+  }, [isRecording]);
+
+  const formatRecordTime = (totalSec) => {
+    const mins = Math.floor(totalSec / 60).toString().padStart(2, '0');
+    const secs = (totalSec % 60).toString().padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
+
+  const handleToggleRecord = () => {
+    if (!isRecording) {
+      callRecorder.start();
+      setIsRecording(true);
+    } else {
+      setIsRecording(false);
+      const url = callRecorder.downloadRecording(`VoiceBridge_Call_${roomId}_${Date.now()}.wav`);
+      if (url) {
+        try {
+          const pastCalls = JSON.parse(localStorage.getItem('voicebridge_recorded_calls') || '[]');
+          pastCalls.unshift({
+            id: `rec-${Date.now()}`,
+            roomId,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            duration: `${Math.floor(recordSeconds / 60)}m ${recordSeconds % 60}s`,
+            peerName: peerDisplayName,
+            sourceLang: localMeta.name,
+            targetLang: remoteMeta.name
+          });
+          localStorage.setItem('voicebridge_recorded_calls', JSON.stringify(pastCalls.slice(0, 20)));
+        } catch (e) {}
+      }
+    }
+  };
 
   const pointerStartTimeRef = useRef(0);
   const wasListeningBeforePointerRef = useRef(false);
@@ -252,8 +301,8 @@ export function CallStudio({
   };
 
   const inviteUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}?room=${encodeURIComponent(roomId)}`
-    : `https://voicebridge.app?room=${encodeURIComponent(roomId)}`;
+    ? `${window.location.origin}?room=${encodeURIComponent(roomId)}&mode=join`
+    : `https://voicebridge.app?room=${encodeURIComponent(roomId)}&mode=join`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(inviteUrl);
@@ -278,6 +327,20 @@ export function CallStudio({
 
         {/* Right: Uniform Actions in a Clean Row */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Call Recording Button (Pillar 4: Zero-Latency Recording) */}
+          <button
+            onClick={handleToggleRecord}
+            className={`h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs flex items-center gap-1.5 transition-all ${
+              isRecording
+                ? 'bg-red-500/20 border border-red-500/80 text-red-400 animate-pulse shadow-md shadow-red-950/40'
+                : 'btn-secondary text-slate-300 hover:text-white'
+            }`}
+            title={isRecording ? 'Click to stop and save audio recording' : 'Record continuous call audio with zero latency'}
+          >
+            <Disc className={`w-4 h-4 shrink-0 ${isRecording ? 'text-red-400 animate-spin' : 'text-slate-400'}`} />
+            <span>{isRecording ? `REC ${formatRecordTime(recordSeconds)}` : 'Record'}</span>
+          </button>
+
           {/* Quick WhatsApp Share Button */}
           <button
             onClick={handleWhatsAppShare}

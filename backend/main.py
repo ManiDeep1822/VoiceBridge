@@ -65,6 +65,13 @@ class MinutesRequest(BaseModel):
 class GlossaryRequest(BaseModel):
     domain: str = "medical"
 
+class STTRequest(BaseModel):
+    audio_base64: str
+    language: str = "en"
+
+class RoomCloseRequest(BaseModel):
+    room_id: str
+
 @app.get("/api/health")
 async def health_check():
     return {
@@ -143,6 +150,83 @@ async def handle_glossary(req: GlossaryRequest):
         "status": "active",
         "protection_mode": "strict_preservation"
     }
+
+@app.post("/api/stt")
+async def handle_stt(req: STTRequest):
+    """
+    Pillar 5: Server-side Speech-to-Text Fallback engine for mobile browsers
+    """
+    clean_base64 = req.audio_base64.strip()
+    if not clean_base64:
+        raise HTTPException(status_code=400, detail="Audio cannot be empty")
+
+    import tempfile
+    import speech_recognition as sr
+
+    temp_path = None
+    try:
+        audio_bytes = base64.b64decode(clean_base64)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            f.write(audio_bytes)
+            temp_path = f.name
+
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(temp_path) as source:
+            audio = recognizer.record(source)
+
+        # Support BCP-47 language codes
+        lang_map = {
+            "en": "en-US",
+            "te": "te-IN",
+            "hi": "hi-IN",
+            "ta": "ta-IN",
+            "es": "es-ES",
+            "fr": "fr-FR",
+            "de": "de-DE",
+            "ja": "ja-JP",
+            "zh": "zh-CN",
+            "ar": "ar-SA"
+        }
+        stt_lang = lang_map.get(req.language, req.language)
+        text = recognizer.recognize_google(audio, language=stt_lang)
+        return {
+            "transcript": text,
+            "language": req.language,
+            "success": True
+        }
+    except Exception as e:
+        return {
+            "transcript": "",
+            "error": str(e),
+            "language": req.language,
+            "success": False
+        }
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+@app.delete("/api/rooms/{room_id}")
+async def close_room(room_id: str):
+    """
+    Pillar 2: Admin Live Room Termination & Fleet Management
+    """
+    from socket_handlers import rooms, sid_to_room
+    clean_id = room_id.strip()
+    if clean_id in rooms:
+        sids = list(rooms[clean_id].keys())
+        for sid in sids:
+            sid_to_room.pop(sid, None)
+            try:
+                await sio.emit("room_terminated", {"message": f"Room {clean_id} was terminated by system administration."}, to=sid)
+                await sio.leave_room(sid, clean_id)
+            except Exception:
+                pass
+        rooms.pop(clean_id, None)
+        return {"status": "success", "message": f"Room {clean_id} terminated."}
+    return {"status": "not_found", "message": f"Room {clean_id} not found."}
 
 # Mount static frontend build if present
 import os
