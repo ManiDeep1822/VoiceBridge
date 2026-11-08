@@ -14,9 +14,12 @@ function getCacheKey(text, sourceLang, targetLang, domain) {
  */
 export async function translateTextFast(text, sourceLang, targetLang, domain = 'general', backendUrl = '') {
   if (!text || !text.trim()) return '';
-  if (sourceLang === targetLang) return text.trim();
 
-  const cacheKey = getCacheKey(text, sourceLang, targetLang, domain);
+  const src = (sourceLang ? String(sourceLang).split('-')[0].trim().toLowerCase() : '') || 'en';
+  const tgt = (targetLang ? String(targetLang).split('-')[0].trim().toLowerCase() : '') || 'en';
+  if (src === tgt) return text.trim();
+
+  const cacheKey = getCacheKey(text, src, tgt, domain);
   if (TRANSLATION_CACHE.has(cacheKey)) {
     return TRANSLATION_CACHE.get(cacheKey);
   }
@@ -29,7 +32,7 @@ export async function translateTextFast(text, sourceLang, targetLang, domain = '
   // Tier 1: Ultra-fast Google Translate GTX endpoint (Free, 0ms setup, 80-160ms latency)
   try {
     const encoded = encodeURIComponent(processedText);
-    const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encoded}`;
+    const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${src}&tl=${tgt}&dt=t&q=${encoded}`;
     
     const response = await fetch(gtxUrl, {
       method: 'GET',
@@ -50,7 +53,7 @@ export async function translateTextFast(text, sourceLang, targetLang, domain = '
   // Tier 2: Free MyMemory fallback endpoint
   if (!translated) {
     try {
-      const langPair = `${sourceLang}|${targetLang}`;
+      const langPair = `${src}|${tgt}`;
       const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(processedText)}&langpair=${langPair}`;
       const response = await fetch(myMemoryUrl, { signal: AbortSignal.timeout(2800) });
       if (response.ok) {
@@ -72,8 +75,8 @@ export async function translateTextFast(text, sourceLang, targetLang, domain = '
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: processedText,
-          source_lang: sourceLang,
-          target_lang: targetLang
+          source_lang: src,
+          target_lang: tgt
         }),
         signal: AbortSignal.timeout(4000)
       });
@@ -94,7 +97,10 @@ export async function translateTextFast(text, sourceLang, targetLang, domain = '
   }
 
   // Unpack protected glossary terms
-  const finalClean = restoreGlossaryTerms(translated).trim();
+  let finalClean = restoreGlossaryTerms(translated).trim();
+  if (finalClean.length > 0 && /^[a-z]/.test(finalClean)) {
+    finalClean = finalClean.charAt(0).toUpperCase() + finalClean.slice(1);
+  }
 
   // Store in LRU Cache
   if (TRANSLATION_CACHE.size >= MAX_CACHE_SIZE) {

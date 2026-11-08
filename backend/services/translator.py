@@ -93,7 +93,7 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     try:
         url = (
             f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={src}&tl={tgt}&dt=t&q="
-            + urllib.parse.quote(text)
+            + urllib.parse.quote(clean_text)
         )
         async with aiohttp.ClientSession() as session:
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -113,7 +113,7 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     try:
         url_fallback = (
             f"https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl={src}&tl={tgt}&q="
-            + urllib.parse.quote(text)
+            + urllib.parse.quote(clean_text)
         )
         async with aiohttp.ClientSession() as session:
             async with session.get(url_fallback, timeout=aiohttp.ClientTimeout(total=2.5)) as resp:
@@ -140,7 +140,7 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
                     f"You are a real-time conversational translator. Translate the following speech from "
                     f"language code '{src}' into natural conversational '{tgt}'. "
                     f"Output ONLY the translated text, with no explanations, quotes, or notes.\n\n"
-                    f"Original: {text}"
+                    f"Original: {clean_text}"
                 )
                 async def _call_gemini():
                     if hasattr(client, "aio") and hasattr(client.aio, "models"):

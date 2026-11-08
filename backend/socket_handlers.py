@@ -281,6 +281,9 @@ def register_socket_events(sio):
             elif original_intent == "exclamation" and not punctuated_translated.endswith("!"):
                 punctuated_translated = punctuated_translated.rstrip(".?") + "!"
 
+            if punctuated_translated and punctuated_translated[0].isalpha() and punctuated_translated[0].isascii():
+                punctuated_translated = punctuated_translated[0].upper() + punctuated_translated[1:]
+
             # Guard: check if peer is still in room before sending subtitle
             if room_id not in rooms or peer_sid not in rooms[room_id]:
                 logger.info(f"Peer {peer_sid} left room during translation; skipping subtitle/audio emit")

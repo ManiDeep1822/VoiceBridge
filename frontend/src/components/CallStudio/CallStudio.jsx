@@ -45,10 +45,23 @@ export function CallStudio({
   const [typedMessage, setTypedMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const pointerStartTimeRef = useRef(0);
-  const isHoldingRef = useRef(false);
+  const isPttPointerDownRef = useRef(false);
+  const isSpacePressedRef = useRef(false);
 
   // Floor Lock: When peer is transmitting or translated audio is active on loudspeaker, lock caller mic
   const isChannelBusy = isPeerSpeaking || isRemoteSpeaking;
+
+  const isListeningRef = useRef(isListening);
+  isListeningRef.current = isListening;
+
+  const isChannelBusyRef = useRef(isChannelBusy);
+  isChannelBusyRef.current = isChannelBusy;
+
+  const onStartListeningRef = useRef(onStartListening);
+  onStartListeningRef.current = onStartListening;
+
+  const onFinalizeTurnRef = useRef(onFinalizeTurn);
+  onFinalizeTurnRef.current = onFinalizeTurn;
 
   const isPeerConnected = Boolean(remotePeer) && connectionState === 'connected';
 
@@ -92,17 +105,19 @@ export function CallStudio({
     } catch (e) {}
   }, []);
 
-  // Desktop Spacebar Hotkey (Hold Spacebar to speak, release to send)
+  // Desktop Spacebar Hotkey (Hold Spacebar to speak, release to send in 0ms)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.code === 'Space' && !e.repeat) {
         const tag = document.activeElement?.tagName?.toLowerCase();
         if (tag === 'input' || tag === 'textarea') return;
-        if (isChannelBusy) return;
+        if (isChannelBusyRef.current) return;
         e.preventDefault();
-        if (!isListening) {
+        
+        isSpacePressedRef.current = true;
+        if (!isListeningRef.current) {
           playTactileChirp(true);
-          if (onStartListening) onStartListening();
+          if (onStartListeningRef.current) onStartListeningRef.current();
         }
       }
     };
@@ -111,56 +126,96 @@ export function CallStudio({
       if (e.code === 'Space') {
         const tag = document.activeElement?.tagName?.toLowerCase();
         if (tag === 'input' || tag === 'textarea') return;
-        if (isChannelBusy) return;
         e.preventDefault();
-        if (isListening) {
+
+        // Release spacebar: 100% guaranteed to stop recording and send in 0ms
+        if (isSpacePressedRef.current || isListeningRef.current) {
+          isSpacePressedRef.current = false;
           playTactileChirp(false);
-          if (onFinalizeTurn) onFinalizeTurn();
+          if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
         }
+      }
+    };
+
+    const handleWindowBlur = () => {
+      // If user tabs away, switches window, or loses focus while holding Spacebar or PTT: immediately stop recording
+      if (isSpacePressedRef.current || isPttPointerDownRef.current || isListeningRef.current) {
+        isSpacePressedRef.current = false;
+        isPttPointerDownRef.current = false;
+        playTactileChirp(false);
+        if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
+    document.addEventListener('visibilitychange', handleWindowBlur);
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('visibilitychange', handleWindowBlur);
     };
-  }, [isChannelBusy, isListening, onFinalizeTurn, onStartListening, playTactileChirp]);
+  }, [playTactileChirp]);
 
-  // Dual Strict PTT Event Handlers (Hold-to-Talk + Tap-to-Latch)
+  // Strict Push-to-Talk (Hold button to speak, release to send in 0ms; or tap to send if already talking)
   const handlePttPointerDown = (e) => {
-    if (isChannelBusy) return;
-    if (isListening) return; // If already latched, click handles finalization
+    if (isChannelBusyRef.current) return;
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (err) {}
 
     pointerStartTimeRef.current = Date.now();
-    isHoldingRef.current = true;
-    playTactileChirp(true);
-    if (onStartListening) onStartListening();
+    isPttPointerDownRef.current = true;
+
+    if (!isListeningRef.current) {
+      playTactileChirp(true);
+      if (onStartListeningRef.current) onStartListeningRef.current();
+    }
   };
 
   const handlePttPointerUp = (e) => {
-    if (isChannelBusy) return;
-    const duration = Date.now() - pointerStartTimeRef.current;
-    isHoldingRef.current = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (err) {}
 
-    if (isListening) {
-      if (duration > 350) {
-        // True Hold-to-Talk: released after holding >350ms -> Immediate 0ms send!
+    const duration = Date.now() - pointerStartTimeRef.current;
+    const wasDown = isPttPointerDownRef.current;
+    isPttPointerDownRef.current = false;
+
+    // If held for more than 250ms, release immediately stops recording and sends in 0ms!
+    if (duration > 250) {
+      if (isListeningRef.current || wasDown) {
         playTactileChirp(false);
-        if (onFinalizeTurn) onFinalizeTurn();
+        if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
       }
-      // If duration <= 350ms, it was a quick tap -> Leave latched open!
+    }
+  };
+
+  const handlePttPointerCancel = (e) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (err) {}
+
+    isPttPointerDownRef.current = false;
+    if (isListeningRef.current) {
+      playTactileChirp(false);
+      if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
     }
   };
 
   const handlePttClick = (e) => {
-    if (isChannelBusy) return;
+    if (isChannelBusyRef.current) return;
     const duration = Date.now() - pointerStartTimeRef.current;
-    if (isListening && duration <= 350) {
-      // Tap-to-Send: Caller was already latched open and tapped again to complete turn -> Immediate 0ms send!
+    
+    // For quick tap (<= 250ms):
+    // If already speaking, tap immediately finalizes and sends!
+    if (duration <= 250 && isListeningRef.current) {
       playTactileChirp(false);
-      if (onFinalizeTurn) onFinalizeTurn();
+      if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
     }
   };
 
@@ -468,6 +523,7 @@ export function CallStudio({
                   disabled={isChannelBusy}
                   onPointerDown={handlePttPointerDown}
                   onPointerUp={handlePttPointerUp}
+                  onPointerCancel={handlePttPointerCancel}
                   onClick={handlePttClick}
                   className={`flex-1 sm:flex-none px-6 py-3.5 font-extrabold text-sm uppercase flex items-center justify-center gap-3 border-2 transition-all select-none ${
                     isChannelBusy

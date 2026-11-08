@@ -115,8 +115,13 @@ export function useSpeechRecognition({
     }
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.stop();
-      } catch (e) {}
+        // Use abort() for instantaneous 0ms audio capture termination
+        recognitionRef.current.abort();
+      } catch (e) {
+        try {
+          recognitionRef.current.stop();
+        } catch (err) {}
+      }
     }
     setIsListening(false);
     setInterimText('');
@@ -130,12 +135,12 @@ export function useSpeechRecognition({
 
   // Dispatch finalized turn and auto-mute mic (Captures full accumulated text or trailing interim)
   const finalizeTurn = useCallback(() => {
-    const fullText = (accumulatedUtteranceRef.current.trim() || interimTextRef.current.trim());
+    const fullText = (interimTextRef.current.trim() || accumulatedUtteranceRef.current.trim());
     accumulatedUtteranceRef.current = '';
     interimTextRef.current = '';
     setInterimText('');
 
-    // Auto-mute microphone immediately upon turn completion
+    // Cut off microphone immediately upon turn completion
     stopListening();
 
     if (fullText && onFinalTranscript) {
@@ -158,7 +163,8 @@ export function useSpeechRecognition({
     recognition.lang = langMeta.stt;
 
     recognition.onresult = (event) => {
-      if (isDuckedRef.current) {
+      // Guard: If we are not actively supposed to be listening or if ducked, ignore lagging audio frames
+      if (!shouldBeListeningRef.current || isDuckedRef.current) {
         return;
       }
 
