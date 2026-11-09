@@ -319,129 +319,130 @@ export function CallStudio({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0B0F17] overflow-hidden select-none font-sans text-sm">
-      {/* 1. Sleek Top Bar (Google Meet Style: Single Row, Zero Wrap, Compact Badges) */}
-      <div className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2 shrink-0">
+      {/* 1. Sleek Top Bar (Google Meet Style: Fully Responsive, Zero Right-Cutoff) */}
+      <div className="w-full max-w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-1.5 sm:gap-2 shrink-0 overflow-hidden box-border">
         {/* Left: Room Badge */}
-        <div className="h-10 px-3 rounded-xl bg-slate-800/90 border border-slate-700/80 flex items-center text-xs font-medium text-slate-200 shrink-0">
-          <span className="text-slate-400 mr-1.5 hidden xs:inline">{loc.room}:</span>
-          <span className="font-bold text-white tracking-wide">{roomId}</span>
+        <div className="h-8 sm:h-9 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-slate-800/90 border border-slate-700/80 flex items-center text-xs font-medium text-slate-200 shrink-0">
+          <span className="text-slate-400 mr-1 hidden xs:inline">{loc.room}:</span>
+          <span className="font-bold text-white tracking-wide text-[11px] sm:text-xs">{roomId}</span>
         </div>
 
-        {/* Right: Uniform Actions in a Clean Row */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Call Recording Button (Pillar 4: Zero-Latency Recording) */}
+        {/* Right: Actions in a Clean, Non-Overflowing Row */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Call Recording Button */}
           <button
             onClick={handleToggleRecord}
-            className={`h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs flex items-center gap-1.5 transition-all ${
+            className={`h-8 sm:h-9 px-2 sm:px-3 rounded-lg sm:rounded-xl font-medium text-xs flex items-center gap-1 transition-all shrink-0 ${
               isRecording
                 ? 'bg-red-500/20 border border-red-500/80 text-red-400 animate-pulse shadow-md shadow-red-950/40'
-                : 'btn-secondary text-slate-300 hover:text-white'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80'
             }`}
             title={isRecording ? 'Click to stop and save audio recording' : 'Record continuous call audio with zero latency'}
           >
-            <Disc className={`w-4 h-4 shrink-0 ${isRecording ? 'text-red-400 animate-spin' : 'text-slate-400'}`} />
-            <span>{isRecording ? `REC ${formatRecordTime(recordSeconds)}` : 'Record'}</span>
+            <Disc className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isRecording ? 'text-red-400 animate-spin' : 'text-slate-400'}`} />
+            <span className="text-[11px] sm:text-xs">{isRecording ? `REC ${formatRecordTime(recordSeconds)}` : 'Record'}</span>
           </button>
 
           {/* Quick WhatsApp Share Button */}
           <button
             onClick={handleWhatsAppShare}
-            className="btn-success h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs shadow-sm flex items-center gap-1.5"
+            className="w-8 h-8 sm:w-auto sm:h-9 sm:px-2.5 rounded-lg sm:rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-sm flex items-center justify-center gap-1 shrink-0 transition-colors"
             title="Share Call Link to WhatsApp"
           >
-            <MessageCircle className="w-4 h-4 fill-white text-white shrink-0" />
-            <span className="hidden sm:inline">WhatsApp</span>
+            <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white text-white shrink-0" />
+            <span className="hidden sm:inline text-xs">WhatsApp</span>
           </button>
 
           {/* Copy Link Button */}
           <button
             onClick={handleCopyLink}
-            className="btn-secondary h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs flex items-center gap-1.5"
+            className="w-8 h-8 sm:w-auto sm:h-9 sm:px-2.5 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 font-medium text-xs flex items-center justify-center gap-1 shrink-0 transition-colors"
             title="Copy Invite Link"
           >
-            {copiedLink ? <Check className="w-4 h-4 text-emerald-400 shrink-0" /> : <Copy className="w-4 h-4 text-slate-300 shrink-0" />}
-            <span className="hidden sm:inline">{copiedLink ? 'Copied' : loc.copyLink}</span>
+            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <Copy className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
+            <span className="hidden sm:inline text-xs">{copiedLink ? 'Copied' : loc.copyLink}</span>
           </button>
 
           {/* Audio Output Status & Test */}
           {!audioUnlocked ? (
             <button
               onClick={onUnlockAudio}
-              className="btn-danger h-10 px-3 sm:px-4 py-2 rounded-xl font-semibold text-xs animate-pulse flex items-center gap-1.5"
+              className="h-8 px-2 sm:h-9 sm:px-2.5 rounded-lg sm:rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-[11px] sm:text-xs animate-pulse flex items-center justify-center gap-1 shrink-0"
+              title="Unlock Speaker"
             >
-              <Volume2 className="w-4 h-4 shrink-0" />
+              <Volume2 className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden xs:inline">Speaker</span>
             </button>
           ) : (
             <button
               onClick={onTestSpeaker}
-              className="btn-secondary h-10 px-3 py-2 rounded-xl font-medium text-xs hidden sm:flex items-center gap-1.5"
+              className="w-8 h-8 sm:h-9 sm:w-auto sm:px-2.5 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/80 font-medium text-xs hidden sm:flex items-center justify-center gap-1 shrink-0"
               title="Test speaker output"
             >
-              <Volume2 className="w-4 h-4 text-slate-300" />
+              <Volume2 className="w-3.5 h-3.5 text-slate-300" />
             </button>
           )}
 
           {/* Mobile Conversation Drawer Toggle */}
           <button
             onClick={() => setShowMobileChat(prev => !prev)}
-            className="btn-secondary h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs flex items-center gap-1.5 lg:hidden"
+            className="h-8 px-2 sm:h-9 sm:px-2.5 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 font-medium text-xs flex items-center justify-center gap-1 shrink-0 lg:hidden"
             title="Toggle Transcript & Messages"
           >
-            <MessageSquare className="w-4 h-4 text-slate-300 shrink-0" />
-            <span>Chat</span>
+            <MessageSquare className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+            <span className="text-[11px]">Chat</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Status Banner (Human, Professional Turn Indicator) */}
-      <div className="bg-slate-950/60 border-b border-slate-800/80 px-4 py-2 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2.5">
+      {/* 2. Status Banner (Turn Indicator) */}
+      <div className="w-full max-w-full bg-slate-950/60 border-b border-slate-800/80 px-2.5 sm:px-4 py-1.5 flex items-center justify-between text-xs overflow-hidden shrink-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1 truncate">
           {isChannelBusy ? (
-            <div className="flex items-center gap-2 text-amber-400 font-semibold text-xs sm:text-sm">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]" />
-              <Lock className="w-4 h-4 text-amber-400" />
-              <span>{loc.channelBusy} — {isPeerSpeaking ? `${peerDisplayName} is speaking...` : 'Loudspeaker active'}</span>
+            <div className="flex items-center gap-1.5 text-amber-400 font-semibold text-xs truncate">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B] shrink-0" />
+              <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="truncate">{loc.channelBusy} — {isPeerSpeaking ? `${peerDisplayName} speaking...` : 'Loudspeaker active'}</span>
             </div>
           ) : isListening ? (
-            <div className="flex items-center gap-2 text-red-400 font-semibold text-xs sm:text-sm">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444]" />
-              <Radio className="w-4 h-4 text-red-400" />
-              <span>{loc.speakingNotice}</span>
+            <div className="flex items-center gap-1.5 text-red-400 font-semibold text-xs truncate">
+              <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444] shrink-0" />
+              <Radio className="w-3.5 h-3.5 text-red-400 shrink-0" />
+              <span className="truncate">{loc.speakingNotice}</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-emerald-400 font-medium text-xs sm:text-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10B981]" />
-              <span>{isPeerConnected ? loc.readyYourTurn : 'Share room link above to start conversation'}</span>
+            <div className="flex items-center gap-1.5 text-emerald-400 font-medium text-xs truncate">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10B981] shrink-0" />
+              <span className="truncate">{isPeerConnected ? loc.readyYourTurn : 'Share room link above to start conversation'}</span>
             </div>
           )}
         </div>
 
-        <div className="hidden md:flex items-center gap-2 text-slate-400 text-xs">
+        <div className="hidden md:flex items-center gap-2 text-slate-400 text-xs shrink-0 ml-2">
           <span>{isPeerConnected ? '2 Participants Connected' : 'Waiting for Remote Caller'}</span>
         </div>
       </div>
 
       {/* 3. Main Stage: Responsive Desktop Grid / Mobile Stack */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-3 sm:p-4 gap-3 sm:gap-4">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-2 sm:p-4 gap-2 sm:gap-4 min-h-0 max-w-full">
         {/* Left Calling Bay */}
-        <div className="flex-1 flex flex-col justify-between gap-3 overflow-y-auto">
+        <div className="flex-1 flex flex-col justify-between gap-2 sm:gap-3 overflow-y-auto min-h-0 max-w-full">
           {/* Dual Calling Stage Cards */}
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 flex-1 min-h-0">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 flex-1 min-h-0">
             {/* CALLER 1: YOU */}
-            <div className={`rounded-2xl p-3 sm:p-5 flex flex-col justify-between relative transition-all duration-200 overflow-hidden ${
+            <div className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-5 flex flex-col justify-between relative transition-all duration-200 overflow-hidden ${
               isListening
                 ? 'bg-slate-900 border-2 border-red-500/80 shadow-2xl shadow-red-950/30'
                 : 'bg-slate-900/80 border border-slate-800'
             }`}>
               {/* Card Header */}
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-3 gap-1 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5 sm:pb-3 gap-1 overflow-hidden">
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <div className={`w-2 h-2 shrink-0 rounded-full ${isListening ? 'bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444]' : 'bg-emerald-400'}`} />
                   <span className="font-bold text-xs sm:text-sm text-white truncate">{userName} ({loc.you})</span>
                 </div>
 
-                <div className="h-7 px-2 rounded-lg bg-slate-800 border border-slate-700/80 flex items-center text-[11px] text-white shrink-0 max-w-[85px] sm:max-w-none">
+                <div className="h-6 sm:h-7 px-1.5 sm:px-2 rounded-md sm:rounded-lg bg-slate-800 border border-slate-700/80 flex items-center text-[10px] sm:text-[11px] text-white shrink-0 max-w-[70px] sm:max-w-none">
                   <select
                     value={localLanguage}
                     onChange={(e) => onLocalLanguageChange(e.target.value)}
@@ -457,10 +458,10 @@ export function CallStudio({
               </div>
 
               {/* Center Calling Avatar & Waveform */}
-              <div className="flex-1 flex flex-col items-center justify-center my-2 sm:my-4">
+              <div className="flex-1 flex flex-col items-center justify-center my-1.5 sm:my-4">
                 <CallerAvatar isLocal={true} isSpeaking={isListening} />
 
-                <div className="mt-2.5 sm:mt-3 text-center">
+                <div className="mt-2 sm:mt-3 text-center">
                   <div className="text-xs sm:text-base font-bold text-white">
                     {localMeta.native}
                   </div>
@@ -491,25 +492,25 @@ export function CallStudio({
 
             {/* CALLER 2: REMOTE PEER */}
             {isPeerConnected ? (
-              <div className={`rounded-2xl p-3 sm:p-5 flex flex-col justify-between relative transition-all duration-200 overflow-hidden ${
+              <div className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-5 flex flex-col justify-between relative transition-all duration-200 overflow-hidden ${
                 isPeerSpeaking
                   ? 'bg-slate-900 border-2 border-amber-500/80 shadow-2xl shadow-amber-950/30'
                   : 'bg-slate-900/80 border border-slate-800'
               }`}>
                 {/* Peer Header */}
-                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2 sm:pb-3 gap-1 overflow-hidden">
+                <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5 sm:pb-3 gap-1 overflow-hidden">
                   <div className="flex items-center gap-1.5 min-w-0 flex-1">
                     <div className={`w-2 h-2 shrink-0 rounded-full ${isPeerSpeaking ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]' : 'bg-emerald-400'}`} />
                     <span className="font-bold text-xs sm:text-sm text-white truncate">{peerDisplayName}</span>
                   </div>
 
-                  <span className="h-7 px-2 rounded-lg bg-slate-800 border border-slate-700/80 flex items-center text-[11px] font-bold text-emerald-400 shrink-0">
+                  <span className="h-6 sm:h-7 px-1.5 sm:px-2 rounded-md sm:rounded-lg bg-slate-800 border border-slate-700/80 flex items-center text-[10px] sm:text-[11px] font-bold text-emerald-400 shrink-0 truncate max-w-[65px] sm:max-w-none">
                     {remoteMeta.name}
                   </span>
                 </div>
 
                 {/* Peer Central Visual */}
-                <div className="flex-1 flex flex-col items-center justify-center my-2 sm:my-4">
+                <div className="flex-1 flex flex-col items-center justify-center my-1.5 sm:my-4">
                   <CallerAvatar isLocal={false} isSpeaking={isPeerSpeaking || isRemoteSpeaking} />
 
                   <div className="mt-2.5 sm:mt-3 text-center">
@@ -538,50 +539,50 @@ export function CallStudio({
               </div>
             ) : (
               /* Waiting Card */
-              <div className="rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/40 p-3 sm:p-5 flex flex-col justify-between items-center text-center overflow-hidden">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-300 mt-2 sm:mt-4">
-                  <Users className="w-6 h-6 sm:w-7 sm:h-7" />
+              <div className="rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/40 p-2.5 sm:p-5 flex flex-col justify-between items-center text-center overflow-hidden">
+                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-300 mt-1 sm:mt-4">
+                  <Users className="w-5 h-5 sm:w-7 sm:h-7" />
                 </div>
 
-                <div className="space-y-1.5 max-w-sm my-2 sm:my-4">
+                <div className="space-y-1 max-w-sm my-1 sm:my-4">
                   <h3 className="text-xs sm:text-base font-bold text-white">
                     Share Link to Connect
                   </h3>
-                  <p className="text-[10px] sm:text-xs text-slate-400 line-clamp-2 sm:line-clamp-none">
-                    Invite remote caller. Real-time translation starts automatically once connected.
+                  <p className="text-[10px] sm:text-xs text-slate-400 line-clamp-2">
+                    Invite remote caller. Translation starts automatically.
                   </p>
                 </div>
 
-                <div className="w-full flex flex-col sm:flex-row gap-2 pt-2 sm:pt-4 border-t border-slate-800/80">
+                <div className="w-full flex flex-col sm:flex-row gap-1.5 sm:gap-2 pt-2 sm:pt-4 border-t border-slate-800/80">
                   <button
                     onClick={handleWhatsAppShare}
-                    className="btn-success h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs sm:text-sm flex-1"
+                    className="h-8 sm:h-9 px-2 sm:px-4 rounded-lg sm:rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm flex-1 flex items-center justify-center gap-1.5 transition-colors"
                   >
-                    <MessageCircle className="w-4 h-4 fill-white shrink-0" />
-                    <span>WhatsApp</span>
+                    <MessageCircle className="w-3.5 h-3.5 fill-white shrink-0" />
+                    <span className="truncate">WhatsApp</span>
                   </button>
 
                   <button
                     onClick={handleCopyLink}
-                    className="btn-secondary h-10 px-3 sm:px-4 py-2 rounded-xl font-medium text-xs sm:text-sm flex-1"
+                    className="h-8 sm:h-9 px-2 sm:px-4 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs sm:text-sm flex-1 flex items-center justify-center gap-1.5 transition-colors"
                   >
-                    <Copy className="w-4 h-4 shrink-0" />
-                    <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                    <Copy className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{copiedLink ? 'Copied' : 'Copy'}</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* UNIQUE MOBILE FLOATING SUBTITLE ISLAND (Dynamic Pill Island) */}
-          <div className="lg:hidden w-full rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 p-3.5 sm:p-4 shadow-2xl flex flex-col justify-center min-h-[80px]">
+          {/* UNIQUE MOBILE FLOATING SUBTITLE ISLAND */}
+          <div className="lg:hidden w-full max-w-full rounded-xl sm:rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 p-2.5 sm:p-4 shadow-xl flex flex-col justify-center min-h-[64px] sm:min-h-[80px] shrink-0 box-border overflow-hidden">
             {isListening && localInterim ? (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-red-400">
                   <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
                   <span>You are speaking:</span>
                 </div>
-                <p className="text-sm sm:text-base font-bold text-white leading-snug">
+                <p className="text-xs sm:text-base font-bold text-white leading-snug break-words">
                   "{localInterim}"
                 </p>
               </div>
@@ -591,27 +592,27 @@ export function CallStudio({
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>{peerDisplayName} (Translated):</span>
                 </div>
-                <p className="text-sm sm:text-base font-bold text-emerald-400 leading-snug">
+                <p className="text-xs sm:text-base font-bold text-emerald-400 leading-snug break-words">
                   "{latestRemoteTranslated}"
                 </p>
               </div>
             ) : latestLocalOriginal ? (
-              <div className="space-y-1">
-                <p className="text-xs text-slate-400">Last spoken: "{latestLocalOriginal}"</p>
-                <p className="text-xs sm:text-sm font-semibold text-emerald-400">Translated: "{latestLocalTranslated}"</p>
+              <div className="space-y-0.5">
+                <p className="text-[11px] text-slate-400 truncate">Last spoken: "{latestLocalOriginal}"</p>
+                <p className="text-xs font-semibold text-emerald-400 truncate">Translated: "{latestLocalTranslated}"</p>
               </div>
             ) : (
-              <div className="text-center text-xs text-slate-400 py-1">
-                <p className="font-medium text-slate-300">{loc.pttHelper}</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Dual-Mode: Hold button to talk or tap once to speak hands-free</p>
+              <div className="text-center text-xs text-slate-400 py-0.5">
+                <p className="font-medium text-slate-300 text-xs">{loc.pttHelper}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Dual-Mode: Hold button to talk or tap once to speak hands-free</p>
               </div>
             )}
           </div>
 
-          {/* Unified Bottom Dock (Standardized Button Sizing) */}
-          <div className="rounded-2xl bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2.5 sm:p-4 flex flex-wrap items-center justify-between gap-2 sm:gap-3 shrink-0">
-            {/* Primary PTT Button */}
-            <div className="w-full sm:w-auto flex-1 flex items-stretch sm:items-center gap-2">
+          {/* Unified Bottom Dock: Ergonomic Mobile Stack / Desktop Row */}
+          <div className="rounded-xl sm:rounded-2xl bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 shrink-0 box-border max-w-full">
+            {/* Primary Push-to-Talk Button (Large, Ergonomic, Zero Overlap) */}
+            <div className="w-full sm:flex-1 flex items-stretch sm:items-center gap-2">
               <button
                 type="button"
                 disabled={isChannelBusy}
@@ -620,61 +621,67 @@ export function CallStudio({
                 onPointerCancel={handlePttPointerCancel}
                 onTouchCancel={handlePttPointerCancel}
                 onClick={handlePttClick}
-                className={`btn-base flex-1 sm:flex-none h-11 px-5 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg touch-none select-none ${
+                className={`w-full sm:w-auto sm:flex-1 h-12 sm:h-11 px-4 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg touch-none select-none flex items-center justify-center gap-2 transition-all ${
                   isChannelBusy
                     ? 'bg-amber-500/10 text-amber-400 border border-amber-500/40 cursor-not-allowed opacity-80'
                     : isListening
-                      ? 'btn-danger shadow-red-950/50 animate-pulse'
-                      : 'btn-primary shadow-blue-950/40'
+                      ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-950/50 animate-pulse'
+                      : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-950/40'
                 }`}
               >
                 {isChannelBusy ? (
                   <>
-                    <Lock className="w-4 h-4 text-amber-400" />
-                    <span>{loc.channelBusy}</span>
+                    <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="truncate">{loc.channelBusy}</span>
                   </>
                 ) : isListening ? (
                   <>
-                    <Mic className="w-4 h-4 text-white" />
-                    <span>{loc.tapWhenDone}</span>
+                    <Mic className="w-4 h-4 text-white shrink-0 animate-bounce" />
+                    <span className="truncate">{loc.tapWhenDone}</span>
                   </>
                 ) : (
                   <>
-                    <Mic className="w-4 h-4 text-white" />
-                    <span>{loc.tapToSpeak}</span>
+                    <Mic className="w-4 h-4 text-white shrink-0" />
+                    <span className="truncate">{loc.tapToSpeak}</span>
                   </>
                 )}
               </button>
+            </div>
 
+            {/* Secondary Controls: 3-Column Grid on Mobile, Flex on Desktop */}
+            <div className="grid grid-cols-3 sm:flex items-center gap-2 w-full sm:w-auto shrink-0">
               {/* Volume Booster Toggle */}
               <button
                 onClick={onToggleVolumeBoost}
-                className={`btn-secondary h-11 px-3 sm:px-5 py-2.5 rounded-xl font-medium text-xs sm:text-sm ${
-                  volumeBoost ? 'border-blue-500/80 text-blue-400 bg-blue-500/10' : ''
+                className={`h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors border ${
+                  volumeBoost
+                    ? 'border-blue-500/80 text-blue-400 bg-blue-500/10'
+                    : 'border-slate-700/80 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
                 }`}
                 title="Loudspeaker Volume Booster (+6dB)"
               >
-                <Volume2 className="w-4 h-4 shrink-0" />
-                <span>Boost: {volumeBoost ? 'ON' : 'OFF'}</span>
+                <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="text-[11px] sm:text-xs truncate">Boost: {volumeBoost ? 'ON' : 'OFF'}</span>
               </button>
-            </div>
 
-            {/* End Call & Fast Actions */}
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              {/* Meeting Minutes */}
               <button
                 onClick={onOpenMinutes}
-                className="btn-secondary flex-1 sm:flex-none h-11 px-5 py-2.5 rounded-xl font-medium text-sm"
+                className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-200 hover:text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors"
+                title="View Meeting Minutes"
               >
-                <FileText className="w-4 h-4" />
-                <span>Minutes</span>
+                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="text-[11px] sm:text-xs truncate">Minutes</span>
               </button>
 
+              {/* Leave Call */}
               <button
                 onClick={onDisconnect}
-                className="btn-danger flex-1 sm:flex-none h-11 px-5 py-2.5 rounded-xl font-semibold text-sm"
+                className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors shadow-sm shadow-red-950/40"
+                title="Leave Call Room"
               >
-                <PhoneOff className="w-4 h-4" />
-                <span>Leave</span>
+                <PhoneOff className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span className="text-[11px] sm:text-xs truncate">Leave</span>
               </button>
             </div>
           </div>

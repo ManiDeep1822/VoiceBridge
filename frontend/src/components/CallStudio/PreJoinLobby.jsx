@@ -48,10 +48,10 @@ export function PreJoinLobby({
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-[#0B0F17] relative overflow-y-auto select-none font-sans">
-      <div className="w-full max-w-lg bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+    <div className="flex-1 flex items-center justify-center p-3 sm:p-6 bg-[#0B0F17] relative overflow-y-auto select-none font-sans w-full max-w-full">
+      <div className="w-full max-w-lg bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-xl sm:rounded-2xl p-4 sm:p-8 shadow-2xl space-y-5 sm:space-y-6 box-border">
         {/* Header */}
-        <div className="border-b border-slate-800 pb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="border-b border-slate-800 pb-4 sm:pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10B981]" />
@@ -59,15 +59,15 @@ export function PreJoinLobby({
                 {isGuestJoin ? 'Guest Call Invitation' : 'Enterprise Voice Bridge'}
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">
               {isGuestJoin ? 'Join Live Call' : loc.joinCall}
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="px-3.5 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-medium text-slate-200">
-              <span className="text-slate-400 mr-1.5">Room:</span>
-              <span className="font-bold text-white">{roomId}</span>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-medium text-slate-200 flex items-center">
+              <span className="text-slate-400 mr-1.5 text-[11px]">Room:</span>
+              <span className="font-bold text-white text-xs tracking-wide">{roomId}</span>
             </div>
 
             {!isGuestJoin && (
@@ -75,10 +75,10 @@ export function PreJoinLobby({
                 type="button"
                 onClick={handleGenerateRoom}
                 title="Generate new room ID"
-                className="btn-secondary h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1"
+                className="h-8 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 flex items-center gap-1 transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
-                <span className="hidden xs:inline">New</span>
+                <span className="text-xs">New</span>
               </button>
             )}
           </div>
@@ -155,10 +155,10 @@ export function PreJoinLobby({
           </div>
 
           {/* 3. Speaker Test Audio Check */}
-          <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-4 flex items-center justify-between gap-3">
+          <div className="rounded-xl bg-slate-800/60 border border-slate-700/80 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-white flex items-center gap-2">
-                <Volume2 className="w-4 h-4 text-emerald-400" />
+                <Volume2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>{loc.testSound}</span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -169,7 +169,7 @@ export function PreJoinLobby({
             <button
               type="button"
               onClick={handleTestSound}
-              className="btn-secondary h-11 px-5 py-2.5 rounded-xl text-sm font-medium shrink-0"
+              className="h-10 sm:h-11 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs sm:text-sm font-medium w-full sm:w-auto shrink-0 transition-colors flex items-center justify-center"
             >
               {testingSound ? 'Testing...' : 'Test Speaker'}
             </button>
@@ -178,11 +178,11 @@ export function PreJoinLobby({
           {/* 4. Primary Join Action Button */}
           <button
             type="submit"
-            className="btn-success w-full h-12 px-5 py-2.5 rounded-xl font-bold text-base shadow-lg shadow-emerald-950/40"
+            className="w-full h-12 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-base shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 transition-all"
           >
-            <PhoneCall className="w-5 h-5" />
+            <PhoneCall className="w-5 h-5 shrink-0" />
             <span>{loc.joinCall}</span>
-            <ArrowRight className="w-5 h-5 ml-1" />
+            <ArrowRight className="w-5 h-5 ml-1 shrink-0" />
           </button>
         </form>
 
