@@ -5,7 +5,7 @@ import time
 from typing import Dict, Any, List
 from services.translator import translate_text
 from services.tts import synthesize_speech
-from services.prosody_engine import enhance_conversational_text, classify_and_punctuate_intent
+from services.prosody_engine import enhance_conversational_text, classify_and_punctuate_intent, deduplicate_phrase_loops
 
 logger = logging.getLogger("socket_handlers")
 
@@ -274,8 +274,11 @@ def register_socket_events(sio):
             # Stage 1: Fast translation (< 200ms)
             translated_text = await translate_text(enhanced_original, source_lang, target_lang)
 
+            # Strip any phrase or word loops that might emerge from translation or mobile STT
+            clean_translated = deduplicate_phrase_loops(translated_text)
+
             # Ensure translated sentence carries natural interrogative/exclamatory punctuation
-            punctuated_translated, _ = classify_and_punctuate_intent(translated_text, target_lang)
+            punctuated_translated, _ = classify_and_punctuate_intent(clean_translated, target_lang)
             if original_intent == "question" and not punctuated_translated.endswith("?"):
                 punctuated_translated = punctuated_translated.rstrip(".!") + "?"
             elif original_intent == "exclamation" and not punctuated_translated.endswith("!"):

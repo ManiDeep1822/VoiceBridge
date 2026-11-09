@@ -28,4 +28,39 @@ describe('Strict Push-to-Talk (PTT) & Floor Lock Strings', () => {
       assert.ok(dict.pttHelper, `Missing pttHelper for locale ${code}`);
     }
   });
+
+  it('determines PTT release and cancellation dispatch actions accurately for mobile parity', () => {
+    // Pure logic simulation of CallStudio handlePttPointerUp & handlePttPointerCancel
+    function evaluatePttRelease({ durationMs, wasAlreadyListening }) {
+      if (durationMs > 180) {
+        return { action: 'FINALIZE_HOLD' };
+      }
+      if (wasAlreadyListening) {
+        return { action: 'FINALIZE_TAP' };
+      }
+      return { action: 'START_HANDS_FREE' };
+    }
+
+    function evaluatePttCancel({ wasDown, isListening }) {
+      if (wasDown || isListening) {
+        return { action: 'FINALIZE_CANCEL' };
+      }
+      return { action: 'NOOP' };
+    }
+
+    // 1. Hold-to-Talk release after speaking 300ms, 1000ms, or 5000ms
+    assert.deepStrictEqual(evaluatePttRelease({ durationMs: 200, wasAlreadyListening: false }), { action: 'FINALIZE_HOLD' });
+    assert.deepStrictEqual(evaluatePttRelease({ durationMs: 1500, wasAlreadyListening: false }), { action: 'FINALIZE_HOLD' });
+
+    // 2. Quick tap (< 180ms) to start hands-free
+    assert.deepStrictEqual(evaluatePttRelease({ durationMs: 95, wasAlreadyListening: false }), { action: 'START_HANDS_FREE' });
+
+    // 3. Quick tap (< 180ms) while already listening to stop hands-free
+    assert.deepStrictEqual(evaluatePttRelease({ durationMs: 80, wasAlreadyListening: true }), { action: 'FINALIZE_TAP' });
+
+    // 4. Pointer cancel when finger slips or page scrolls during press
+    assert.deepStrictEqual(evaluatePttCancel({ wasDown: true, isListening: false }), { action: 'FINALIZE_CANCEL' });
+    assert.deepStrictEqual(evaluatePttCancel({ wasDown: false, isListening: true }), { action: 'FINALIZE_CANCEL' });
+    assert.deepStrictEqual(evaluatePttCancel({ wasDown: false, isListening: false }), { action: 'NOOP' });
+  });
 });

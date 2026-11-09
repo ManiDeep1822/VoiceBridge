@@ -150,7 +150,7 @@ export function useSpeechRecognition({
       silenceTimerRef.current = null;
     }
 
-    if (recognitionRef.current && isRecognizingRef.current) {
+    if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch (e) {
@@ -159,6 +159,7 @@ export function useSpeechRecognition({
         } catch (err) {}
       }
     }
+    isRecognizingRef.current = false;
     setIsListening(false);
     setInterimText('');
     stopAudioMeter();
@@ -187,15 +188,27 @@ export function useSpeechRecognition({
   // Acoustic Echo Prevention: Strictly halt speech recognition while loudspeaker translated speech is playing
   useEffect(() => {
     if (isDucked) {
-      if (recognitionRef.current && isRecognizingRef.current) {
+      shouldBeListeningRef.current = false;
+      isStartingRef.current = false;
+      isRecognizingRef.current = false;
+      if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
-        } catch (e) {}
+        } catch (e) {
+          try {
+            recognitionRef.current.abort();
+          } catch (err) {}
+        }
       }
       setIsListening(false);
       setAudioLevel(0);
+      stopAudioMeter();
+      if (isSpeakingBroadcastingRef.current) {
+        isSpeakingBroadcastingRef.current = false;
+        if (onSpeakingStateChangeRef.current) onSpeakingStateChangeRef.current(false);
+      }
     }
-  }, [isDucked]);
+  }, [isDucked, stopAudioMeter]);
 
   // Initialize Speech Recognition ONCE or when language changes
   useEffect(() => {
@@ -206,13 +219,27 @@ export function useSpeechRecognition({
     }
 
     const recognition = new SpeechRec();
-    // On mobile devices, disable continuous mode to prevent Android Google Speech Services from replaying prior results
-    recognition.continuous = !isMobile;
+    // Enable continuous listening across both mobile and desktop for complete laptop parity.
+    // Smart deduplication in transcriptDeduplicator handles streaming phrase loops cleanly.
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognition.lang = langMeta.stt;
 
     recognition.onstart = () => {
+      if (!shouldBeListeningRef.current) {
+        isRecognizingRef.current = false;
+        isStartingRef.current = false;
+        setIsListening(false);
+        try {
+          recognition.stop();
+        } catch (e) {
+          try {
+            recognition.abort();
+          } catch (err) {}
+        }
+        return;
+      }
       isRecognizingRef.current = true;
       isStartingRef.current = false;
       setIsListening(true);

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getLanguageMeta } from '../utils/languages.js';
 import { getProsodyParams, classifyAndPunctuateIntent } from '../utils/prosodyEngine.js';
+import { deduplicateTokens } from '../utils/transcriptDeduplicator.js';
 
 export function useSpeechSynthesis({
   onSpeechStart,
@@ -138,7 +139,10 @@ export function useSpeechSynthesis({
 
     window.speechSynthesis.cancel();
 
-    const { punctuatedText } = classifyAndPunctuateIntent(text, targetLang);
+    const dedupedText = deduplicateTokens(text);
+    if (!dedupedText) return;
+
+    const { punctuatedText } = classifyAndPunctuateIntent(dedupedText, targetLang);
     const prosody = getProsodyParams(punctuatedText);
 
     const utterance = new SpeechSynthesisUtterance(punctuatedText);
@@ -199,7 +203,9 @@ export function useSpeechSynthesis({
   const speak = useCallback(async (text, targetLang, backendAudioBase64 = null) => {
     if (!text || !text.trim()) return;
 
-    const cleanText = text.trim();
+    const cleanText = deduplicateTokens(text.trim());
+    if (!cleanText) return;
+
     const key = `${targetLang}:${cleanText.toLowerCase()}`;
     const now = Date.now();
 

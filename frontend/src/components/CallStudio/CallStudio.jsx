@@ -256,13 +256,14 @@ export function CallStudio({
     const wasAlreadyListening = wasListeningBeforePointerRef.current;
     isPttPointerDownRef.current = false;
 
-    if (duration > 250) {
-      // True Hold-to-Talk release
+    if (duration > 180) {
+      // True Hold-to-Talk release: always stop and dispatch immediately
       playTactileChirp(false);
       if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
     } else {
-      // Quick tap
+      // Quick tap (< 180ms)
       if (wasAlreadyListening) {
+        // Was already hands-free listening: tap to stop & dispatch
         playTactileChirp(false);
         if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
       }
@@ -274,8 +275,9 @@ export function CallStudio({
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch (err) {}
 
+    const wasDown = isPttPointerDownRef.current;
     isPttPointerDownRef.current = false;
-    if (isListeningRef.current) {
+    if (wasDown || isListeningRef.current) {
       playTactileChirp(false);
       if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
     }
@@ -616,8 +618,9 @@ export function CallStudio({
                 onPointerDown={handlePttPointerDown}
                 onPointerUp={handlePttPointerUp}
                 onPointerCancel={handlePttPointerCancel}
+                onTouchCancel={handlePttPointerCancel}
                 onClick={handlePttClick}
-                className={`btn-base flex-1 sm:flex-none h-11 px-5 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg ${
+                className={`btn-base flex-1 sm:flex-none h-11 px-5 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg touch-none select-none ${
                   isChannelBusy
                     ? 'bg-amber-500/10 text-amber-400 border border-amber-500/40 cursor-not-allowed opacity-80'
                     : isListening
