@@ -17,6 +17,7 @@ import { useWebRTC } from './hooks/useWebRTC';
 import { translateTextFast } from './utils/translator';
 import { getLanguageMeta } from './utils/languages';
 import { callRecorder } from './utils/callRecorder';
+import { deduplicateTokens } from './utils/transcriptDeduplicator';
 
 export default function App() {
   // Navigation & View State
@@ -230,17 +231,21 @@ export default function App() {
   const handleDispatchUtterance = useCallback(async (text) => {
     if (!text || !text.trim()) return;
 
+    // Apply smart deduplication to eliminate any mobile phrase or word loops
+    const cleanText = deduplicateTokens(text);
+    if (!cleanText) return;
+
     unlockAudio();
-    setLatestLocalOriginal(text);
+    setLatestLocalOriginal(cleanText);
 
     // Target language is peer's language if connected; else fallback to remoteLanguage
     const targetLang = remotePeer?.language || remoteLanguage;
 
     // 1. Dispatch speech segment to remote peer immediately across socket (0ms non-blocking)
-    emitSpeechSegment(text, localLanguage);
+    emitSpeechSegment(cleanText, localLanguage);
 
     // 2. Perform local translation in parallel for local transcript display
-    translateTextFast(text, localLanguage, targetLang, activeDomain, backendUrl).then((translated) => {
+    translateTextFast(cleanText, localLanguage, targetLang, activeDomain, backendUrl).then((translated) => {
       setLatestLocalTranslated(translated);
       const utteranceId = `local-${Date.now()}`;
       setTranscript(prev => [
@@ -249,7 +254,7 @@ export default function App() {
           id: utteranceId,
           speaker: `${userName} (You)`,
           isLocal: true,
-          originalText: text,
+          originalText: cleanText,
           translatedText: translated,
           sourceLang: localLanguage,
           targetLang: targetLang,

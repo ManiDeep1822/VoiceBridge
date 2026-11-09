@@ -4,12 +4,14 @@ try:
         normalize_spoken_slang,
         classify_and_punctuate_intent,
         enhance_conversational_text,
+        deduplicate_phrase_loops,
     )
 except ImportError:
     from services.prosody_engine import (
         normalize_spoken_slang,
         classify_and_punctuate_intent,
         enhance_conversational_text,
+        deduplicate_phrase_loops,
     )
 
 def test_normalize_spoken_slang_telugu():
@@ -90,3 +92,12 @@ def test_enhance_conversational_text():
     assert intent == "question"
     assert "ఎక్కడికి వెళ్తున్నావు" in enhanced
     assert enhanced.endswith("?")
+
+def test_deduplicate_phrase_loops():
+    raw_repeated = "hello hello hello how are you how are you"
+    clean = deduplicate_phrase_loops(raw_repeated)
+    assert clean == "hello how are you"
+
+    raw_single = "testing testing one two"
+    clean_single = deduplicate_phrase_loops(raw_single)
+    assert clean_single == "testing one two"

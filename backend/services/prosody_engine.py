@@ -153,10 +153,43 @@ def classify_and_punctuate_intent(text: str, lang: str = "en") -> Tuple[str, str
     # 3. Default to clean declarative statement
     return (f"{clean_no_dot}.", "statement")
 
+def deduplicate_phrase_loops(text: str) -> str:
+    """
+    Strips accidental word and phrase repetitions caused by mobile STT quirks
+    (e.g. 'hello hello hello' -> 'hello', 'how are you how are you' -> 'how are you').
+    """
+    if not text:
+        return ""
+    words = text.split()
+    if not words:
+        return ""
+
+    # 1. Deduplicate consecutive identical words
+    deduped = []
+    for w in words:
+        if not deduped or w.lower() != deduped[-1].lower():
+            deduped.append(w)
+
+    # 2. Deduplicate multi-word phrase loops
+    n = len(deduped)
+    if n >= 4:
+        for phrase_len in range(n // 2, 1, -1):
+            i = 0
+            while i <= len(deduped) - 2 * phrase_len:
+                p1 = " ".join(w.lower() for w in deduped[i:i + phrase_len])
+                p2 = " ".join(w.lower() for w in deduped[i + phrase_len:i + 2 * phrase_len])
+                if p1 == p2:
+                    del deduped[i + phrase_len:i + 2 * phrase_len]
+                else:
+                    i += 1
+
+    return " ".join(deduped)
+
 def enhance_conversational_text(text: str, source_lang: str) -> Tuple[str, str]:
     """
-    Pipeline step combining slang normalization and intent punctuation.
+    Pipeline step combining phrase deduplication, slang normalization and intent punctuation.
     """
-    normalized = normalize_spoken_slang(text, source_lang)
+    deduped = deduplicate_phrase_loops(text)
+    normalized = normalize_spoken_slang(deduped, source_lang)
     punctuated, intent = classify_and_punctuate_intent(normalized, source_lang)
     return (punctuated, intent)

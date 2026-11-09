@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getLanguageMeta } from '../utils/languages.js';
+import { deduplicateTokens, mergeStreamingTranscript } from '../utils/transcriptDeduplicator.js';
 
 export function useSpeechRecognition({
   language = 'en',
@@ -168,9 +169,10 @@ export function useSpeechRecognition({
     }
   }, [stopAudioMeter]);
 
-  // Dispatch finalized turn and auto-mute mic (Captures full accumulated text or trailing interim)
+  // Dispatch finalized turn and auto-mute mic (Captures full accumulated text or trailing interim, deduplicated)
   const finalizeTurn = useCallback(() => {
-    const fullText = (interimTextRef.current.trim() || accumulatedUtteranceRef.current.trim());
+    const raw = (interimTextRef.current.trim() || accumulatedUtteranceRef.current.trim());
+    const fullText = deduplicateTokens(raw);
     accumulatedUtteranceRef.current = '';
     interimTextRef.current = '';
     setInterimText('');
@@ -182,6 +184,19 @@ export function useSpeechRecognition({
     }
   }, [stopListening]);
 
+  // Acoustic Echo Prevention: Strictly halt speech recognition while loudspeaker translated speech is playing
+  useEffect(() => {
+    if (isDucked) {
+      if (recognitionRef.current && isRecognizingRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+      setIsListening(false);
+      setAudioLevel(0);
+    }
+  }, [isDucked]);
+
   // Initialize Speech Recognition ONCE or when language changes
   useEffect(() => {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -191,7 +206,8 @@ export function useSpeechRecognition({
     }
 
     const recognition = new SpeechRec();
-    recognition.continuous = true;
+    // On mobile devices, disable continuous mode to prevent Android Google Speech Services from replaying prior results
+    recognition.continuous = !isMobile;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognition.lang = langMeta.stt;
@@ -219,13 +235,16 @@ export function useSpeechRecognition({
         const result = event.results[i];
         const transcript = result[0]?.transcript || '';
         if (result.isFinal) {
-          accumulatedUtteranceRef.current = (accumulatedUtteranceRef.current + ' ' + transcript).trim();
+          accumulatedUtteranceRef.current = deduplicateTokens(
+            mergeStreamingTranscript(accumulatedUtteranceRef.current, transcript)
+          );
         } else {
-          currentInterim += transcript;
+          currentInterim = transcript;
         }
       }
 
-      const activeDisplay = (accumulatedUtteranceRef.current + ' ' + currentInterim).trim();
+      const rawCombined = mergeStreamingTranscript(accumulatedUtteranceRef.current, currentInterim);
+      const activeDisplay = deduplicateTokens(rawCombined);
       interimTextRef.current = activeDisplay;
       setInterimText(activeDisplay);
       if (onInterimTranscriptRef.current) {
@@ -256,7 +275,7 @@ export function useSpeechRecognition({
     recognition.onend = () => {
       isRecognizingRef.current = false;
       isStartingRef.current = false;
-      if (shouldBeListeningRef.current) {
+      if (shouldBeListeningRef.current && !isDuckedRef.current) {
         try {
           recognition.start();
         } catch (e) {}
