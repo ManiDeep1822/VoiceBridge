@@ -199,9 +199,11 @@ export function useSpeechSynthesis({
     if (onSpeechEnd) onSpeechEnd();
   }, [onSpeechEnd]);
 
-  // Main Speak Dispatcher with strict deduplication
-  const speak = useCallback(async (text, targetLang, backendAudioBase64 = null) => {
+  // Main Speak Dispatcher with strict deduplication and robust hybrid fallback
+  const speak = useCallback(async (text, targetLang, backendAudioBase64 = null, options = {}) => {
     if (!text || !text.trim()) return;
+
+    const isReplay = typeof options === 'boolean' ? options : Boolean(options?.isReplay || options?.force);
 
     const cleanText = deduplicateTokens(text.trim());
     if (!cleanText) return;
@@ -209,8 +211,8 @@ export function useSpeechSynthesis({
     const key = `${targetLang}:${cleanText.toLowerCase()}`;
     const now = Date.now();
 
-    // Prevent duplicate replay of exact same utterance within 3500ms
-    if (recentSpokenRef.current[key] && (now - recentSpokenRef.current[key] < 3500)) {
+    // Prevent duplicate replay of exact same utterance within 3500ms UNLESS explicitly replayed
+    if (!isReplay && recentSpokenRef.current[key] && (now - recentSpokenRef.current[key] < 3500)) {
       return;
     }
     recentSpokenRef.current[key] = now;
@@ -228,17 +230,16 @@ export function useSpeechSynthesis({
     // Unlock audio context
     initAudioGain();
 
-    // If backend Edge-TTS base64 is supplied
+    // If backend Edge-TTS base64 is supplied, attempt neural playback
     if (backendAudioBase64) {
       const ok = await playBase64Audio(backendAudioBase64);
       if (ok) return;
     }
 
-    // Only fallback to browser Web Speech API if engine is explicitly NOT locked to edge-tts
-    if (preferredEngine !== 'edge-tts') {
-      speakTextLocal(cleanText, targetLang);
-    }
-  }, [initAudioGain, playBase64Audio, preferredEngine, speakTextLocal, stopSpeech]);
+    // Robust Hybrid TTS Fallback:
+    // If backend base64 is absent or failed, reliably speak via browser Web Speech API
+    speakTextLocal(cleanText, targetLang);
+  }, [initAudioGain, playBase64Audio, speakTextLocal, stopSpeech]);
 
   // Play Audible Test Sound
   const playTestSound = useCallback(() => {

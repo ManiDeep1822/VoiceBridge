@@ -389,3 +389,46 @@ def test_speech_segment_none_or_empty_text(live_server):
         await sio1.disconnect()
         await sio2.disconnect()
     asyncio.run(_run())
+
+def test_solo_simulator_single_participant_utterance(live_server):
+    async def _run():
+        server_url = f"http://127.0.0.1:{live_server}"
+        sio = socketio.AsyncClient()
+
+        delivered_event = asyncio.Event()
+        delivered_payload = {}
+        incoming_event = asyncio.Event()
+        incoming_payload = {}
+
+        @sio.event
+        def speech_delivered(data):
+            delivered_payload.update(data)
+            delivered_event.set()
+
+        @sio.event
+        def peer_incoming_text(data):
+            incoming_payload.update(data)
+            incoming_event.set()
+
+        await sio.connect(server_url)
+        await sio.emit("join_room", {"roomId": "room-solo-sim", "userId": "Solo_User", "language": "en"})
+        await asyncio.sleep(0.4)
+
+        # Single participant emits speech segment in solo room
+        await sio.emit("speech_segment", {
+            "originalText": "Hello this is a solo simulator test",
+            "sourceLang": "en",
+            "targetLang": "hi"
+        })
+
+        await asyncio.wait_for(delivered_event.wait(), timeout=5.0)
+        assert delivered_payload.get("originalText") == "Hello this is a solo simulator test"
+        assert "translatedText" in delivered_payload
+        assert delivered_payload.get("isSolo") is True
+
+        await asyncio.wait_for(incoming_event.wait(), timeout=5.0)
+        assert incoming_payload.get("isSolo") is True
+        assert incoming_payload.get("targetLang") == "hi"
+
+        await sio.disconnect()
+    asyncio.run(_run())

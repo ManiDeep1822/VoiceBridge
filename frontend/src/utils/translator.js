@@ -82,8 +82,8 @@ export async function translateTextFast(text, sourceLang, targetLang, domain = '
       });
       if (response.ok) {
         const json = await response.json();
-        if (json?.translated_text) {
-          translated = json.translated_text;
+        if (json?.translated || json?.translated_text) {
+          translated = json.translated || json.translated_text;
         }
       }
     } catch (err) {

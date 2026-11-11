@@ -18,6 +18,7 @@ import { translateTextFast } from './utils/translator';
 import { getLanguageMeta } from './utils/languages';
 import { callRecorder } from './utils/callRecorder';
 import { deduplicateTokens } from './utils/transcriptDeduplicator';
+import { determineBackendUrl } from './utils/backendUrl';
 
 export default function App() {
   // Navigation & View State
@@ -155,12 +156,10 @@ export default function App() {
     }
   }, []);
 
-  // Backend Origin (Localhost dev OR Render production backend)
-  const backendUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:8000'
-    : (import.meta.env.VITE_BACKEND_URL || 'https://voicebridge-backend.onrender.com');
+  // Backend Origin (Localhost dev, 127.0.0.1, LAN IPs, same-origin FastAPI, or Render cloud backend)
+  const backendUrl = determineBackendUrl();
 
-  // 1. Loudspeaker Speech Synthesis Hook (TTS Out Loud)
+  // 1. Loudspeaker Speech Synthesis Hook (TTS Out Loud with Hybrid Engine)
   const {
     isSpeaking: isTTSActive,
     speak,
@@ -172,8 +171,11 @@ export default function App() {
     setSpeechRate
   } = useSpeechSynthesis({
     volumeBoost,
-    preferredEngine: 'edge-tts'
+    preferredEngine: 'hybrid'
   });
+
+  const lastRemoteAudioBase64Ref = useRef(null);
+  const lastRemoteTranslatedTextRef = useRef('');
 
   // 2. WebRTC & Socket.IO Calling Hook (P2P Duplex without raw audio pass-through)
   const {
@@ -241,8 +243,8 @@ export default function App() {
     // Target language is peer's language if connected; else fallback to remoteLanguage
     const targetLang = remotePeer?.language || remoteLanguage;
 
-    // 1. Dispatch speech segment to remote peer immediately across socket (0ms non-blocking)
-    emitSpeechSegment(cleanText, localLanguage);
+    // 1. Dispatch speech segment across socket (0ms non-blocking; supports 2-peer and solo simulator)
+    emitSpeechSegment(cleanText, localLanguage, targetLang);
 
     // 2. Perform local translation in parallel for local transcript display
     translateTextFast(cleanText, localLanguage, targetLang, activeDomain, backendUrl).then((translated) => {
@@ -275,6 +277,7 @@ export default function App() {
 
     setLatestRemoteOriginal(orig);
     setLatestRemoteTranslated(trans);
+    lastRemoteTranslatedTextRef.current = trans;
 
     const peerLabel = remotePeer?.userName || 'Peer 2';
 
@@ -296,11 +299,28 @@ export default function App() {
   // Handle Incoming Base64 Audio from Connected Peer (Authoritative Studio Neural Voice)
   const handleRemoteAudioReceived = useCallback((data) => {
     if (data.audioBase64) {
+      lastRemoteAudioBase64Ref.current = data.audioBase64;
+      lastRemoteTranslatedTextRef.current = data.translatedText || '';
       speak(data.translatedText, localLanguage, data.audioBase64);
       // Zero-latency buffer capture for call recording
       callRecorder.addBase64AudioChunk(data.audioBase64, remotePeer?.userName || 'Remote Caller', data.translatedText);
+    } else if (data.translatedText) {
+      lastRemoteAudioBase64Ref.current = null;
+      lastRemoteTranslatedTextRef.current = data.translatedText;
+      speak(data.translatedText, localLanguage);
     }
   }, [localLanguage, remotePeer, speak]);
+
+  // Robust Hybrid Replay of translated audio
+  const handleReplayAudio = useCallback((textToPlay, langToUse) => {
+    const text = textToPlay || latestRemoteTranslated || lastRemoteTranslatedTextRef.current;
+    const lang = langToUse || localLanguage;
+    if (text) {
+      unlockAudio();
+      const base64 = (text === latestRemoteTranslated) ? lastRemoteAudioBase64Ref.current : null;
+      speak(text, lang, base64, { isReplay: true });
+    }
+  }, [latestRemoteTranslated, localLanguage, speak, unlockAudio]);
 
   // Handle Peer Speech Ended
   const handleRemoteSpeechEnded = useCallback(() => {
@@ -404,9 +424,7 @@ export default function App() {
                 latestRemoteOriginal={latestRemoteOriginal}
                 latestRemoteTranslated={latestRemoteTranslated}
                 onSendTextUtterance={handleDispatchUtterance}
-                onReplayAudio={() => {
-                  if (latestRemoteTranslated) speak(latestRemoteTranslated, localLanguage);
-                }}
+                onReplayAudio={handleReplayAudio}
                 onTestSpeaker={playTestSound}
                 onOpenMinutes={() => setIsMinutesOpen(true)}
                 onOpenGlossary={() => setIsGlossaryOpen(true)}

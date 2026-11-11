@@ -249,11 +249,12 @@ export function useWebRTC({
   }, []);
 
   // Send speech segment to peer
-  const emitSpeechSegment = useCallback((originalText, sourceLang) => {
+  const emitSpeechSegment = useCallback((originalText, sourceLang, targetLang) => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('speech_segment', {
         originalText,
-        sourceLang
+        sourceLang,
+        targetLang
       });
     }
   }, []);

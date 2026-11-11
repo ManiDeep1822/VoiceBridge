@@ -255,18 +255,23 @@ def register_socket_events(sio):
 
         # Locate the recipient peer
         peers = [p for s, p in list(rooms[room_id].items()) if s != sid]
-        if not peers:
-            # No listener currently in room
-            return
+        is_solo = len(peers) == 0
 
-        peer = peers[0]
-        peer_sid = peer["sid"]
-        target_lang = str(peer.get("language", "hi")).strip()
-        speaker_gender = str(sender.get("voiceGender", "female")).strip()
+        if is_solo:
+            # Solo simulator mode: Loopback to the sole user so single-user testing works seamlessly
+            peer_sid = sid
+            target_lang = str(data.get("targetLang") or ("hi" if source_lang != "hi" else "en")).strip()
+            speaker_gender = str(sender.get("voiceGender", "female")).strip()
+        else:
+            peer = peers[0]
+            peer_sid = peer["sid"]
+            target_lang = str(data.get("targetLang") or peer.get("language", "hi")).strip()
+            speaker_gender = str(sender.get("voiceGender", "female")).strip()
 
         try:
             # Notify listener immediately that incoming speech is being translated
-            await sio.emit("peer_incoming_speech", {"speakerId": sender["userId"]}, to=peer_sid)
+            if not is_solo:
+                await sio.emit("peer_incoming_speech", {"speakerId": sender["userId"]}, to=peer_sid)
 
             # Stage 0: Zero-latency conversational normalization & interrogative intent detection
             enhanced_original, original_intent = enhance_conversational_text(original_text, source_lang)
@@ -288,26 +293,41 @@ def register_socket_events(sio):
                 punctuated_translated = punctuated_translated[0].upper() + punctuated_translated[1:]
 
             # Guard: check if peer is still in room before sending subtitle
-            if room_id not in rooms or peer_sid not in rooms[room_id]:
+            if room_id not in rooms or (not is_solo and peer_sid not in rooms[room_id]):
                 logger.info(f"Peer {peer_sid} left room during translation; skipping subtitle/audio emit")
                 return
 
-            # Stage 2: Deliver instant live subtitle text to listener with restored question feel
-            await sio.emit("peer_incoming_text", {
-                "originalText": original_text,
-                "enhancedOriginal": enhanced_original,
-                "translatedText": punctuated_translated,
-                "intent": original_intent,
-                "speakerId": sender["userId"],
-                "sourceLang": source_lang,
-                "targetLang": target_lang
-            }, to=peer_sid)
+            # Stage 2: Deliver instant live subtitle text
+            if is_solo:
+                # Deliver to solo simulator tester as simulated remote caller
+                await sio.emit("peer_incoming_text", {
+                    "originalText": original_text,
+                    "enhancedOriginal": enhanced_original,
+                    "translatedText": punctuated_translated,
+                    "intent": original_intent,
+                    "speakerId": f"Simulator ({target_lang})",
+                    "sourceLang": source_lang,
+                    "targetLang": target_lang,
+                    "isSolo": True
+                }, to=sid)
+            else:
+                # Deliver live subtitle to peer
+                await sio.emit("peer_incoming_text", {
+                    "originalText": original_text,
+                    "enhancedOriginal": enhanced_original,
+                    "translatedText": punctuated_translated,
+                    "intent": original_intent,
+                    "speakerId": sender["userId"],
+                    "sourceLang": source_lang,
+                    "targetLang": target_lang
+                }, to=peer_sid)
 
             # Acknowledge to speaker with live subtitle
             await sio.emit("speech_delivered", {
                 "originalText": original_text,
                 "enhancedOriginal": enhanced_original,
-                "translatedText": punctuated_translated
+                "translatedText": punctuated_translated,
+                "isSolo": is_solo
             }, to=sid)
 
             # Stage 3: Studio neural voice synthesis (Natural human conversational cadence +3%, steady baseline pitch with expressive tail inflection)
@@ -321,30 +341,36 @@ def register_socket_events(sio):
             )
 
             # Guard: check again if peer is still in room before sending audio
-            if room_id not in rooms or peer_sid not in rooms[room_id]:
+            if room_id not in rooms or (not is_solo and peer_sid not in rooms[room_id]):
                 logger.info(f"Peer {peer_sid} left room during TTS; skipping audio emit")
                 return
 
+            target_recipient = sid if is_solo else peer_sid
             if audio_bytes:
                 audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
                 
-                # Deliver accelerated translated speech audio to peer
+                # Deliver accelerated translated speech audio to peer or solo tester
                 await sio.emit("translated_audio", {
                     "audioBase64": audio_base64,
                     "translatedText": punctuated_translated,
                     "originalText": enhanced_original,
                     "sourceLang": source_lang,
                     "targetLang": target_lang,
-                    "speakerId": sender["userId"]
-                }, to=peer_sid)
+                    "speakerId": f"Simulator ({target_lang})" if is_solo else sender["userId"],
+                    "isSolo": is_solo
+                }, to=target_recipient)
             else:
                 # Audio failed or returned empty: release peer's speaking state so UI doesn't hang
-                await sio.emit("peer_speech_ended", {"speakerId": sender["userId"]}, to=peer_sid)
+                await sio.emit("peer_speech_ended", {
+                    "speakerId": f"Simulator ({target_lang})" if is_solo else sender["userId"],
+                    "isSolo": is_solo
+                }, to=target_recipient)
 
         except Exception as e:
             logger.error(f"Error processing speech segment: {e}", exc_info=True)
             await sio.emit("speech_error", {"error": str(e)}, to=sid)
             try:
-                await sio.emit("peer_speech_ended", {"speakerId": sender.get("userId", "peer")}, to=peer_sid)
+                target_recipient = sid if is_solo else peer_sid
+                await sio.emit("peer_speech_ended", {"speakerId": sender.get("userId", "peer")}, to=target_recipient)
             except Exception:
                 pass

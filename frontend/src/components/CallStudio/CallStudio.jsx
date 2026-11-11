@@ -44,6 +44,14 @@ export function CallStudio({
   audioUnlocked = false,
   onUnlockAudio
 }) {
+  // Derived metadata declared at top of component scope to eliminate any TDZ or closure sequencing issues
+  const isPeerConnected = Boolean(remotePeer) && connectionState === 'connected';
+  const localMeta = getLanguageMeta(localLanguage);
+  const peerActualLang = remotePeer?.language || remoteLanguage;
+  const remoteMeta = getLanguageMeta(peerActualLang);
+  const peerDisplayName = remotePeer?.userName || 'Remote Caller';
+  const loc = getLocaleStrings(localLanguage);
+
   const [typedMessage, setTypedMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [showMobileChat, setShowMobileChat] = useState(false);
@@ -87,8 +95,8 @@ export function CallStudio({
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             duration: `${Math.floor(recordSeconds / 60)}m ${recordSeconds % 60}s`,
             peerName: peerDisplayName,
-            sourceLang: localMeta.name,
-            targetLang: remoteMeta.name
+            sourceLang: localMeta?.name || 'Local',
+            targetLang: remoteMeta?.name || 'Remote'
           });
           localStorage.setItem('voicebridge_recorded_calls', JSON.stringify(pastCalls.slice(0, 20)));
         } catch (e) {}
@@ -118,15 +126,6 @@ export function CallStudio({
 
   const onFinalizeTurnRef = useRef(onFinalizeTurn);
   onFinalizeTurnRef.current = onFinalizeTurn;
-
-  const isPeerConnected = Boolean(remotePeer) && connectionState === 'connected';
-
-  const localMeta = getLanguageMeta(localLanguage);
-  const peerActualLang = remotePeer?.language || remoteLanguage;
-  const remoteMeta = getLanguageMeta(peerActualLang);
-  const peerDisplayName = remotePeer?.userName || 'Remote Caller';
-
-  const loc = getLocaleStrings(localLanguage);
 
   // Tactical Walkie-Talkie Chirps
   const playTactileChirp = useCallback((isOpen) => {
@@ -363,6 +362,18 @@ export function CallStudio({
             <span className="hidden sm:inline text-xs">{copiedLink ? 'Copied' : loc.copyLink}</span>
           </button>
 
+          {/* Quick Replay Audio Button */}
+          {latestRemoteTranslated && (
+            <button
+              onClick={() => onReplayAudio && onReplayAudio(latestRemoteTranslated, localLanguage)}
+              className="h-8 px-2 sm:h-9 sm:px-2.5 rounded-lg sm:rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-600/60 font-medium text-[11px] sm:text-xs flex items-center justify-center gap-1 shrink-0 transition-colors shadow-sm"
+              title="Replay translated audio aloud"
+            >
+              <Volume2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="hidden xs:inline">Replay</span>
+            </button>
+          )}
+
           {/* Audio Output Status & Test */}
           {!audioUnlocked ? (
             <button
@@ -526,9 +537,20 @@ export function CallStudio({
                 {/* Desktop Subtitle Deck (Peer Card) */}
                 <div className="hidden lg:flex rounded-xl bg-slate-950/80 border border-slate-800 p-3 min-h-[75px] flex-col justify-center">
                   {latestRemoteTranslated ? (
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-emerald-400">"{latestRemoteTranslated}"</p>
-                      <p className="text-[11px] text-slate-400">Original: "{latestRemoteOriginal}"</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <p className="text-sm font-bold text-emerald-400 leading-snug">"{latestRemoteTranslated}"</p>
+                        <p className="text-[11px] text-slate-400">Original: "{latestRemoteOriginal}"</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onReplayAudio && onReplayAudio(latestRemoteTranslated, localLanguage)}
+                        className="h-8 px-2.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 font-medium text-xs flex items-center gap-1.5 transition-colors shrink-0 shadow-sm"
+                        title="Replay translated audio aloud"
+                      >
+                        <Volume2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>Replay</span>
+                      </button>
                     </div>
                   ) : (
                     <p className="text-[11px] text-slate-400 italic">
@@ -587,14 +609,41 @@ export function CallStudio({
                 </p>
               </div>
             ) : latestRemoteTranslated && (isPeerSpeaking || isRemoteSpeaking) ? (
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>{peerDisplayName} (Translated):</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="space-y-1 flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>{peerDisplayName} (Translated):</span>
+                  </div>
+                  <p className="text-xs sm:text-base font-bold text-emerald-400 leading-snug break-words">
+                    "{latestRemoteTranslated}"
+                  </p>
                 </div>
-                <p className="text-xs sm:text-base font-bold text-emerald-400 leading-snug break-words">
-                  "{latestRemoteTranslated}"
-                </p>
+                <button
+                  type="button"
+                  onClick={() => onReplayAudio && onReplayAudio(latestRemoteTranslated, localLanguage)}
+                  className="h-8 px-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-1 shrink-0"
+                  title="Replay translated audio"
+                >
+                  <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-[11px]">Replay</span>
+                </button>
+              </div>
+            ) : latestRemoteTranslated ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <p className="text-[10px] text-slate-400 truncate">From {peerDisplayName}: "{latestRemoteOriginal}"</p>
+                  <p className="text-xs font-bold text-emerald-400 truncate">"{latestRemoteTranslated}"</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onReplayAudio && onReplayAudio(latestRemoteTranslated, localLanguage)}
+                  className="h-8 px-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-1 shrink-0"
+                  title="Replay translated audio"
+                >
+                  <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-[11px]">Replay</span>
+                </button>
               </div>
             ) : latestLocalOriginal ? (
               <div className="space-y-0.5">
@@ -750,7 +799,19 @@ export function CallStudio({
                 )}
                 {latestRemoteOriginal && (
                   <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
-                    <span className="text-[11px] font-semibold text-emerald-400">{peerDisplayName} ({remoteMeta.name})</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-emerald-400">{peerDisplayName} ({remoteMeta.name})</span>
+                      {latestRemoteTranslated && (
+                        <button
+                          type="button"
+                          onClick={() => onReplayAudio && onReplayAudio(latestRemoteTranslated, localLanguage)}
+                          className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition-colors"
+                          title="Replay translated audio"
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <p className="text-white font-medium">{latestRemoteOriginal}</p>
                     {latestRemoteTranslated && (
                       <p className="text-emerald-400 text-[11px] pt-1 border-t border-slate-700/50">

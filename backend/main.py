@@ -97,6 +97,7 @@ async def handle_translate(req: TranslateRequest):
     return {
         "original": clean_text,
         "translated": translated,
+        "translated_text": translated,
         "source_lang": req.source_lang,
         "target_lang": req.target_lang
     }
