@@ -162,11 +162,11 @@ export const LOCALE_STRINGS = {
     languageLabel: 'আপনার ভাষা'
   },
   en: {
-    tapToSpeak: 'Tap or Hold to Talk',
-    tapWhenDone: 'Release or Tap to Send',
+    tapToSpeak: 'Hold to Speak (Space)',
+    tapWhenDone: 'Release to Send',
     channelBusy: 'Channel Busy (Please Wait)',
     speakingNotice: 'Transmitting live speech... Release to send',
-    pttHelper: 'Hold Spacebar or Tap Button to Talk',
+    pttHelper: 'Hold Spacebar or Hold Button to Talk',
     peerSpeaking: 'Other person is speaking...',
     translatingLoud: 'Speaking translated voice out loud...',
     readyYourTurn: 'Your turn to speak',

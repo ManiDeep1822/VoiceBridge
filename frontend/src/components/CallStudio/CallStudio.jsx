@@ -7,6 +7,7 @@ import {
 import { SUPPORTED_LANGUAGES, getLanguageMeta, getLocaleStrings } from '../../utils/languages.js';
 import { CallerAvatar } from './CallerAvatar.jsx';
 import { callRecorder } from '../../utils/callRecorder.js';
+import { evaluatePttRelease, evaluatePttCancel, evaluateSpaceKeyUp } from '../../utils/pttHelper.js';
 
 export function CallStudio({
   roomId = 'VOX-ROOM-101',
@@ -22,6 +23,7 @@ export function CallStudio({
   onRemoteLanguageChange,
   isListening = false,
   onStartListening,
+  onStopListening,
   onToggleMic,
   onFinalizeTurn,
   localAudioLevel = 0,
@@ -104,13 +106,28 @@ export function CallStudio({
     }
   };
 
+  const [isHolding, setIsHolding] = useState(false);
+  const isHoldingRef = useRef(false);
   const pointerStartTimeRef = useRef(0);
-  const wasListeningBeforePointerRef = useRef(false);
-  const isPttPointerDownRef = useRef(false);
-
   const spacePressStartTimeRef = useRef(0);
-  const wasListeningBeforeSpacePressRef = useRef(false);
   const isSpaceKeyDownRef = useRef(false);
+  const [pttTooltip, setPttTooltip] = useState('');
+  const tooltipTimerRef = useRef(null);
+  const pttButtonRef = useRef(null);
+
+  const showPttTooltip = useCallback((msg = 'Hold while speaking') => {
+    setPttTooltip(msg);
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
+    tooltipTimerRef.current = setTimeout(() => {
+      setPttTooltip('');
+    }, 2000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
+    };
+  }, []);
 
   // Floor Lock: When peer is transmitting or translated audio is active on loudspeaker, lock caller mic
   const isChannelBusy = isPeerSpeaking || isRemoteSpeaking;
@@ -123,6 +140,9 @@ export function CallStudio({
 
   const onStartListeningRef = useRef(onStartListening);
   onStartListeningRef.current = onStartListening;
+
+  const onStopListeningRef = useRef(onStopListening);
+  onStopListeningRef.current = onStopListening;
 
   const onFinalizeTurnRef = useRef(onFinalizeTurn);
   onFinalizeTurnRef.current = onFinalizeTurn;
@@ -158,10 +178,11 @@ export function CallStudio({
     } catch (e) {}
   }, []);
 
-  // Desktop Spacebar Hotkey (Dual-Mode: Hold Spacebar to speak OR Tap once to toggle hands-free)
+  // Desktop Spacebar Hotkey (Pure Walkie-Talkie: Hold to Speak, Release to Send)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.code === 'Space' && !e.repeat) {
+      if (e.code === 'Space') {
+        if (e.repeat) return;
         const tag = document.activeElement?.tagName?.toLowerCase();
         if (tag === 'input' || tag === 'textarea') return;
         if (isChannelBusyRef.current) return;
@@ -169,14 +190,11 @@ export function CallStudio({
 
         spacePressStartTimeRef.current = Date.now();
         isSpaceKeyDownRef.current = true;
+        isHoldingRef.current = true;
+        setIsHolding(true);
 
-        if (!isListeningRef.current) {
-          wasListeningBeforeSpacePressRef.current = false;
-          playTactileChirp(true);
-          if (onStartListeningRef.current) onStartListeningRef.current();
-        } else {
-          wasListeningBeforeSpacePressRef.current = true;
-        }
+        playTactileChirp(true);
+        if (onStartListeningRef.current) onStartListeningRef.current();
       }
     };
 
@@ -186,30 +204,40 @@ export function CallStudio({
         if (tag === 'input' || tag === 'textarea') return;
         e.preventDefault();
 
-        const holdDuration = Date.now() - spacePressStartTimeRef.current;
-        const wasAlreadyListening = wasListeningBeforeSpacePressRef.current;
+        if (!isSpaceKeyDownRef.current) return;
         isSpaceKeyDownRef.current = false;
+        isHoldingRef.current = false;
+        setIsHolding(false);
 
-        if (holdDuration > 250) {
-          // True Hold-to-Talk release
+        const duration = Date.now() - spacePressStartTimeRef.current;
+        const evaluation = evaluateSpaceKeyUp(duration);
+        if (evaluation.dispatch) {
           playTactileChirp(false);
           if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
         } else {
-          // Quick tap
-          if (wasAlreadyListening) {
-            playTactileChirp(false);
-            if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
-          }
+          if (onStopListeningRef.current) onStopListeningRef.current();
+          showPttTooltip(evaluation.tooltip || 'Hold while speaking');
         }
       }
     };
 
     const handleWindowBlur = () => {
-      if (isSpaceKeyDownRef.current || isPttPointerDownRef.current) {
+      if (isSpaceKeyDownRef.current || isHoldingRef.current) {
+        const spaceDuration = isSpaceKeyDownRef.current ? Date.now() - spacePressStartTimeRef.current : 0;
+        const pointerDuration = isHoldingRef.current ? Date.now() - pointerStartTimeRef.current : 0;
+        const duration = Math.max(spaceDuration, pointerDuration);
+
         isSpaceKeyDownRef.current = false;
-        isPttPointerDownRef.current = false;
-        playTactileChirp(false);
-        if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+        isHoldingRef.current = false;
+        setIsHolding(false);
+
+        const evaluation = evaluatePttCancel(duration);
+        if (evaluation.dispatch) {
+          playTactileChirp(false);
+          if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+        } else {
+          if (onStopListeningRef.current) onStopListeningRef.current();
+        }
       }
     };
 
@@ -224,9 +252,9 @@ export function CallStudio({
       window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('visibilitychange', handleWindowBlur);
     };
-  }, [playTactileChirp]);
+  }, [playTactileChirp, showPttTooltip]);
 
-  // Dual-Mode PTT Button (Hold to talk OR Tap once to toggle hands-free)
+  // Pure Walkie-Talkie Pointer Handlers (Hold to Speak, Release to Send)
   const handlePttPointerDown = (e) => {
     if (isChannelBusyRef.current) return;
 
@@ -235,37 +263,33 @@ export function CallStudio({
     } catch (err) {}
 
     pointerStartTimeRef.current = Date.now();
-    isPttPointerDownRef.current = true;
+    isHoldingRef.current = true;
+    setIsHolding(true);
 
-    if (!isListeningRef.current) {
-      wasListeningBeforePointerRef.current = false;
-      playTactileChirp(true);
-      if (onStartListeningRef.current) onStartListeningRef.current();
-    } else {
-      wasListeningBeforePointerRef.current = true;
-    }
+    playTactileChirp(true);
+    if (onStartListeningRef.current) onStartListeningRef.current();
   };
 
   const handlePttPointerUp = (e) => {
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch (err) {}
+    e.currentTarget?.blur();
+    pttButtonRef.current?.blur();
+
+    if (!isHoldingRef.current) return;
+    isHoldingRef.current = false;
+    setIsHolding(false);
 
     const duration = Date.now() - pointerStartTimeRef.current;
-    const wasAlreadyListening = wasListeningBeforePointerRef.current;
-    isPttPointerDownRef.current = false;
+    const evaluation = evaluatePttRelease(duration);
 
-    if (duration > 180) {
-      // True Hold-to-Talk release: always stop and dispatch immediately
+    if (evaluation.dispatch) {
       playTactileChirp(false);
       if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
     } else {
-      // Quick tap (< 180ms)
-      if (wasAlreadyListening) {
-        // Was already hands-free listening: tap to stop & dispatch
-        playTactileChirp(false);
-        if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
-      }
+      if (onStopListeningRef.current) onStopListeningRef.current();
+      showPttTooltip(evaluation.tooltip || 'Hold while speaking');
     }
   };
 
@@ -273,17 +297,33 @@ export function CallStudio({
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch (err) {}
+    e.currentTarget?.blur();
+    pttButtonRef.current?.blur();
 
-    const wasDown = isPttPointerDownRef.current;
-    isPttPointerDownRef.current = false;
-    if (wasDown || isListeningRef.current) {
+    if (!isHoldingRef.current) {
+      if (isListeningRef.current) {
+        if (onStopListeningRef.current) onStopListeningRef.current();
+      }
+      return;
+    }
+
+    isHoldingRef.current = false;
+    setIsHolding(false);
+
+    const duration = Date.now() - pointerStartTimeRef.current;
+    const evaluation = evaluatePttCancel(duration);
+
+    if (evaluation.dispatch) {
       playTactileChirp(false);
       if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+    } else {
+      if (onStopListeningRef.current) onStopListeningRef.current();
     }
   };
 
   const handlePttClick = (e) => {
     e?.preventDefault();
+    e?.currentTarget?.blur();
   };
 
   const COMMON_PHRASES = [
@@ -653,7 +693,7 @@ export function CallStudio({
             ) : (
               <div className="text-center text-xs text-slate-400 py-0.5">
                 <p className="font-medium text-slate-300 text-xs">{loc.pttHelper}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Dual-Mode: Hold button to talk or tap once to speak hands-free</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Walkie-Talkie: Hold button or Spacebar to talk, release to send</p>
               </div>
             )}
           </div>
@@ -661,8 +701,14 @@ export function CallStudio({
           {/* Unified Bottom Dock: Ergonomic Mobile Stack / Desktop Row */}
           <div className="rounded-xl sm:rounded-2xl bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 shrink-0 box-border max-w-full">
             {/* Primary Push-to-Talk Button (Large, Ergonomic, Zero Overlap) */}
-            <div className="w-full sm:flex-1 flex items-stretch sm:items-center gap-2">
+            <div className="w-full sm:flex-1 flex flex-col items-center relative">
+              {pttTooltip && (
+                <div className="absolute -top-8 px-2.5 py-1 bg-slate-800 text-amber-300 text-xs font-semibold rounded-md shadow-lg border border-slate-700 pointer-events-none z-20 whitespace-nowrap">
+                  {pttTooltip}
+                </div>
+              )}
               <button
+                ref={pttButtonRef}
                 type="button"
                 disabled={isChannelBusy}
                 onPointerDown={handlePttPointerDown}
@@ -670,11 +716,12 @@ export function CallStudio({
                 onPointerCancel={handlePttPointerCancel}
                 onTouchCancel={handlePttPointerCancel}
                 onClick={handlePttClick}
-                className={`w-full sm:w-auto sm:flex-1 h-12 sm:h-11 px-4 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg touch-none select-none flex items-center justify-center gap-2 transition-all ${
+                onFocus={(e) => e.currentTarget.blur()}
+                className={`w-full sm:w-auto sm:flex-1 h-12 sm:h-11 px-4 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg touch-none select-none flex items-center justify-center gap-2 transition-colors ${
                   isChannelBusy
                     ? 'bg-amber-500/10 text-amber-400 border border-amber-500/40 cursor-not-allowed opacity-80'
-                    : isListening
-                      ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-950/50 animate-pulse'
+                    : isHolding || isListening
+                      ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-950/50'
                       : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-950/40'
                 }`}
               >
@@ -683,15 +730,15 @@ export function CallStudio({
                     <Lock className="w-4 h-4 text-amber-400 shrink-0" />
                     <span className="truncate">{loc.channelBusy}</span>
                   </>
-                ) : isListening ? (
+                ) : isHolding || isListening ? (
                   <>
-                    <Mic className="w-4 h-4 text-white shrink-0 animate-bounce" />
-                    <span className="truncate">{loc.tapWhenDone}</span>
+                    <Mic className="w-4 h-4 text-white shrink-0" />
+                    <span className="truncate">{localLanguage === 'en' ? 'Release to Send' : (loc.tapWhenDone || 'Release to Send')}</span>
                   </>
                 ) : (
                   <>
                     <Mic className="w-4 h-4 text-white shrink-0" />
-                    <span className="truncate">{loc.tapToSpeak}</span>
+                    <span className="truncate">{localLanguage === 'en' ? 'Hold to Speak (Space)' : (loc.tapToSpeak || 'Hold to Speak (Space)')}</span>
                   </>
                 )}
               </button>

@@ -28,6 +28,8 @@ export function useSpeechRecognition({
   const shouldBeListeningRef = useRef(false);
   const isRecognizingRef = useRef(false);
   const isStartingRef = useRef(false);
+  const lastStartTimeRef = useRef(0);
+  const restartTimerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
 
@@ -145,6 +147,10 @@ export function useSpeechRecognition({
   const stopListening = useCallback(() => {
     shouldBeListeningRef.current = false;
     isStartingRef.current = false;
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
@@ -191,6 +197,10 @@ export function useSpeechRecognition({
       shouldBeListeningRef.current = false;
       isStartingRef.current = false;
       isRecognizingRef.current = false;
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -302,10 +312,34 @@ export function useSpeechRecognition({
     recognition.onend = () => {
       isRecognizingRef.current = false;
       isStartingRef.current = false;
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
       if (shouldBeListeningRef.current && !isDuckedRef.current) {
-        try {
-          recognition.start();
-        } catch (e) {}
+        const elapsed = Date.now() - lastStartTimeRef.current;
+        if (elapsed >= 300) {
+          try {
+            isStartingRef.current = true;
+            lastStartTimeRef.current = Date.now();
+            recognition.start();
+          } catch (e) {
+            isStartingRef.current = false;
+          }
+        } else {
+          // Debounce restart by waiting until at least 300ms has elapsed since last start
+          restartTimerRef.current = setTimeout(() => {
+            if (shouldBeListeningRef.current && !isDuckedRef.current && !isRecognizingRef.current && !isStartingRef.current) {
+              try {
+                isStartingRef.current = true;
+                lastStartTimeRef.current = Date.now();
+                recognition.start();
+              } catch (e) {
+                isStartingRef.current = false;
+              }
+            }
+          }, 300 - elapsed);
+        }
       } else {
         setIsListening(false);
         setInterimText('');
@@ -322,6 +356,7 @@ export function useSpeechRecognition({
       shouldBeListeningRef.current = false;
       isRecognizingRef.current = false;
       isStartingRef.current = false;
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       try {
         recognition.stop();
@@ -355,6 +390,10 @@ export function useSpeechRecognition({
     }
 
     if (!recognitionRef.current) return;
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
     accumulatedUtteranceRef.current = '';
     interimTextRef.current = '';
     setInterimText('');
@@ -369,6 +408,7 @@ export function useSpeechRecognition({
 
     if (!isRecognizingRef.current && !isStartingRef.current) {
       isStartingRef.current = true;
+      lastStartTimeRef.current = Date.now();
       try {
         recognitionRef.current.lang = langMeta.stt;
         recognitionRef.current.start();

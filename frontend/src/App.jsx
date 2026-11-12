@@ -412,6 +412,7 @@ export default function App() {
                 onRemoteLanguageChange={handleRemoteLanguageChange}
                 isListening={isListening}
                 onStartListening={startListening}
+                onStopListening={stopListening}
                 onToggleMic={toggleListening}
                 onFinalizeTurn={finalizeTurn}
                 localAudioLevel={localAudioLevel}
