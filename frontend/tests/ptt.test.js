@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { getLocaleStrings, LOCALE_STRINGS } from '../src/utils/languages.js';
 import {
   MIN_PTT_HOLD_MS,
+  PTT_RELEASE_GRACE_MS,
   evaluatePttRelease,
   evaluatePttCancel,
   evaluateSpaceKeyUp
@@ -41,12 +42,13 @@ describe('Strict Push-to-Talk (PTT) & Floor Lock Strings', () => {
 
   it('determines pure Walkie-Talkie Hold-to-Talk release actions accurately', () => {
     assert.strictEqual(MIN_PTT_HOLD_MS, 200);
+    assert.strictEqual(PTT_RELEASE_GRACE_MS, 500);
 
     // 1. Hold-to-Talk release after speaking >= 200ms (e.g. 200ms, 350ms, 1500ms, 5000ms)
-    assert.deepStrictEqual(evaluatePttRelease(200), { action: 'FINALIZE', dispatch: true });
-    assert.deepStrictEqual(evaluatePttRelease(350), { action: 'FINALIZE', dispatch: true });
-    assert.deepStrictEqual(evaluatePttRelease(1500), { action: 'FINALIZE', dispatch: true });
-    assert.deepStrictEqual(evaluatePttRelease(5000), { action: 'FINALIZE', dispatch: true });
+    assert.deepStrictEqual(evaluatePttRelease(200), { action: 'FINALIZE', dispatch: true, waitMs: 500 });
+    assert.deepStrictEqual(evaluatePttRelease(350), { action: 'FINALIZE', dispatch: true, waitMs: 500 });
+    assert.deepStrictEqual(evaluatePttRelease(1500), { action: 'FINALIZE', dispatch: true, waitMs: 500 });
+    assert.deepStrictEqual(evaluatePttRelease(5000), { action: 'FINALIZE', dispatch: true, waitMs: 500 });
 
     // 2. Accidental quick tap (< 200ms) cancels without dispatching and prompts tooltip
     assert.deepStrictEqual(evaluatePttRelease(0), { action: 'CANCEL', dispatch: false, tooltip: 'Hold while speaking' });
@@ -57,8 +59,8 @@ describe('Strict Push-to-Talk (PTT) & Floor Lock Strings', () => {
 
   it('determines pointer cancel actions accurately', () => {
     // If finger slips or pointer cancels after user held >= 200ms, speech is finalized
-    assert.deepStrictEqual(evaluatePttCancel(200), { action: 'FINALIZE', dispatch: true });
-    assert.deepStrictEqual(evaluatePttCancel(850), { action: 'FINALIZE', dispatch: true });
+    assert.deepStrictEqual(evaluatePttCancel(200), { action: 'FINALIZE', dispatch: true, waitMs: 500 });
+    assert.deepStrictEqual(evaluatePttCancel(850), { action: 'FINALIZE', dispatch: true, waitMs: 500 });
 
     // If pointer cancels before 200ms threshold, speech is aborted without dispatch
     assert.deepStrictEqual(evaluatePttCancel(50), { action: 'CANCEL', dispatch: false });
@@ -67,11 +69,15 @@ describe('Strict Push-to-Talk (PTT) & Floor Lock Strings', () => {
 
   it('determines Spacebar hotkey release actions accurately', () => {
     // Spacebar held >= 200ms dispatches finalized turn
-    assert.deepStrictEqual(evaluateSpaceKeyUp(200), { action: 'FINALIZE', dispatch: true });
-    assert.deepStrictEqual(evaluateSpaceKeyUp(600), { action: 'FINALIZE', dispatch: true });
+    assert.deepStrictEqual(evaluateSpaceKeyUp(200), { action: 'FINALIZE', dispatch: true, waitMs: 500 });
+    assert.deepStrictEqual(evaluateSpaceKeyUp(600), { action: 'FINALIZE', dispatch: true, waitMs: 500 });
 
     // Spacebar tap < 200ms cancels without dispatching
     assert.deepStrictEqual(evaluateSpaceKeyUp(80), { action: 'CANCEL', dispatch: false, tooltip: 'Hold while speaking' });
     assert.deepStrictEqual(evaluateSpaceKeyUp(190), { action: 'CANCEL', dispatch: false, tooltip: 'Hold while speaking' });
+  });
+
+  it('defines 500ms post-release trailing grace buffer constant', () => {
+    assert.strictEqual(PTT_RELEASE_GRACE_MS, 500);
   });
 });

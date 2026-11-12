@@ -7,7 +7,7 @@ import {
 import { SUPPORTED_LANGUAGES, getLanguageMeta, getLocaleStrings } from '../../utils/languages.js';
 import { CallerAvatar } from './CallerAvatar.jsx';
 import { callRecorder } from '../../utils/callRecorder.js';
-import { evaluatePttRelease, evaluatePttCancel, evaluateSpaceKeyUp } from '../../utils/pttHelper.js';
+import { evaluatePttRelease, evaluatePttCancel, evaluateSpaceKeyUp, PTT_RELEASE_GRACE_MS } from '../../utils/pttHelper.js';
 
 export function CallStudio({
   roomId = 'VOX-ROOM-101',
@@ -112,6 +112,7 @@ export function CallStudio({
   const pointerStartTimeRef = useRef(0);
   const spacePressStartTimeRef = useRef(0);
   const isSpaceKeyDownRef = useRef(false);
+  const releaseTimerRef = useRef(null);
   const [pttTooltip, setPttTooltip] = useState('');
   const tooltipTimerRef = useRef(null);
   const pttButtonRef = useRef(null);
@@ -127,6 +128,7 @@ export function CallStudio({
   useEffect(() => {
     return () => {
       if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
+      if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
     };
   }, []);
 
@@ -189,13 +191,20 @@ export function CallStudio({
         if (isChannelBusyRef.current) return;
         e.preventDefault();
 
+        if (releaseTimerRef.current) {
+          clearTimeout(releaseTimerRef.current);
+          releaseTimerRef.current = null;
+        }
+
         spacePressStartTimeRef.current = Date.now();
         isSpaceKeyDownRef.current = true;
         isHoldingRef.current = true;
         setIsHolding(true);
 
-        playTactileChirp(true);
-        if (onStartListeningRef.current) onStartListeningRef.current();
+        if (!isListeningRef.current) {
+          playTactileChirp(true);
+          if (onStartListeningRef.current) onStartListeningRef.current();
+        }
       }
     };
 
@@ -213,9 +222,18 @@ export function CallStudio({
         const duration = Date.now() - spacePressStartTimeRef.current;
         const evaluation = evaluateSpaceKeyUp(duration);
         if (evaluation.dispatch) {
-          playTactileChirp(false);
-          if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+          if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
+          const waitMs = evaluation.waitMs || 500;
+          releaseTimerRef.current = setTimeout(() => {
+            playTactileChirp(false);
+            if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+            releaseTimerRef.current = null;
+          }, waitMs);
         } else {
+          if (releaseTimerRef.current) {
+            clearTimeout(releaseTimerRef.current);
+            releaseTimerRef.current = null;
+          }
           if (onStopListeningRef.current) onStopListeningRef.current();
           showPttTooltip(evaluation.tooltip || 'Hold while speaking');
         }
@@ -223,6 +241,10 @@ export function CallStudio({
     };
 
     const handleWindowBlur = () => {
+      if (releaseTimerRef.current) {
+        clearTimeout(releaseTimerRef.current);
+        releaseTimerRef.current = null;
+      }
       if (isSpaceKeyDownRef.current || isHoldingRef.current) {
         const spaceDuration = isSpaceKeyDownRef.current ? Date.now() - spacePressStartTimeRef.current : 0;
         const pointerDuration = isHoldingRef.current ? Date.now() - pointerStartTimeRef.current : 0;
@@ -248,6 +270,7 @@ export function CallStudio({
     document.addEventListener('visibilitychange', handleWindowBlur);
 
     return () => {
+      if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleWindowBlur);
@@ -263,12 +286,19 @@ export function CallStudio({
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch (err) {}
 
+    if (releaseTimerRef.current) {
+      clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = null;
+    }
+
     pointerStartTimeRef.current = Date.now();
     isHoldingRef.current = true;
     setIsHolding(true);
 
-    playTactileChirp(true);
-    if (onStartListeningRef.current) onStartListeningRef.current();
+    if (!isListeningRef.current) {
+      playTactileChirp(true);
+      if (onStartListeningRef.current) onStartListeningRef.current();
+    }
   };
 
   const handlePttPointerUp = (e) => {
@@ -286,9 +316,18 @@ export function CallStudio({
     const evaluation = evaluatePttRelease(duration);
 
     if (evaluation.dispatch) {
-      playTactileChirp(false);
-      if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+      if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
+      const waitMs = evaluation.waitMs || 500;
+      releaseTimerRef.current = setTimeout(() => {
+        playTactileChirp(false);
+        if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+        releaseTimerRef.current = null;
+      }, waitMs);
     } else {
+      if (releaseTimerRef.current) {
+        clearTimeout(releaseTimerRef.current);
+        releaseTimerRef.current = null;
+      }
       if (onStopListeningRef.current) onStopListeningRef.current();
       showPttTooltip(evaluation.tooltip || 'Hold while speaking');
     }
@@ -302,7 +341,7 @@ export function CallStudio({
     pttButtonRef.current?.blur();
 
     if (!isHoldingRef.current) {
-      if (isListeningRef.current) {
+      if (isListeningRef.current && !releaseTimerRef.current) {
         if (onStopListeningRef.current) onStopListeningRef.current();
       }
       return;
@@ -315,9 +354,18 @@ export function CallStudio({
     const evaluation = evaluatePttCancel(duration);
 
     if (evaluation.dispatch) {
-      playTactileChirp(false);
-      if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+      if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
+      const waitMs = evaluation.waitMs || 500;
+      releaseTimerRef.current = setTimeout(() => {
+        playTactileChirp(false);
+        if (onFinalizeTurnRef.current) onFinalizeTurnRef.current();
+        releaseTimerRef.current = null;
+      }, waitMs);
     } else {
+      if (releaseTimerRef.current) {
+        clearTimeout(releaseTimerRef.current);
+        releaseTimerRef.current = null;
+      }
       if (onStopListeningRef.current) onStopListeningRef.current();
     }
   };
