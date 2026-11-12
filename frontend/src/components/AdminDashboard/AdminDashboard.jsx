@@ -129,16 +129,16 @@ export function AdminDashboard({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0B0F17] p-4 sm:p-6 overflow-y-auto w-full space-y-5 select-none font-sans text-sm">
+    <div className="flex-1 flex flex-col h-full bg-[#07090C] p-3 sm:p-6 overflow-y-auto w-full space-y-4 sm:space-y-5 select-none font-sans text-sm box-border">
       {/* Header Bar */}
-      <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+      <div className="rounded-2xl bg-[#0D121F]/90 border border-slate-800/90 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
               Admin Console
             </h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20">
-              Operational
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20 glow-emerald">
+              Fleet Operational
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
@@ -146,22 +146,22 @@ export function AdminDashboard({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleExportTelemetry}
-            className="btn-secondary h-11 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 shrink-0"
+            className="btn-secondary h-10 px-3.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 shrink-0"
             title="Download fleet audit telemetry"
           >
-            <Download className="w-4 h-4 text-slate-300" />
+            <Download className="w-3.5 h-3.5 text-slate-300" />
             <span className="hidden sm:inline">Export Audit</span>
           </button>
 
           <button
             onClick={fetchLiveRooms}
             disabled={isLoadingRooms}
-            className="btn-secondary h-11 px-5 py-2.5 rounded-xl text-sm font-medium shrink-0"
+            className="btn-secondary h-10 px-4 rounded-xl text-xs sm:text-sm font-medium shrink-0 flex items-center gap-1.5"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoadingRooms ? 'animate-spin text-blue-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingRooms ? 'animate-spin text-blue-400' : ''}`} />
             <span>Refresh Status</span>
           </button>
         </div>
@@ -175,56 +175,56 @@ export function AdminDashboard({
       )}
 
       {/* KPI Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="rounded-xl bg-[#0D121F]/80 border border-slate-800/80 p-3.5 sm:p-4 space-y-1">
           <div className="flex justify-between items-center text-xs text-slate-400">
             <span>Monthly Run-Rate</span>
             <span className="font-semibold text-white">{isINR ? '₹ INR' : '$ USD'}</span>
           </div>
-          <div className="text-2xl font-bold text-white">
+          <div className="text-xl sm:text-2xl font-bold text-white">
             {isINR ? '₹ 29,80,000' : '$ 35,760'}
           </div>
-          <div className="text-xs text-slate-400 font-medium">Enterprise licenses</div>
+          <div className="text-[11px] text-slate-400 font-medium">Enterprise licenses</div>
         </div>
 
-        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+        <div className="rounded-xl bg-[#0D121F]/80 border border-slate-800/80 p-3.5 sm:p-4 space-y-1">
           <div className="flex justify-between items-center text-xs text-slate-400">
             <span>Active Live Rooms</span>
-            <Activity className="w-4 h-4 text-emerald-400" />
+            <Activity className="w-3.5 h-3.5 text-emerald-400" />
           </div>
-          <div className="text-2xl font-bold text-white">
+          <div className="text-xl sm:text-2xl font-bold text-white">
             {liveRoomsData.total_rooms} Rooms
           </div>
-          <div className="text-xs text-emerald-400 font-medium">Real-time WebRTC channels</div>
+          <div className="text-[11px] text-emerald-400 font-medium">Real-time WebRTC channels</div>
         </div>
 
-        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+        <div className="rounded-xl bg-[#0D121F]/80 border border-slate-800/80 p-3.5 sm:p-4 space-y-1">
           <div className="flex justify-between items-center text-xs text-slate-400">
             <span>Translation Engine</span>
-            <Server className="w-4 h-4 text-blue-400" />
+            <Server className="w-3.5 h-3.5 text-blue-400" />
           </div>
-          <div className="text-2xl font-bold text-white">Google Neural</div>
-          <div className="text-xs text-emerald-400 font-medium">Sub-200ms processing</div>
+          <div className="text-xl sm:text-2xl font-bold text-white">Google Neural</div>
+          <div className="text-[11px] text-emerald-400 font-medium">Sub-200ms processing</div>
         </div>
 
-        <div className="rounded-xl bg-slate-900/80 border border-slate-800 p-4 space-y-1">
+        <div className="rounded-xl bg-[#0D121F]/80 border border-slate-800/80 p-3.5 sm:p-4 space-y-1">
           <div className="flex justify-between items-center text-xs text-slate-400">
             <span>System Health</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
           </div>
-          <div className="text-2xl font-bold text-white">99.98%</div>
-          <div className="text-xs text-emerald-400 font-medium">All clusters healthy</div>
+          <div className="text-xl sm:text-2xl font-bold text-white">99.98%</div>
+          <div className="text-[11px] text-emerald-400 font-medium">All clusters healthy</div>
         </div>
       </div>
 
       {/* Main Split: Live Rooms + User Seats */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 flex-1 min-h-0">
         {/* Active Rooms */}
-        <div className="lg:col-span-6 rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4 shadow-lg flex flex-col justify-between">
+        <div className="lg:col-span-6 rounded-2xl bg-[#0D121F]/90 border border-slate-800/90 p-4 sm:p-5 space-y-4 shadow-lg flex flex-col justify-between overflow-hidden">
           <div>
-            <div className="border-b border-slate-800 pb-4 mb-4 flex items-center justify-between">
+            <div className="border-b border-slate-800/80 pb-3.5 mb-3.5 flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-sm sm:text-base font-bold text-white">
                   Active Call Sessions
                 </h3>
                 <p className="text-xs text-slate-400">
@@ -249,7 +249,7 @@ export function AdminDashboard({
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse glow-emerald" />
                       <button
                         onClick={() => handleTerminateRoom(roomId)}
                         className="btn-danger h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1"
@@ -264,20 +264,20 @@ export function AdminDashboard({
               </div>
             ) : (
               <div className="text-center py-10 text-slate-500 text-xs">
-                <PhoneCall className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p>No active call rooms at this moment.</p>
-                <p className="text-[11px] text-slate-600 mt-0.5">When callers join from Call Studio, they will appear here in real time.</p>
+                <PhoneCall className="w-8 h-8 mx-auto mb-2 opacity-40 text-blue-400" />
+                <p className="text-slate-400 font-medium">No active call rooms at this moment.</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">When callers join from Call Studio, they will appear here in real time.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Organization Members */}
-        <div className="lg:col-span-6 rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4 shadow-lg flex flex-col justify-between">
+        <div className="lg:col-span-6 rounded-2xl bg-[#0D121F]/90 border border-slate-800/90 p-4 sm:p-5 space-y-4 shadow-lg flex flex-col justify-between overflow-hidden">
           <div>
-            <div className="border-b border-slate-800 pb-4 mb-4 flex items-center justify-between">
+            <div className="border-b border-slate-800/80 pb-3.5 mb-3.5 flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-sm sm:text-base font-bold text-white">
                   Team Members & Seats
                 </h3>
                 <p className="text-xs text-slate-400">
@@ -288,7 +288,7 @@ export function AdminDashboard({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowAddMember(prev => !prev)}
-                  className="btn-primary h-9 px-3 rounded-lg text-xs font-semibold flex items-center gap-1"
+                  className="btn-primary h-8.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Member</span>
@@ -296,7 +296,7 @@ export function AdminDashboard({
 
                 <button
                   onClick={onOpenPricing}
-                  className="btn-secondary h-9 px-3 rounded-lg text-xs font-medium"
+                  className="btn-secondary h-8.5 px-3 rounded-lg text-xs font-medium"
                 >
                   Add Seats
                 </button>
@@ -305,7 +305,7 @@ export function AdminDashboard({
 
             {/* Inline Add Member Form */}
             {showAddMember && (
-              <form onSubmit={handleAddMember} className="p-3 bg-slate-800/90 rounded-xl border border-slate-700 space-y-2 mb-3">
+              <form onSubmit={handleAddMember} className="p-3 bg-slate-800/90 rounded-xl border border-slate-700/80 space-y-2 mb-3">
                 <div className="flex justify-between items-center text-xs font-semibold text-white">
                   <span>Provision New Operator</span>
                   <button type="button" onClick={() => setShowAddMember(false)} className="text-slate-400 hover:text-white">
@@ -350,7 +350,7 @@ export function AdminDashboard({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 text-xs">
+                  <tr className="border-b border-slate-800/80 text-slate-400 text-xs">
                     <th className="pb-3 font-semibold">User</th>
                     <th className="pb-3 font-semibold">Role</th>
                     <th className="pb-3 font-semibold">Plan</th>

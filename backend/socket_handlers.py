@@ -135,6 +135,11 @@ def register_socket_events(sio):
             await sio.emit("peer_connected", {"self": p2, "peer": p1, "isInitiator": False}, to=p2["sid"])
 
     @sio.event
+    async def ping_check(sid, data=None):
+        """Ultra-low latency round-trip time telemetry check."""
+        return {"status": "ok", "timestamp": time.time()}
+
+    @sio.event
     async def webrtc_offer(sid, data=None):
         if not isinstance(data, dict):
             data = {}
@@ -142,7 +147,10 @@ def register_socket_events(sio):
         if room_id and room_id in rooms:
             for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
-                    await sio.emit("webrtc_offer", data, to=peer_sid)
+                    try:
+                        await sio.emit("webrtc_offer", data, to=peer_sid)
+                    except Exception:
+                        pass
 
     @sio.event
     async def webrtc_answer(sid, data=None):
@@ -152,7 +160,10 @@ def register_socket_events(sio):
         if room_id and room_id in rooms:
             for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
-                    await sio.emit("webrtc_answer", data, to=peer_sid)
+                    try:
+                        await sio.emit("webrtc_answer", data, to=peer_sid)
+                    except Exception:
+                        pass
 
     @sio.event
     async def webrtc_ice_candidate(sid, data=None):
@@ -162,7 +173,10 @@ def register_socket_events(sio):
         if room_id and room_id in rooms:
             for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
-                    await sio.emit("webrtc_ice_candidate", data, to=peer_sid)
+                    try:
+                        await sio.emit("webrtc_ice_candidate", data, to=peer_sid)
+                    except Exception:
+                        pass
 
     @sio.event
     async def update_language(sid, data=None):
@@ -170,8 +184,10 @@ def register_socket_events(sio):
             data = {}
         room_id = sid_to_room.get(sid)
         if room_id and room_id in rooms and sid in rooms[room_id]:
-            new_lang = str(data.get("language", "te")).strip()
-            new_gender = str(data.get("voiceGender", "female")).strip()
+            new_lang = str(data.get("language") or "te").strip()
+            new_gender = str(data.get("voiceGender") or "female").strip().lower()
+            if new_gender not in ("female", "male"):
+                new_gender = "female"
             new_name = str(data.get("userName") or rooms[room_id][sid].get("userName", "")).strip()
             rooms[room_id][sid]["language"] = new_lang
             rooms[room_id][sid]["voiceGender"] = new_gender
@@ -181,11 +197,14 @@ def register_socket_events(sio):
             # Notify peer of updated language and voice persona
             for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
-                    await sio.emit("peer_language_updated", {
-                        "peerLanguage": new_lang,
-                        "voiceGender": new_gender,
-                        "userName": new_name
-                    }, to=peer_sid)
+                    try:
+                        await sio.emit("peer_language_updated", {
+                            "peerLanguage": new_lang,
+                            "voiceGender": new_gender,
+                            "userName": new_name
+                        }, to=peer_sid)
+                    except Exception:
+                        pass
 
     @sio.event
     async def toggle_mute(sid, data=None):
@@ -197,7 +216,10 @@ def register_socket_events(sio):
             rooms[room_id][sid]["isMuted"] = is_muted
             for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
-                    await sio.emit("peer_mute_changed", {"isMuted": is_muted}, to=peer_sid)
+                    try:
+                        await sio.emit("peer_mute_changed", {"isMuted": is_muted}, to=peer_sid)
+                    except Exception:
+                        pass
 
     @sio.event
     async def speaking_state(sid, data=None):
@@ -212,10 +234,13 @@ def register_socket_events(sio):
             sender = rooms[room_id].get(sid)
             for peer_sid in list(rooms[room_id].keys()):
                 if peer_sid != sid:
-                    await sio.emit("peer_speaking_state", {
-                        "isSpeaking": bool(data.get("isSpeaking", False)),
-                        "speakerId": sender.get("userId") if sender else "Peer"
-                    }, to=peer_sid)
+                    try:
+                        await sio.emit("peer_speaking_state", {
+                            "isSpeaking": bool(data.get("isSpeaking", False)),
+                            "speakerId": sender.get("userId") if sender else "Peer"
+                        }, to=peer_sid)
+                    except Exception:
+                        pass
 
     @sio.event
     async def speech_segment(sid, data=None):
@@ -271,13 +296,20 @@ def register_socket_events(sio):
         try:
             # Notify listener immediately that incoming speech is being translated
             if not is_solo:
-                await sio.emit("peer_incoming_speech", {"speakerId": sender["userId"]}, to=peer_sid)
+                await sio.emit("peer_incoming_speech", {"speakerId": sender.get("userId", "peer")}, to=peer_sid)
 
             # Stage 0: Zero-latency conversational normalization & interrogative intent detection
             enhanced_original, original_intent = enhance_conversational_text(original_text, source_lang)
 
-            # Stage 1: Fast translation (< 200ms)
-            translated_text = await translate_text(enhanced_original, source_lang, target_lang)
+            # Stage 1: Fast translation (< 200ms) with glossary terminology protection
+            try:
+                from services.glossary import apply_glossary_protection, restore_glossary_terms
+                domain = str(data.get("domain") or "general").strip().lower()
+                protected_text, _ = apply_glossary_protection(enhanced_original, domain)
+                translated_raw = await translate_text(protected_text, source_lang, target_lang)
+                translated_text = restore_glossary_terms(translated_raw)
+            except Exception:
+                translated_text = await translate_text(enhanced_original, source_lang, target_lang)
 
             # Strip any phrase or word loops that might emerge from translation or mobile STT
             clean_translated = deduplicate_phrase_loops(translated_text)
@@ -317,7 +349,7 @@ def register_socket_events(sio):
                     "enhancedOriginal": enhanced_original,
                     "translatedText": punctuated_translated,
                     "intent": original_intent,
-                    "speakerId": sender["userId"],
+                    "speakerId": sender.get("userId", "peer"),
                     "sourceLang": source_lang,
                     "targetLang": target_lang
                 }, to=peer_sid)
@@ -356,21 +388,25 @@ def register_socket_events(sio):
                     "originalText": enhanced_original,
                     "sourceLang": source_lang,
                     "targetLang": target_lang,
-                    "speakerId": f"Simulator ({target_lang})" if is_solo else sender["userId"],
+                    "speakerId": f"Simulator ({target_lang})" if is_solo else sender.get("userId", "peer"),
                     "isSolo": is_solo
                 }, to=target_recipient)
             else:
                 # Audio failed or returned empty: release peer's speaking state so UI doesn't hang
                 await sio.emit("peer_speech_ended", {
-                    "speakerId": f"Simulator ({target_lang})" if is_solo else sender["userId"],
+                    "speakerId": f"Simulator ({target_lang})" if is_solo else sender.get("userId", "peer"),
                     "isSolo": is_solo
                 }, to=target_recipient)
 
         except Exception as e:
             logger.error(f"Error processing speech segment: {e}", exc_info=True)
-            await sio.emit("speech_error", {"error": str(e)}, to=sid)
             try:
-                target_recipient = sid if is_solo else peer_sid
-                await sio.emit("peer_speech_ended", {"speakerId": sender.get("userId", "peer")}, to=target_recipient)
+                await sio.emit("speech_error", {"error": str(e)}, to=sid)
+            except Exception:
+                pass
+            try:
+                target_recipient = sid if is_solo else (peer_sid or sid)
+                speaker_id = sender.get("userId", "peer") if sender else "peer"
+                await sio.emit("peer_speech_ended", {"speakerId": speaker_id}, to=target_recipient)
             except Exception:
                 pass

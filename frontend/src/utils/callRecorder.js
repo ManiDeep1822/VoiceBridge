@@ -76,11 +76,14 @@ class CallRecorderSession {
   }
 
   getAudioContext() {
-    if (!this.audioContext && typeof window !== 'undefined') {
+    if ((!this.audioContext || this.audioContext.state === 'closed') && typeof window !== 'undefined') {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx) {
         this.audioContext = new AudioCtx({ sampleRate: 44100 });
       }
+    }
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      this.audioContext.resume().catch(() => {});
     }
     return this.audioContext;
   }
@@ -101,7 +104,8 @@ class CallRecorderSession {
     if (!this.isRecording || !base64Audio) return;
 
     try {
-      const binaryString = atob(base64Audio);
+      const cleanBase64 = String(base64Audio).trim();
+      const binaryString = atob(cleanBase64);
       const len = binaryString.length;
       const bytes = new Uint8Array(len);
       for (let i = 0; i < len; i++) {

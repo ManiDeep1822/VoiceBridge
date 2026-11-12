@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Mic, Volume2, PhoneOff, Send, Copy, Check,
   FileText, MessageCircle, Globe, Users, ArrowRight,
-  Lock, Radio, VolumeX, MessageSquare, Disc
+  Lock, Radio, VolumeX, MessageSquare, Disc, BookOpen
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageMeta, getLocaleStrings } from '../../utils/languages.js';
 import { CallerAvatar } from './CallerAvatar.jsx';
@@ -44,9 +44,10 @@ export function CallStudio({
   volumeBoost = true,
   onToggleVolumeBoost,
   audioUnlocked = false,
-  onUnlockAudio
+  onUnlockAudio,
+  transcript = []
 }) {
-  // Derived metadata declared at top of component scope to eliminate any TDZ or closure sequencing issues
+  // Derived metadata declared at top of component scope
   const isPeerConnected = Boolean(remotePeer) && connectionState === 'connected';
   const localMeta = getLanguageMeta(localLanguage);
   const peerActualLang = remotePeer?.language || remoteLanguage;
@@ -357,11 +358,11 @@ export function CallStudio({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#0B0F17] overflow-hidden select-none font-sans text-sm">
+    <div className="flex-1 flex flex-col h-full bg-[#07090C] overflow-hidden select-none font-sans text-sm w-full max-w-full box-border">
       {/* 1. Sleek Top Bar (Google Meet Style: Fully Responsive, Zero Right-Cutoff) */}
-      <div className="w-full max-w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-1.5 sm:gap-2 shrink-0 overflow-hidden box-border">
+      <div className="w-full max-w-full bg-[#0C111D]/90 backdrop-blur-md border-b border-slate-800/90 px-2 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-1.5 sm:gap-2 shrink-0 overflow-hidden box-border">
         {/* Left: Room Badge */}
-        <div className="h-8 sm:h-9 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-slate-800/90 border border-slate-700/80 flex items-center text-xs font-medium text-slate-200 shrink-0">
+        <div className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg bg-slate-800/90 border border-slate-700/80 flex items-center text-xs font-medium text-slate-200 shrink-0">
           <span className="text-slate-400 mr-1 hidden xs:inline">{loc.room}:</span>
           <span className="font-bold text-white tracking-wide text-[11px] sm:text-xs">{roomId}</span>
         </div>
@@ -371,32 +372,35 @@ export function CallStudio({
           {/* Call Recording Button */}
           <button
             onClick={handleToggleRecord}
-            className={`h-8 sm:h-9 px-2 sm:px-3 rounded-lg sm:rounded-xl font-medium text-xs flex items-center gap-1 transition-all shrink-0 ${
+            className={`h-8 sm:h-8.5 px-2 sm:px-3 rounded-lg font-medium text-xs flex items-center gap-1.5 transition-all shrink-0 ${
               isRecording
-                ? 'bg-red-500/20 border border-red-500/80 text-red-400 animate-pulse shadow-md shadow-red-950/40'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80'
+                ? 'bg-red-500/20 border border-red-500/80 text-red-400 glow-red animate-pulse'
+                : 'bg-slate-800/90 hover:bg-slate-700/90 text-slate-300 hover:text-white border border-slate-700/80'
             }`}
             title={isRecording ? 'Click to stop and save audio recording' : 'Record continuous call audio with zero latency'}
+            aria-label="Toggle Recording"
           >
-            <Disc className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isRecording ? 'text-red-400 animate-spin' : 'text-slate-400'}`} />
+            <Disc className={`w-3.5 h-3.5 shrink-0 ${isRecording ? 'text-red-400 animate-spin' : 'text-slate-400'}`} />
             <span className="text-[11px] sm:text-xs">{isRecording ? `REC ${formatRecordTime(recordSeconds)}` : 'Record'}</span>
           </button>
 
           {/* Quick WhatsApp Share Button */}
           <button
             onClick={handleWhatsAppShare}
-            className="w-8 h-8 sm:w-auto sm:h-9 sm:px-2.5 rounded-lg sm:rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-sm flex items-center justify-center gap-1 shrink-0 transition-colors"
+            className="w-8 h-8 sm:w-auto sm:h-8.5 sm:px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-sm flex items-center justify-center gap-1.5 shrink-0 transition-colors border border-emerald-500/40"
             title="Share Call Link to WhatsApp"
+            aria-label="Share Call Link to WhatsApp"
           >
-            <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white text-white shrink-0" />
+            <MessageCircle className="w-3.5 h-3.5 fill-white text-white shrink-0" />
             <span className="hidden sm:inline text-xs">WhatsApp</span>
           </button>
 
           {/* Copy Link Button */}
           <button
             onClick={handleCopyLink}
-            className="w-8 h-8 sm:w-auto sm:h-9 sm:px-2.5 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 font-medium text-xs flex items-center justify-center gap-1 shrink-0 transition-colors"
+            className="w-8 h-8 sm:w-auto sm:h-8.5 sm:px-2.5 rounded-lg bg-slate-800/90 hover:bg-slate-700/90 text-slate-300 hover:text-white border border-slate-700/80 font-medium text-xs flex items-center justify-center gap-1.5 shrink-0 transition-colors shadow-sm"
             title="Copy Invite Link"
+            aria-label="Copy Invite Link"
           >
             {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <Copy className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
             <span className="hidden sm:inline text-xs">{copiedLink ? 'Copied' : loc.copyLink}</span>
@@ -406,8 +410,9 @@ export function CallStudio({
           {latestRemoteTranslated && (
             <button
               onClick={() => onReplayAudio && onReplayAudio(latestRemoteTranslated, localLanguage)}
-              className="h-8 px-2 sm:h-9 sm:px-2.5 rounded-lg sm:rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-600/60 font-medium text-[11px] sm:text-xs flex items-center justify-center gap-1 shrink-0 transition-colors shadow-sm"
+              className="h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-600/60 font-medium text-[11px] sm:text-xs flex items-center justify-center gap-1.5 shrink-0 transition-colors shadow-sm"
               title="Replay translated audio aloud"
+              aria-label="Replay translated audio"
             >
               <Volume2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span className="hidden xs:inline">Replay</span>
@@ -418,59 +423,63 @@ export function CallStudio({
           {!audioUnlocked ? (
             <button
               onClick={onUnlockAudio}
-              className="h-8 px-2 sm:h-9 sm:px-2.5 rounded-lg sm:rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-[11px] sm:text-xs animate-pulse flex items-center justify-center gap-1 shrink-0"
-              title="Unlock Speaker"
+              className="h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-[11px] sm:text-xs animate-pulse glow-red flex items-center justify-center gap-1 shrink-0"
+              title="Click to enable speaker output"
+              aria-label="Enable Speaker"
             >
               <Volume2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden xs:inline">Speaker</span>
+              <span className="hidden xs:inline">Enable Speaker</span>
             </button>
           ) : (
             <button
               onClick={onTestSpeaker}
-              className="w-8 h-8 sm:h-9 sm:w-auto sm:px-2.5 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/80 font-medium text-xs hidden sm:flex items-center justify-center gap-1 shrink-0"
-              title="Test speaker output"
+              className="w-8 h-8 sm:h-8.5 sm:w-auto sm:px-2.5 rounded-lg bg-slate-800/90 hover:bg-slate-700/90 text-slate-300 border border-slate-700/80 font-medium text-xs hidden sm:flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
+              title="Test speaker output sound"
+              aria-label="Test Speaker Output"
             >
-              <Volume2 className="w-3.5 h-3.5 text-slate-300" />
+              <Volume2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="text-xs">Test</span>
             </button>
           )}
 
           {/* Mobile Conversation Drawer Toggle */}
           <button
             onClick={() => setShowMobileChat(prev => !prev)}
-            className="h-8 px-2 sm:h-9 sm:px-2.5 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 font-medium text-xs flex items-center justify-center gap-1 shrink-0 lg:hidden"
+            className="h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-lg bg-slate-800/90 hover:bg-slate-700/90 text-slate-300 hover:text-white border border-slate-700/80 font-medium text-xs flex items-center justify-center gap-1 shrink-0 lg:hidden shadow-sm"
             title="Toggle Transcript & Messages"
+            aria-label="Toggle Transcript & Messages"
           >
-            <MessageSquare className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+            <MessageSquare className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span className="text-[11px]">Chat</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Status Banner (Turn Indicator) */}
-      <div className="w-full max-w-full bg-slate-950/60 border-b border-slate-800/80 px-2.5 sm:px-4 py-1.5 flex items-center justify-between text-xs overflow-hidden shrink-0">
+      {/* 2. Status Banner (Turn Indicator / Floor Lock Notice) */}
+      <div className="w-full max-w-full bg-[#090D17] border-b border-slate-800/80 px-2.5 sm:px-4 py-1.5 flex items-center justify-between text-xs overflow-hidden shrink-0">
         <div className="flex items-center gap-2 min-w-0 flex-1 truncate">
           {isChannelBusy ? (
             <div className="flex items-center gap-1.5 text-amber-400 font-semibold text-xs truncate">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B] shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-amber-400 glow-amber animate-pulse shrink-0" />
               <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="truncate">{loc.channelBusy} — {isPeerSpeaking ? `${peerDisplayName} speaking...` : 'Loudspeaker active'}</span>
+              <span className="truncate">{loc.channelBusy} — {isPeerSpeaking ? `${peerDisplayName} speaking...` : 'Loudspeaker transmitting...'}</span>
             </div>
           ) : isListening ? (
             <div className="flex items-center gap-1.5 text-red-400 font-semibold text-xs truncate">
-              <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444] shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-red-400 glow-red animate-pulse shrink-0" />
               <Radio className="w-3.5 h-3.5 text-red-400 shrink-0" />
               <span className="truncate">{loc.speakingNotice}</span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 text-emerald-400 font-medium text-xs truncate">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10B981] shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400 glow-emerald shrink-0" />
               <span className="truncate">{isPeerConnected ? loc.readyYourTurn : 'Share room link above to start conversation'}</span>
             </div>
           )}
         </div>
 
         <div className="hidden md:flex items-center gap-2 text-slate-400 text-xs shrink-0 ml-2">
-          <span>{isPeerConnected ? '2 Participants Connected' : 'Waiting for Remote Caller'}</span>
+          <span className="text-[11px] font-medium">{isPeerConnected ? '2 Callers Active' : 'Waiting for Remote Caller'}</span>
         </div>
       </div>
 
@@ -483,17 +492,17 @@ export function CallStudio({
             {/* CALLER 1: YOU */}
             <div className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-5 flex flex-col justify-between relative transition-all duration-200 overflow-hidden ${
               isListening
-                ? 'bg-slate-900 border-2 border-red-500/80 shadow-2xl shadow-red-950/30'
-                : 'bg-slate-900/80 border border-slate-800'
+                ? 'bg-[#121927] border-2 border-red-500/80 shadow-2xl shadow-red-950/40 glow-red'
+                : 'bg-[#0E1422]/90 border border-slate-800/90'
             }`}>
               {/* Card Header */}
               <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5 sm:pb-3 gap-1 overflow-hidden">
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                  <div className={`w-2 h-2 shrink-0 rounded-full ${isListening ? 'bg-red-400 animate-pulse shadow-[0_0_8px_#EF4444]' : 'bg-emerald-400'}`} />
+                  <div className={`w-2 h-2 shrink-0 rounded-full ${isListening ? 'bg-red-400 animate-pulse glow-red' : 'bg-emerald-400'}`} />
                   <span className="font-bold text-xs sm:text-sm text-white truncate">{userName} ({loc.you})</span>
                 </div>
 
-                <div className="h-6 sm:h-7 px-1.5 sm:px-2 rounded-md sm:rounded-lg bg-slate-800 border border-slate-700/80 flex items-center text-[10px] sm:text-[11px] text-white shrink-0 max-w-[70px] sm:max-w-none">
+                <div className="h-6 sm:h-7 px-1.5 sm:px-2 rounded-md sm:rounded-lg bg-slate-800/90 border border-slate-700/80 flex items-center text-[10px] sm:text-[11px] text-white shrink-0 max-w-[75px] sm:max-w-none">
                   <select
                     value={localLanguage}
                     onChange={(e) => onLocalLanguageChange(e.target.value)}
@@ -509,11 +518,11 @@ export function CallStudio({
               </div>
 
               {/* Center Calling Avatar & Waveform */}
-              <div className="flex-1 flex flex-col items-center justify-center my-1.5 sm:my-4">
+              <div className="flex-1 flex flex-col items-center justify-center my-1.5 sm:my-3">
                 <CallerAvatar isLocal={true} isSpeaking={isListening} />
 
-                <div className="mt-2 sm:mt-3 text-center">
-                  <div className="text-xs sm:text-base font-bold text-white">
+                <div className="mt-2 text-center">
+                  <div className="text-xs sm:text-base font-bold text-white tracking-wide">
                     {localMeta.native}
                   </div>
                   <div className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
@@ -523,7 +532,7 @@ export function CallStudio({
               </div>
 
               {/* Desktop Subtitle Deck (Inside Card) */}
-              <div className="hidden lg:flex rounded-xl bg-slate-950/80 border border-slate-800 p-3 min-h-[75px] flex-col justify-center">
+              <div className="hidden lg:flex rounded-xl bg-[#080C14]/90 border border-slate-800/80 p-3 min-h-[75px] flex-col justify-center">
                 {localInterim ? (
                   <p className="text-sm font-bold text-white leading-normal">
                     "{localInterim}"
@@ -545,37 +554,37 @@ export function CallStudio({
             {isPeerConnected ? (
               <div className={`rounded-xl sm:rounded-2xl p-2.5 sm:p-5 flex flex-col justify-between relative transition-all duration-200 overflow-hidden ${
                 isPeerSpeaking
-                  ? 'bg-slate-900 border-2 border-amber-500/80 shadow-2xl shadow-amber-950/30'
-                  : 'bg-slate-900/80 border border-slate-800'
+                  ? 'bg-[#121927] border-2 border-amber-500/80 shadow-2xl shadow-amber-950/40 glow-amber'
+                  : 'bg-[#0E1422]/90 border border-slate-800/90'
               }`}>
                 {/* Peer Header */}
                 <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5 sm:pb-3 gap-1 overflow-hidden">
                   <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                    <div className={`w-2 h-2 shrink-0 rounded-full ${isPeerSpeaking ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]' : 'bg-emerald-400'}`} />
+                    <div className={`w-2 h-2 shrink-0 rounded-full ${isPeerSpeaking ? 'bg-amber-400 animate-pulse glow-amber' : 'bg-emerald-400'}`} />
                     <span className="font-bold text-xs sm:text-sm text-white truncate">{peerDisplayName}</span>
                   </div>
 
-                  <span className="h-6 sm:h-7 px-1.5 sm:px-2 rounded-md sm:rounded-lg bg-slate-800 border border-slate-700/80 flex items-center text-[10px] sm:text-[11px] font-bold text-emerald-400 shrink-0 truncate max-w-[65px] sm:max-w-none">
+                  <span className="h-6 sm:h-7 px-1.5 sm:px-2 rounded-md sm:rounded-lg bg-slate-800/90 border border-slate-700/80 flex items-center text-[10px] sm:text-[11px] font-bold text-emerald-400 shrink-0 truncate max-w-[70px] sm:max-w-none">
                     {remoteMeta.name}
                   </span>
                 </div>
 
                 {/* Peer Central Visual */}
-                <div className="flex-1 flex flex-col items-center justify-center my-1.5 sm:my-4">
+                <div className="flex-1 flex flex-col items-center justify-center my-1.5 sm:my-3">
                   <CallerAvatar isLocal={false} isSpeaking={isPeerSpeaking || isRemoteSpeaking} />
 
-                  <div className="mt-2.5 sm:mt-3 text-center">
-                    <div className="text-xs sm:text-base font-bold text-white">
+                  <div className="mt-2 text-center">
+                    <div className="text-xs sm:text-base font-bold text-white tracking-wide">
                       {remoteMeta.native}
                     </div>
                     <div className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
-                      {isPeerSpeaking ? 'Speaking in native...' : isRemoteSpeaking ? 'Playing translation' : 'Loudspeaker active'}
+                      {isPeerSpeaking ? 'Speaking in native...' : isRemoteSpeaking ? 'Playing translation' : 'Loudspeaker ready'}
                     </div>
                   </div>
                 </div>
 
                 {/* Desktop Subtitle Deck (Peer Card) */}
-                <div className="hidden lg:flex rounded-xl bg-slate-950/80 border border-slate-800 p-3 min-h-[75px] flex-col justify-center">
+                <div className="hidden lg:flex rounded-xl bg-[#080C14]/90 border border-slate-800/80 p-3 min-h-[75px] flex-col justify-center">
                   {latestRemoteTranslated ? (
                     <div className="flex items-center justify-between gap-2">
                       <div className="space-y-1 min-w-0 flex-1">
@@ -601,24 +610,24 @@ export function CallStudio({
               </div>
             ) : (
               /* Waiting Card */
-              <div className="rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/40 p-2.5 sm:p-5 flex flex-col justify-between items-center text-center overflow-hidden">
-                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-300 mt-1 sm:mt-4">
-                  <Users className="w-5 h-5 sm:w-7 sm:h-7" />
+              <div className="rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-800/80 bg-[#0E1422]/50 p-2.5 sm:p-5 flex flex-col justify-between items-center text-center overflow-hidden">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-300 mt-1 sm:mt-3">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
 
-                <div className="space-y-1 max-w-sm my-1 sm:my-4">
+                <div className="space-y-1 max-w-sm my-1 sm:my-3">
                   <h3 className="text-xs sm:text-base font-bold text-white">
                     Share Link to Connect
                   </h3>
                   <p className="text-[10px] sm:text-xs text-slate-400 line-clamp-2">
-                    Invite remote caller. Translation starts automatically.
+                    Invite second caller to room. Translation begins instantly.
                   </p>
                 </div>
 
-                <div className="w-full flex flex-col sm:flex-row gap-1.5 sm:gap-2 pt-2 sm:pt-4 border-t border-slate-800/80">
+                <div className="w-full flex flex-col sm:flex-row gap-1.5 sm:gap-2 pt-2 border-t border-slate-800/80">
                   <button
                     onClick={handleWhatsAppShare}
-                    className="h-8 sm:h-9 px-2 sm:px-4 rounded-lg sm:rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm flex-1 flex items-center justify-center gap-1.5 transition-colors"
+                    className="h-8 sm:h-9 px-2 sm:px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm flex-1 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/40"
                   >
                     <MessageCircle className="w-3.5 h-3.5 fill-white shrink-0" />
                     <span className="truncate">WhatsApp</span>
@@ -626,10 +635,10 @@ export function CallStudio({
 
                   <button
                     onClick={handleCopyLink}
-                    className="h-8 sm:h-9 px-2 sm:px-4 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs sm:text-sm flex-1 flex items-center justify-center gap-1.5 transition-colors"
+                    className="h-8 sm:h-9 px-2 sm:px-4 rounded-lg bg-slate-800/90 hover:bg-slate-700/90 text-slate-200 border border-slate-700/80 font-medium text-xs sm:text-sm flex-1 flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <Copy className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{copiedLink ? 'Copied' : 'Copy'}</span>
+                    <span className="truncate">{copiedLink ? 'Copied' : 'Copy Link'}</span>
                   </button>
                 </div>
               </div>
@@ -637,11 +646,11 @@ export function CallStudio({
           </div>
 
           {/* UNIQUE MOBILE FLOATING SUBTITLE ISLAND */}
-          <div className="lg:hidden w-full max-w-full rounded-xl sm:rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 p-2.5 sm:p-4 shadow-xl flex flex-col justify-center min-h-[64px] sm:min-h-[80px] shrink-0 box-border overflow-hidden">
+          <div className="lg:hidden w-full max-w-full rounded-xl bg-[#0E1422]/95 backdrop-blur-xl border border-slate-800/90 p-2.5 sm:p-3.5 shadow-xl flex flex-col justify-center min-h-[64px] sm:min-h-[76px] shrink-0 box-border overflow-hidden">
             {isListening && localInterim ? (
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-red-400">
-                  <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
+                  <span className="w-2 h-2 rounded-full bg-red-400 animate-ping glow-red" />
                   <span>You are speaking:</span>
                 </div>
                 <p className="text-xs sm:text-base font-bold text-white leading-snug break-words">
@@ -652,7 +661,7 @@ export function CallStudio({
               <div className="flex items-center justify-between gap-2">
                 <div className="space-y-1 flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse glow-emerald" />
                     <span>{peerDisplayName} (Translated):</span>
                   </div>
                   <p className="text-xs sm:text-base font-bold text-emerald-400 leading-snug break-words">
@@ -693,14 +702,14 @@ export function CallStudio({
             ) : (
               <div className="text-center text-xs text-slate-400 py-0.5">
                 <p className="font-medium text-slate-300 text-xs">{loc.pttHelper}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Walkie-Talkie: Hold button or Spacebar to talk, release to send</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Walkie-Talkie: Hold button or Spacebar to talk, release to send</p>
               </div>
             )}
           </div>
 
           {/* Unified Bottom Dock: Ergonomic Mobile Stack / Desktop Row */}
-          <div className="rounded-xl sm:rounded-2xl bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 shrink-0 box-border max-w-full">
-            {/* Primary Push-to-Talk Button (Large, Ergonomic, Zero Overlap) */}
+          <div className="rounded-xl sm:rounded-2xl bg-[#0D121F]/95 backdrop-blur-md border border-slate-800/90 p-2 sm:p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 shrink-0 box-border max-w-full">
+            {/* Primary Push-to-Talk Button (Large, Ergonomic, Zero Overlap, Anti-Bounce) */}
             <div className="w-full sm:flex-1 flex flex-col items-center relative">
               {pttTooltip && (
                 <div className="absolute -top-8 px-2.5 py-1 bg-slate-800 text-amber-300 text-xs font-semibold rounded-md shadow-lg border border-slate-700 pointer-events-none z-20 whitespace-nowrap">
@@ -717,12 +726,12 @@ export function CallStudio({
                 onTouchCancel={handlePttPointerCancel}
                 onClick={handlePttClick}
                 onFocus={(e) => e.currentTarget.blur()}
-                className={`w-full sm:w-auto sm:flex-1 h-12 sm:h-11 px-4 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg touch-none select-none flex items-center justify-center gap-2 transition-colors ${
+                className={`w-full sm:w-auto sm:flex-1 h-12 sm:h-11 px-4 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg touch-none select-none flex items-center justify-center gap-2 transition-colors border ${
                   isChannelBusy
-                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/40 cursor-not-allowed opacity-80'
+                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/40 cursor-not-allowed opacity-80'
                     : isHolding || isListening
-                      ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-950/50'
-                      : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-950/40'
+                      ? 'bg-red-600 hover:bg-red-500 text-white border-red-500/50 glow-red'
+                      : 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500/40 shadow-blue-950/40'
                 }`}
               >
                 {isChannelBusy ? (
@@ -744,15 +753,15 @@ export function CallStudio({
               </button>
             </div>
 
-            {/* Secondary Controls: 3-Column Grid on Mobile, Flex on Desktop */}
-            <div className="grid grid-cols-3 sm:flex items-center gap-2 w-full sm:w-auto shrink-0">
+            {/* Secondary Controls: 4-Item Grid on Mobile, Flex on Desktop */}
+            <div className="grid grid-cols-4 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0">
               {/* Volume Booster Toggle */}
               <button
                 onClick={onToggleVolumeBoost}
                 className={`h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors border ${
                   volumeBoost
                     ? 'border-blue-500/80 text-blue-400 bg-blue-500/10'
-                    : 'border-slate-700/80 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+                    : 'border-slate-700/80 bg-slate-800/90 text-slate-300 hover:text-white hover:bg-slate-700'
                 }`}
                 title="Loudspeaker Volume Booster (+6dB)"
               >
@@ -760,20 +769,30 @@ export function CallStudio({
                 <span className="text-[11px] sm:text-xs truncate">Boost: {volumeBoost ? 'ON' : 'OFF'}</span>
               </button>
 
+              {/* Glossary & Jargon Lock Button (Audited & Added) */}
+              <button
+                onClick={onOpenGlossary}
+                className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700/80 text-slate-200 hover:text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                title="Open Industry Jargon & Glossary Lock"
+              >
+                <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400 shrink-0" />
+                <span className="text-[11px] sm:text-xs truncate">Glossary</span>
+              </button>
+
               {/* Meeting Minutes */}
               <button
                 onClick={onOpenMinutes}
-                className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-200 hover:text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors"
-                title="View Meeting Minutes"
+                className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700/80 text-slate-200 hover:text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                title="View Meeting Minutes & AI Notes"
               >
-                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400 shrink-0" />
                 <span className="text-[11px] sm:text-xs truncate">Minutes</span>
               </button>
 
               {/* Leave Call */}
               <button
                 onClick={onDisconnect}
-                className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors shadow-sm shadow-red-950/40"
+                className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors shadow-sm shadow-red-950/40 border border-red-500/40"
                 title="Leave Call Room"
               >
                 <PhoneOff className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
@@ -786,16 +805,16 @@ export function CallStudio({
         {/* Mobile Backdrop for Transcript Drawer */}
         {showMobileChat && (
           <div 
-            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-[#07090C]/80 backdrop-blur-sm z-40 lg:hidden"
             onClick={() => setShowMobileChat(false)}
           />
         )}
 
         {/* Right Sidebar: Conversation Log & Quick Phrases (Desktop & Mobile Drawer) */}
-        <div className={`w-full lg:w-96 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-slate-800 flex flex-col overflow-hidden shrink-0 ${
+        <div className={`w-full lg:w-96 rounded-2xl bg-[#0D121F]/95 backdrop-blur-xl border border-slate-800/90 flex flex-col overflow-hidden shrink-0 ${
           showMobileChat ? 'fixed inset-3 sm:inset-6 z-50 lg:static lg:inset-auto shadow-2xl' : 'hidden lg:flex'
         }`}>
-          <div className="p-3.5 border-b border-slate-800 flex items-center justify-between">
+          <div className="p-3.5 border-b border-slate-800/80 flex items-center justify-between">
             <span className="font-bold text-sm text-white flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-blue-400" />
               <span>Conversation Transcript</span>
@@ -811,7 +830,7 @@ export function CallStudio({
           </div>
 
           {/* Quick Phrases */}
-          <div className="p-3 border-b border-slate-800/80 bg-slate-950/40 space-y-2">
+          <div className="p-3 border-b border-slate-800/80 bg-[#080C14]/50 space-y-2">
             <span className="text-xs font-semibold text-slate-400 block">
               Quick Tap Responses:
             </span>
@@ -820,7 +839,7 @@ export function CallStudio({
                 <button
                   key={idx}
                   onClick={() => onSendTextUtterance(qp.text)}
-                  className="w-full h-9 px-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors flex items-center justify-between"
+                  className="w-full h-8.5 px-3 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 text-xs font-medium transition-colors flex items-center justify-between border border-slate-700/60"
                 >
                   <span className="truncate">{qp.label}</span>
                   <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
@@ -831,10 +850,45 @@ export function CallStudio({
 
           {/* Transcript History */}
           <div className="flex-1 p-3.5 overflow-y-auto space-y-2.5 text-xs">
-            {latestLocalOriginal || latestRemoteOriginal ? (
+            {transcript && transcript.length > 1 ? (
+              <div className="space-y-2.5">
+                {transcript.filter(t => t.id !== 'init-msg').map((item) => (
+                  <div
+                    key={item.id}
+                    className={`p-3 rounded-xl border space-y-1 ${
+                      item.isLocal
+                        ? 'bg-blue-950/20 border-blue-900/40 text-left'
+                        : 'bg-emerald-950/20 border-emerald-900/40 text-left'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-semibold ${item.isLocal ? 'text-blue-400' : 'text-emerald-400'}`}>
+                        {item.speaker}
+                      </span>
+                      {!item.isLocal && item.translatedText && (
+                        <button
+                          type="button"
+                          onClick={() => onReplayAudio && onReplayAudio(item.translatedText, localLanguage)}
+                          className="p-1 rounded hover:bg-slate-700/60 text-slate-400 hover:text-emerald-400 transition-colors"
+                          title="Replay audio"
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-white font-medium leading-normal">{item.originalText}</p>
+                    {item.translatedText && item.translatedText !== item.originalText && (
+                      <p className="text-emerald-400 text-[11px] pt-1 border-t border-slate-800/60">
+                        {item.translatedText}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : latestLocalOriginal || latestRemoteOriginal ? (
               <div className="space-y-3">
                 {latestLocalOriginal && (
-                  <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+                  <div className="p-3 rounded-xl bg-blue-950/20 border border-blue-900/40 space-y-1">
                     <span className="text-[11px] font-semibold text-blue-400">You ({localMeta.name})</span>
                     <p className="text-white font-medium">{latestLocalOriginal}</p>
                     {latestLocalTranslated && (
@@ -845,7 +899,7 @@ export function CallStudio({
                   </div>
                 )}
                 {latestRemoteOriginal && (
-                  <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+                  <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-900/40 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-semibold text-emerald-400">{peerDisplayName} ({remoteMeta.name})</span>
                       {latestRemoteTranslated && (
@@ -876,19 +930,20 @@ export function CallStudio({
           </div>
 
           {/* Quick Custom Text Sender */}
-          <form onSubmit={handleSend} className="p-3 border-t border-slate-800 flex items-center gap-2 bg-slate-950/40">
+          <form onSubmit={handleSend} className="p-3 border-t border-slate-800/80 flex items-center gap-2 bg-[#080C14]/50">
             <input
               type="text"
               value={typedMessage}
               onChange={(e) => setTypedMessage(e.target.value)}
               placeholder="Type a custom message..."
-              className="flex-1 h-11 bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-xl px-4 text-xs text-white placeholder-slate-500 focus:outline-none"
+              className="flex-1 h-10 bg-slate-800/90 border border-slate-700 focus:border-blue-500 rounded-xl px-3.5 text-xs text-white placeholder-slate-500 focus:outline-none"
             />
             <button
               type="submit"
-              className="btn-primary h-11 px-5 py-2.5 rounded-xl font-medium text-xs"
+              className="btn-primary h-10 px-4 py-2 rounded-xl font-medium text-xs shadow-md shadow-blue-950/40"
+              title="Send text message"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-3.5 h-3.5" />
             </button>
           </form>
         </div>

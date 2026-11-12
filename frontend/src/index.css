@@ -3,21 +3,23 @@
 @tailwind utilities;
 
 :root {
-  /* Google Meet / Zoom Professional Slate Theme */
-  --bg-main: #0B0F17;
-  --bg-surface: #111827;
-  --bg-card: #1E293B;
-  --bg-card-hover: #283548;
-  --border-subtle: #334155;
-  --border-card: rgba(51, 65, 85, 0.6);
+  /* High-End Enterprise Obsidian & Slate Palette */
+  --bg-canvas: #07090C;
+  --bg-main: #0B0E14;
+  --bg-surface: #101520;
+  --bg-card: #151D2A;
+  --bg-card-hover: #1E283A;
+  --border-subtle: #242E40;
+  --border-card: rgba(51, 65, 85, 0.55);
 
-  /* Modern Professional Accents */
+  /* Modern Accents */
   --accent-primary: #2563EB;
   --accent-primary-hover: #1D4ED8;
   --accent-emerald: #10B981;
   --accent-emerald-hover: #059669;
   --accent-danger: #EF4444;
   --accent-amber: #F59E0B;
+  --accent-purple: #8B5CF6;
 
   /* Typography */
   --text-main: #F8FAFC;
@@ -37,7 +39,7 @@ html, body, #root {
   width: 100%;
   height: 100%;
   height: 100dvh;
-  background-color: var(--bg-main);
+  background-color: var(--bg-canvas);
   color: var(--text-main);
   overflow: hidden;
   font-family: var(--font-sans);
@@ -48,35 +50,56 @@ html, body, #root {
 /* Modern Button System: Flexible, ergonomic, and cleanly scalable */
 @layer components {
   .btn-base {
-    @apply h-11 px-4 py-2 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-150 select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900;
+    @apply h-10 px-3.5 py-2 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950;
   }
 
   .btn-icon {
-    @apply h-9 w-9 p-0 rounded-xl flex items-center justify-center transition-all duration-150 select-none cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900;
+    @apply h-9 w-9 p-0 rounded-xl flex items-center justify-center transition-all duration-150 select-none cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950;
   }
 
   .btn-primary {
-    @apply btn-base bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-900/30 active:scale-[0.98];
+    @apply btn-base bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-950/40 active:scale-[0.98] border border-blue-500/40;
   }
 
   .btn-success {
-    @apply btn-base bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-900/30 active:scale-[0.98];
+    @apply btn-base bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40 active:scale-[0.98] border border-emerald-500/40;
   }
 
   .btn-danger {
-    @apply btn-base bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-900/30 active:scale-[0.98];
+    @apply btn-base bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-950/40 active:scale-[0.98] border border-red-500/40;
   }
 
   .btn-secondary {
-    @apply btn-base bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700/80 hover:border-slate-600 shadow-sm active:scale-[0.98];
+    @apply btn-base bg-slate-800/90 hover:bg-slate-700/90 text-slate-200 border border-slate-700/80 hover:border-slate-600 shadow-sm active:scale-[0.98];
   }
 
   .btn-glass {
-    @apply btn-base bg-slate-900/70 hover:bg-slate-800/80 backdrop-blur-md text-slate-200 border border-slate-700/60 hover:border-slate-500 shadow-lg active:scale-[0.98];
+    @apply btn-base bg-slate-900/80 hover:bg-slate-800/90 backdrop-blur-md text-slate-200 border border-slate-700/60 hover:border-slate-500 shadow-lg active:scale-[0.98];
   }
 
   .glass-card {
     @apply bg-slate-900/80 backdrop-blur-xl border border-slate-800/80 shadow-2xl;
+  }
+
+  /* Subtle Glowing Indicators */
+  .glow-emerald {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  }
+
+  .glow-red {
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.45);
+  }
+
+  .glow-amber {
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+  }
+
+  .glow-blue {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
   }
 }
 
@@ -98,11 +121,11 @@ html, body, #root {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #2A3649;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #3B4B64;
 }
 
 /* ============================================================
@@ -126,4 +149,3 @@ html, body, #root {
     white-space: nowrap;
   }
 }
-

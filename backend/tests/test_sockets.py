@@ -432,3 +432,17 @@ def test_solo_simulator_single_participant_utterance(live_server):
 
         await sio.disconnect()
     asyncio.run(_run())
+
+def test_ping_check_telemetry(live_server):
+    async def _run():
+        server_url = f"http://127.0.0.1:{live_server}"
+        sio = socketio.AsyncClient()
+        await sio.connect(server_url)
+
+        res = await sio.call("ping_check", None, timeout=3.0)
+        assert isinstance(res, dict)
+        assert res.get("status") == "ok"
+        assert "timestamp" in res
+
+        await sio.disconnect()
+    asyncio.run(_run())

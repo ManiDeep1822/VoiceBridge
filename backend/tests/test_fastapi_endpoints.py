@@ -84,6 +84,39 @@ def test_delete_room_endpoint():
     data = res.json()
     assert data["status"] == "not_found"
 
+    # Test empty room_id rejection
+    res_empty = client.delete("/api/rooms/   ")
+    assert res_empty.status_code == 400
+
+def test_empty_bodies_and_edge_cases():
+    # Empty body to translate returns 400 not 500
+    res = client.post("/api/translate", json={})
+    assert res.status_code == 400
+
+    # Empty body to tts returns 400 not 500
+    res = client.post("/api/tts", json={})
+    assert res.status_code == 400
+
+    # Empty body to stt returns 400 not 500
+    res = client.post("/api/stt", json={})
+    assert res.status_code == 400
+
+    # Empty body to minutes returns 200 default summary
+    res = client.post("/api/minutes", json={})
+    assert res.status_code == 200
+    assert "total_utterances" in res.json()
+
+    # Empty body to glossary returns default domain active
+    res = client.post("/api/glossary", json={})
+    assert res.status_code == 200
+    assert res.json()["status"] == "active"
+
+    # GET /api/glossary returns domain listing
+    res = client.get("/api/glossary")
+    assert res.status_code == 200
+    assert "domains" in res.json()
+    assert len(res.json()["domains"]) >= 5
+
 def test_api_unknown_returns_404_json_not_html():
     res = client.get("/api/nonexistent_endpoint")
     assert res.status_code == 404

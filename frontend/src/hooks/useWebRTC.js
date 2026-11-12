@@ -36,8 +36,23 @@ export function useWebRTC({
   const connect = useCallback((targetRoomId) => {
     if (!targetRoomId) return;
 
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+    if (dataChannelRef.current) {
+      try { dataChannelRef.current.close(); } catch (e) {}
+      dataChannelRef.current = null;
+    }
+    if (pcRef.current) {
+      try { pcRef.current.close(); } catch (e) {}
+      pcRef.current = null;
+    }
     if (socketRef.current) {
-      socketRef.current.disconnect();
+      try {
+        socketRef.current.disconnect();
+      } catch (e) {}
+      socketRef.current = null;
     }
 
     setConnectionState('connecting');
@@ -50,6 +65,18 @@ export function useWebRTC({
     });
 
     socketRef.current = socket;
+
+    socket.on('connect_error', (err) => {
+      console.warn('[WebRTC] Signaling socket connection error:', err);
+      setErrorMsg('Signaling server unreachable. Retrying connection...');
+    });
+
+    socket.on('error', (err) => {
+      console.warn('[WebRTC] Socket server error:', err);
+      if (err?.message) {
+        setErrorMsg(err.message);
+      }
+    });
 
     socket.on('connect', () => {
       setConnectionState('connecting');
@@ -126,34 +153,33 @@ export function useWebRTC({
     });
 
     socket.on('webrtc_offer', async (data) => {
-      if (!pcRef.current) return;
+      if (!pcRef.current || !data?.offer) return;
       try {
-        await pcRef.current.setLocalDescription(await pcRef.current.createAnswer(
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.offer))
-        ));
-        socket.emit('webrtc_answer', { answer: pcRef.current.localDescription });
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await pcRef.current.createAnswer();
+        await pcRef.current.setLocalDescription(answer);
+        socket.emit('webrtc_answer', { answer });
       } catch (err) {
-        try {
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.offer));
-          const answer = await pcRef.current.createAnswer();
-          await pcRef.current.setLocalDescription(answer);
-          socket.emit('webrtc_answer', { answer });
-        } catch (e) {}
+        console.warn('[WebRTC] Offer handling error:', err);
       }
     });
 
     socket.on('webrtc_answer', async (data) => {
-      if (!pcRef.current) return;
+      if (!pcRef.current || !data?.answer) return;
       try {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
-      } catch (err) {}
+      } catch (err) {
+        console.warn('[WebRTC] Answer handling error:', err);
+      }
     });
 
     socket.on('webrtc_ice_candidate', async (data) => {
-      if (!pcRef.current || !data.candidate) return;
+      if (!pcRef.current || !data?.candidate) return;
       try {
         await pcRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-      } catch (err) {}
+      } catch (err) {
+        console.warn('[WebRTC] ICE candidate error:', err);
+      }
     });
 
     // Real-time "Peer is Speaking..." state notification
@@ -197,14 +223,25 @@ export function useWebRTC({
       setRemotePeer(null);
       setIsPeerSpeaking(false);
       if (pcRef.current) {
-        pcRef.current.close();
+        try { pcRef.current.close(); } catch (e) {}
         pcRef.current = null;
       }
     });
 
     socket.on('room_full', (data) => {
-      setErrorMsg(data.message || 'Call room is at full capacity (2 participants).');
+      setErrorMsg(data?.message || 'Call room is at full capacity (2 participants).');
       setConnectionState('disconnected');
+    });
+
+    socket.on('room_terminated', (data) => {
+      setErrorMsg(data?.message || 'Call room was terminated by administrator.');
+      setConnectionState('disconnected');
+      setRemotePeer(null);
+      setIsPeerSpeaking(false);
+      if (pcRef.current) {
+        try { pcRef.current.close(); } catch (e) {}
+        pcRef.current = null;
+      }
     });
 
     // Measure Ping
@@ -215,17 +252,26 @@ export function useWebRTC({
       });
     }, 5000);
 
-  }, [backendUrl, language, onPeerSpeakingStateChanged, onRemoteAudioReceived, onRemoteSpeechEnded, onRemoteTextReceived, userId, voiceGender]);
+  }, [backendUrl, language, onPeerSpeakingStateChanged, onRemoteAudioReceived, onRemoteSpeechEnded, onRemoteTextReceived, userId, userName, voiceGender]);
 
   const disconnect = useCallback(() => {
-    if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+    if (dataChannelRef.current) {
+      try { dataChannelRef.current.close(); } catch (e) {}
+      dataChannelRef.current = null;
+    }
     if (pcRef.current) {
-      pcRef.current.close();
+      try { pcRef.current.close(); } catch (e) {}
       pcRef.current = null;
     }
     if (socketRef.current) {
-      socketRef.current.emit('leave_room');
-      socketRef.current.disconnect();
+      try {
+        socketRef.current.emit('leave_room');
+        socketRef.current.disconnect();
+      } catch (e) {}
       socketRef.current = null;
     }
     setConnectionState('disconnected');

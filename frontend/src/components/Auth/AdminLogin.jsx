@@ -39,7 +39,7 @@ export function AdminLogin({ onAdminLoginSuccess, onSwitchToUser }) {
         localStorage.setItem('voicebridge_admin', JSON.stringify(adminProfile));
       } catch (err) {}
 
-      onAdminLoginSuccess(adminProfile);
+      if (onAdminLoginSuccess) onAdminLoginSuccess(adminProfile);
     }, 450);
   };
 
@@ -51,11 +51,11 @@ export function AdminLogin({ onAdminLoginSuccess, onSwitchToUser }) {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-[#0B0F17] select-none font-sans min-h-screen">
-      <div className="w-full max-w-md bg-slate-900/95 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+    <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-[#07090C] select-none font-sans min-h-screen box-border">
+      <div className="w-full max-w-md bg-[#0D121F]/95 backdrop-blur-2xl border border-purple-500/30 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-5 sm:space-y-6 box-border">
         {/* Header / Brand */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white mx-auto shadow-lg shadow-purple-950/40">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-700 to-indigo-600 flex items-center justify-center text-white mx-auto shadow-lg shadow-purple-950/40 border border-purple-400/30">
             <ShieldCheck className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -94,7 +94,7 @@ export function AdminLogin({ onAdminLoginSuccess, onSwitchToUser }) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@voicebridge.com"
                 required
-                className="w-full h-11 bg-slate-800 border border-slate-700 focus:border-purple-500 rounded-xl pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
+                className="w-full h-11 bg-slate-800/90 border border-slate-700/80 focus:border-purple-500 rounded-xl pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
               />
             </div>
           </div>
@@ -111,7 +111,7 @@ export function AdminLogin({ onAdminLoginSuccess, onSwitchToUser }) {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 required
-                className="w-full h-11 bg-slate-800 border border-slate-700 focus:border-purple-500 rounded-xl pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
+                className="w-full h-11 bg-slate-800/90 border border-slate-700/80 focus:border-purple-500 rounded-xl pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
               />
             </div>
           </div>
@@ -129,7 +129,7 @@ export function AdminLogin({ onAdminLoginSuccess, onSwitchToUser }) {
                 placeholder="4-digit PIN"
                 maxLength={6}
                 required
-                className="w-full h-11 bg-slate-800 border border-slate-700 focus:border-purple-500 rounded-xl pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
+                className="w-full h-11 bg-slate-800/90 border border-slate-700/80 focus:border-purple-500 rounded-xl pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
               />
             </div>
           </div>
@@ -142,13 +142,13 @@ export function AdminLogin({ onAdminLoginSuccess, onSwitchToUser }) {
             >
               Fill Admin Demo Pass
             </button>
-            <span className="text-slate-500">MFA Protected</span>
+            <span className="text-[11px] text-slate-500">MFA Protected</span>
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="btn-primary w-full h-11 px-5 py-2.5 rounded-xl font-semibold text-sm bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-950/40 mt-2"
+            className="btn-primary w-full h-11 px-5 py-2.5 rounded-xl font-semibold text-sm bg-purple-600 hover:bg-purple-500 border border-purple-500/40 shadow-lg shadow-purple-950/40 mt-2"
           >
             {isLoading ? (
               <span>Verifying Fleet Credentials...</span>
@@ -163,7 +163,7 @@ export function AdminLogin({ onAdminLoginSuccess, onSwitchToUser }) {
         </form>
 
         {/* Return to Standard Portal */}
-        <div className="pt-4 border-t border-slate-800 text-center">
+        <div className="pt-4 border-t border-slate-800/80 text-center">
           <button
             type="button"
             onClick={onSwitchToUser}

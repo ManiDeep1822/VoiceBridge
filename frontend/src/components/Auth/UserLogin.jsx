@@ -34,7 +34,7 @@ export function UserLogin({ onLoginSuccess, onSwitchToAdmin, onJoinGuestRoom }) 
         localStorage.setItem('voicebridge_user', JSON.stringify(userProfile));
       } catch (err) {}
 
-      onLoginSuccess(userProfile);
+      if (onLoginSuccess) onLoginSuccess(userProfile);
     }, 450);
   };
 
@@ -45,12 +45,12 @@ export function UserLogin({ onLoginSuccess, onSwitchToAdmin, onJoinGuestRoom }) 
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-[#0B0F17] select-none font-sans min-h-screen">
-      <div className="w-full max-w-md bg-slate-900/95 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+    <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-[#07090C] select-none font-sans min-h-screen box-border">
+      <div className="w-full max-w-md bg-[#0D121F]/95 backdrop-blur-2xl border border-slate-800/90 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-5 sm:space-y-6 box-border">
         {/* Header / Brand */}
         <div className="text-center space-y-2">
           {/* Custom Vector Audio Bridge Logo */}
-          <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white mx-auto shadow-lg shadow-blue-900/30">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-700 to-blue-500 flex items-center justify-center text-white mx-auto shadow-lg shadow-blue-950/50 border border-blue-400/30">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M4 12V12.01M8 8V16M12 4V20M16 8V16M20 12V12.01" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -86,7 +86,7 @@ export function UserLogin({ onLoginSuccess, onSwitchToAdmin, onJoinGuestRoom }) 
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@company.com"
                 required
-                className="w-full h-11 bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-xl pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
+                className="w-full h-11 bg-slate-800/90 border border-slate-700/80 focus:border-blue-500 rounded-xl pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
               />
             </div>
           </div>
@@ -103,7 +103,7 @@ export function UserLogin({ onLoginSuccess, onSwitchToAdmin, onJoinGuestRoom }) 
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 required
-                className="w-full h-11 bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-xl pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
+                className="w-full h-11 bg-slate-800/90 border border-slate-700/80 focus:border-blue-500 rounded-xl pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
               />
             </div>
           </div>
@@ -116,7 +116,7 @@ export function UserLogin({ onLoginSuccess, onSwitchToAdmin, onJoinGuestRoom }) 
             >
               Fill Demo Credentials
             </button>
-            <span>Operator Access</span>
+            <span className="text-[11px] text-slate-500">Operator Access</span>
           </div>
 
           <button
@@ -137,7 +137,7 @@ export function UserLogin({ onLoginSuccess, onSwitchToAdmin, onJoinGuestRoom }) 
         </form>
 
         {/* Footer Navigation */}
-        <div className="pt-4 border-t border-slate-800 flex flex-col gap-2.5 text-center text-xs">
+        <div className="pt-4 border-t border-slate-800/80 flex flex-col gap-2.5 text-center text-xs">
           <button
             type="button"
             onClick={onSwitchToAdmin}

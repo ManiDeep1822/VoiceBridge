@@ -25,7 +25,7 @@ export function useSpeechSynthesis({
   // Initialize Web Audio Gain for extra loudness
   const initAudioGain = useCallback(() => {
     try {
-      if (!audioContextRef.current) {
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (AudioCtx) {
           audioContextRef.current = new AudioCtx();
@@ -36,7 +36,7 @@ export function useSpeechSynthesis({
         }
       }
       if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
+        audioContextRef.current.resume().catch(() => {});
       }
       setAudioUnlocked(true);
     } catch (e) {}
@@ -248,6 +248,9 @@ export function useSpeechSynthesis({
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx) {
         const ctx = audioContextRef.current || new AudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
@@ -267,6 +270,26 @@ export function useSpeechSynthesis({
       speakTextLocal('Loudspeaker audio bridge ready', 'en');
     }, 350);
   }, [initAudioGain, speakTextLocal]);
+
+  // Clean unmount teardown for speech and audio context
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        try { window.speechSynthesis.cancel(); } catch (e) {}
+      }
+      if (activeAudioElRef.current) {
+        try {
+          activeAudioElRef.current.pause();
+          activeAudioElRef.current.src = '';
+        } catch (e) {}
+        activeAudioElRef.current = null;
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        try { audioContextRef.current.close(); } catch (e) {}
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
 
 
 

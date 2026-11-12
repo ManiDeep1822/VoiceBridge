@@ -84,11 +84,11 @@ export function useSpeechRecognition({
       setMicPermission('granted');
 
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!audioContextRef.current) {
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
         audioContextRef.current = new AudioCtx();
       }
       if (audioContextRef.current.state === 'suspended') {
-        await audioContextRef.current.resume();
+        await audioContextRef.current.resume().catch(() => {});
       }
 
       if (!analyserRef.current) {
@@ -364,14 +364,31 @@ export function useSpeechRecognition({
     };
   }, [finalizeTurn, langMeta.stt, silenceTimeoutMs, strictPushToTalk]);
 
-  // Clean teardown of hardware stream only on hook unmount
+  // Clean teardown of hardware stream and all active timers only on hook unmount
   useEffect(() => {
     return () => {
+      shouldBeListeningRef.current = false;
+      isStartingRef.current = false;
+      isRecognizingRef.current = false;
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      if (mobilePulseTimerRef.current) {
+        clearInterval(mobilePulseTimerRef.current);
+        mobilePulseTimerRef.current = null;
+      }
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
       }
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         try { audioContextRef.current.close(); } catch (e) {}
+        audioContextRef.current = null;
       }
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach(t => t.stop());
@@ -381,6 +398,9 @@ export function useSpeechRecognition({
   }, []);
 
   const startListening = useCallback(async () => {
+    // Acoustic Echo Guard: refuse start if remote translation speech is currently broadcasting
+    if (isDuckedRef.current) return;
+
     // If on mobile, ensure any lingering getUserMedia track is stopped to give exclusive hardware control to SpeechRecognition
     if (isMobile && micStreamRef.current) {
       try {

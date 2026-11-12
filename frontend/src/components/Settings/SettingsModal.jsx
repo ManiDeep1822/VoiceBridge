@@ -29,10 +29,10 @@ export function SettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md select-none font-sans text-sm">
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#07090C]/80 backdrop-blur-md select-none font-sans text-sm box-border">
+      <div className="bg-[#0D121F] border border-slate-800/90 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative space-y-4 box-border">
         {/* Modal Header */}
-        <div className="bg-slate-800/60 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
+        <div className="bg-[#080C14]/60 border-b border-slate-800/80 px-4 sm:px-5 py-3.5 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
               <Settings className="w-4 h-4" />
@@ -49,38 +49,38 @@ export function SettingsModal({
 
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 space-y-4">
+        <div className="p-4 sm:p-5 space-y-3.5 sm:space-y-4">
           {/* 1. Loudspeaker Output & Audio Test */}
-          <div className="rounded-xl bg-slate-800/40 border border-slate-700/60 p-4 space-y-3">
+          <div className="rounded-xl bg-slate-850 bg-slate-900/60 border border-slate-800/80 p-3.5 sm:p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <span className="font-semibold text-white text-sm">Loudspeaker Output</span>
+                <span className="font-semibold text-white text-xs sm:text-sm">Loudspeaker Output</span>
                 <p className="text-xs text-slate-400">Test speaker playback and volume</p>
               </div>
 
               <button
                 type="button"
                 onClick={handleSpeakerTest}
-                className="btn-secondary h-11 px-5 py-2.5 rounded-xl text-sm font-medium"
+                className="btn-secondary h-9 sm:h-10 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-medium"
               >
-                <Volume2 className="w-4 h-4" />
+                <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{testingSpeaker ? 'Playing...' : 'Test Speaker'}</span>
               </button>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-700/60">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-800/70">
               <span className="text-slate-300 text-xs font-medium">Loudspeaker Volume Boost:</span>
               <button
                 onClick={onToggleVolumeBoost}
-                className={`btn-base h-11 px-5 py-2.5 rounded-xl text-sm font-medium ${
-                  volumeBoost ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-800 text-slate-400 border border-slate-700'
+                className={`btn-base h-9 sm:h-10 px-3.5 rounded-xl text-xs font-medium ${
+                  volumeBoost ? 'bg-blue-600 text-white shadow-sm border border-blue-500/40' : 'bg-slate-800/80 text-slate-400 border border-slate-700/80'
                 }`}
               >
                 {volumeBoost ? '+6dB Active' : 'Off (Standard)'}
@@ -89,9 +89,9 @@ export function SettingsModal({
           </div>
 
           {/* 2. Microphone Hardware Sensor */}
-          <div className="rounded-xl bg-slate-800/40 border border-slate-700/60 p-4 space-y-2">
+          <div className="rounded-xl bg-slate-900/60 border border-slate-800/80 p-3.5 sm:p-4 space-y-2">
             <div className="flex justify-between items-center">
-              <span className="font-semibold text-white text-sm flex items-center gap-2">
+              <span className="font-semibold text-white text-xs sm:text-sm flex items-center gap-2">
                 <Mic className="w-4 h-4 text-emerald-400" />
                 <span>Microphone Input Level</span>
               </span>
@@ -99,36 +99,36 @@ export function SettingsModal({
             </div>
             <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
               <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-75"
+                className="bg-emerald-500 h-full rounded-full transition-all duration-75 glow-emerald"
                 style={{ width: `${Math.min(100, audioLevel * 1.5)}%` }}
               />
             </div>
           </div>
 
           {/* 3. Neural Voice Persona & Speed */}
-          <div className="rounded-xl bg-slate-800/40 border border-slate-700/60 p-4 space-y-3">
+          <div className="rounded-xl bg-slate-900/60 border border-slate-800/80 p-3.5 sm:p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-white text-sm">Voice Persona & Speed</span>
+              <span className="font-semibold text-white text-xs sm:text-sm">Voice Persona & Speed</span>
               <span className="text-xs font-semibold text-blue-400">{speechRate}x Speed</span>
             </div>
 
-            <div className="flex gap-2.5">
+            <div className="flex gap-2">
               <button
                 onClick={() => onVoiceGenderChange('female')}
-                className={`btn-base flex-1 h-11 px-5 py-2.5 rounded-xl text-sm font-medium ${
+                className={`btn-base flex-1 h-9 sm:h-10 px-3 rounded-xl text-xs sm:text-sm font-medium ${
                   voiceGender === 'female'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-slate-800 text-slate-300 border border-slate-700'
+                    ? 'bg-blue-600 text-white shadow-sm border border-blue-500/40'
+                    : 'bg-slate-800/80 text-slate-300 border border-slate-700/80'
                 }`}
               >
                 Female Voice
               </button>
               <button
                 onClick={() => onVoiceGenderChange('male')}
-                className={`btn-base flex-1 h-11 px-5 py-2.5 rounded-xl text-sm font-medium ${
+                className={`btn-base flex-1 h-9 sm:h-10 px-3 rounded-xl text-xs sm:text-sm font-medium ${
                   voiceGender === 'male'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-slate-800 text-slate-300 border border-slate-700'
+                    ? 'bg-blue-600 text-white shadow-sm border border-blue-500/40'
+                    : 'bg-slate-800/80 text-slate-300 border border-slate-700/80'
                 }`}
               >
                 Male Voice
@@ -154,10 +154,10 @@ export function SettingsModal({
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-800/60 border-t border-slate-800 px-5 py-3 flex justify-end">
+        <div className="bg-[#080C14]/60 border-t border-slate-800/80 px-4 sm:px-5 py-3 flex justify-end">
           <button
             onClick={onClose}
-            className="btn-primary h-11 px-5 py-2.5 rounded-xl font-semibold text-sm"
+            className="btn-primary h-9 sm:h-10 px-5 rounded-xl font-semibold text-xs sm:text-sm"
           >
             Done
           </button>

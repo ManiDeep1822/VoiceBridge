@@ -6,21 +6,21 @@ import React from 'react';
  */
 export function CallerAvatar({ isLocal = true, isSpeaking = false, size = 'default' }) {
   const sizeClasses = size === 'sm' 
-    ? 'w-12 h-12' 
+    ? 'w-10 h-10 sm:w-12 sm:h-12' 
     : size === 'md' 
-      ? 'w-14 h-14 sm:w-18 sm:h-18' 
-      : 'w-16 h-16 sm:w-24 sm:h-24 md:w-28 md:h-28';
+      ? 'w-12 h-12 sm:w-16 sm:h-16' 
+      : 'w-14 h-14 xs:w-16 xs:h-16 sm:w-20 sm:h-20 md:w-24 md:h-24';
 
   return (
     <div className={`relative ${sizeClasses} rounded-full flex items-center justify-center shrink-0`}>
       {/* Dynamic Sound Ripple Ring (Active when speaking) */}
       {isSpeaking && (
         <>
-          <span className={`absolute inset-0 rounded-full animate-ping opacity-30 ${
+          <span className={`absolute inset-0 rounded-full animate-ping opacity-35 ${
             isLocal ? 'bg-blue-500' : 'bg-emerald-500'
           }`} />
           <span className={`absolute -inset-1 rounded-full border-2 ${
-            isLocal ? 'border-blue-400' : 'border-emerald-400'
+            isLocal ? 'border-blue-400 glow-blue' : 'border-emerald-400 glow-emerald'
           } animate-pulse`} />
         </>
       )}

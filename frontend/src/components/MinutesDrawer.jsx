@@ -91,20 +91,21 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee})`).
 
   const handleDownloadMarkdown = () => {
     if (!minutesData) return;
-    const text = `# ${minutesData.title}\nDate: ${minutesData.generatedAt}\n\n${minutesData.executiveSummary}\n`;
+    const text = `# ${minutesData.title}\nDate: ${minutesData.generatedAt}\n\n${minutesData.executiveSummary}\n\n## Key Decisions\n${minutesData.decisions.map(d => `- ${d}`).join('\n')}\n\n## Action Items\n${minutesData.actionItems.map(a => `- [${a.priority}] ${a.task} (${a.assignee})`).join('\n')}`;
     const blob = new Blob([text], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `Meeting_Minutes_${Date.now()}.md`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/80 backdrop-blur-md select-none font-sans text-sm">
-      <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 h-full flex flex-col justify-between shadow-2xl">
+    <div className="fixed inset-0 z-50 flex justify-end bg-[#07090C]/80 backdrop-blur-md select-none font-sans text-sm box-border">
+      <div className="w-full max-w-full sm:max-w-lg bg-[#0D121F] border-l border-slate-800/90 h-full flex flex-col justify-between shadow-2xl box-border">
         {/* Header */}
-        <div className="bg-slate-800/60 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
+        <div className="bg-[#080C14]/60 border-b border-slate-800/80 px-4 sm:px-5 py-3.5 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
               <FileText className="w-4 h-4" />
@@ -119,15 +120,15 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee})`).
             </div>
           </div>
 
-          <button onClick={onClose} className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-5 overflow-y-auto flex-1 space-y-4">
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4">
           {!minutesData ? (
-            <div className="rounded-2xl border border-slate-800 bg-slate-800/40 p-8 text-center space-y-3">
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-6 sm:p-8 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 mx-auto">
                 <FileText className="w-6 h-6" />
               </div>
@@ -141,7 +142,7 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee})`).
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="btn-primary h-11 px-5 py-2.5 rounded-xl font-semibold text-sm mx-auto mt-2"
+                className="btn-primary h-10 px-5 rounded-xl font-semibold text-xs sm:text-sm mx-auto mt-2"
               >
                 {isGenerating ? 'Analyzing Speech...' : 'Generate Minutes Now'}
               </button>
@@ -149,19 +150,19 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee})`).
           ) : (
             <div className="space-y-4">
               {/* Executive Summary */}
-              <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-4 space-y-2">
+              <div className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-4 space-y-2">
                 <div className="flex justify-between text-xs text-slate-400 font-medium">
-                  <span>Executive Summary</span>
+                  <span className="font-semibold text-white">Executive Summary</span>
                   <span>{minutesData.generatedAt}</span>
                 </div>
-                <p className="text-white text-xs leading-relaxed">
+                <p className="text-slate-200 text-xs leading-relaxed">
                   {minutesData.executiveSummary}
                 </p>
               </div>
 
               {/* Key Decisions */}
-              <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-4 space-y-2">
-                <span className="text-xs text-slate-400 font-semibold block">Key Decisions & Agreements</span>
+              <div className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-4 space-y-2">
+                <span className="text-xs text-white font-semibold block">Key Decisions & Agreements</span>
                 <ul className="space-y-2 text-xs text-slate-300">
                   {minutesData.decisions.map((d, i) => (
                     <li key={i} className="flex items-start gap-2">
@@ -173,14 +174,14 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee})`).
               </div>
 
               {/* Action Deliverables */}
-              <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-4 space-y-2">
-                <span className="text-xs text-slate-400 font-semibold block">Action Deliverables</span>
+              <div className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-4 space-y-2">
+                <span className="text-xs text-white font-semibold block">Action Deliverables</span>
                 <div className="space-y-2">
                   {minutesData.actionItems.map((act) => (
-                    <div key={act.id} className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1">
+                    <div key={act.id} className="p-3 rounded-lg bg-slate-950/80 border border-slate-800/90 space-y-1">
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-white font-medium">{act.task}</span>
-                        <span className="text-red-400 font-semibold text-[11px] px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20">{act.priority}</span>
+                        <span className="text-red-400 font-semibold text-[10px] sm:text-[11px] px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20">{act.priority}</span>
                       </div>
                       <div className="text-[11px] text-slate-400">
                         Assigned to: {act.assignee} • Status: {act.status}
@@ -191,10 +192,10 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee})`).
               </div>
 
               {/* Export Buttons */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2.5 pt-2">
                 <button
                   onClick={handleCopy}
-                  className="btn-secondary flex-1 h-11 px-5 py-2.5 rounded-xl text-sm font-medium"
+                  className="btn-secondary flex-1 h-10 px-4 rounded-xl text-xs sm:text-sm font-medium"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                   <span>{copied ? 'Copied' : 'Copy Text'}</span>
@@ -202,7 +203,7 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee})`).
 
                 <button
                   onClick={handleDownloadMarkdown}
-                  className="btn-primary flex-1 h-11 px-5 py-2.5 rounded-xl text-sm font-medium"
+                  className="btn-primary flex-1 h-10 px-4 rounded-xl text-xs sm:text-sm font-medium"
                 >
                   <Download className="w-4 h-4" />
                   <span>Download .MD</span>
@@ -213,8 +214,11 @@ ${minutesData.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee})`).
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-800/60 border-t border-slate-800 p-4 flex justify-between items-center text-xs text-slate-400">
-          <span>End-to-End Encrypted</span>
+        <div className="bg-[#080C14]/60 border-t border-slate-800/80 p-3.5 sm:p-4 flex justify-between items-center text-xs text-slate-400">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            End-to-End Encrypted
+          </span>
           <span>VoiceBridge Notes</span>
         </div>
       </div>

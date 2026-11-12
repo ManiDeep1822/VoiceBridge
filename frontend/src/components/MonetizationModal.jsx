@@ -41,10 +41,10 @@ export function MonetizationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-md select-none font-sans text-sm">
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-[#07090C]/80 backdrop-blur-md select-none font-sans text-sm box-border">
+      <div className="bg-[#0D121F] border border-slate-800/90 w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden relative box-border">
         {/* Header */}
-        <div className="bg-slate-800/60 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
+        <div className="bg-[#080C14]/60 border-b border-slate-800/80 px-4 sm:px-5 py-3.5 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
               <CreditCard className="w-4 h-4" />
@@ -62,35 +62,35 @@ export function MonetizationModal({
           <div className="flex items-center gap-2">
             <button
               onClick={onToggleCurrency}
-              className="btn-secondary h-9 px-3 rounded-lg text-xs font-medium"
+              className="btn-secondary h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg text-xs font-semibold"
             >
               <span>{isINR ? '₹ INR' : '$ USD'}</span>
             </button>
 
             <button
               onClick={onClose}
-              className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+              className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-5">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5">
           {checkoutSuccess && (
-            <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 p-3.5 text-center flex items-center justify-center gap-2 font-semibold text-sm">
-              <Check className="w-5 h-5 text-emerald-400" />
+            <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 p-3.5 text-center flex items-center justify-center gap-2 font-semibold text-xs sm:text-sm glow-emerald">
+              <Check className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
               <span>Plan activated successfully! Features unlocked for this session.</span>
             </div>
           )}
 
           {/* Billing Interval Toggle */}
           <div className="flex justify-center">
-            <div className="rounded-xl border border-slate-700 bg-slate-800/80 p-1 flex items-center">
+            <div className="rounded-xl border border-slate-700/80 bg-slate-800/80 p-1 flex items-center">
               <button
                 onClick={() => setSelectedBillingCycle('monthly')}
-                className={`h-9 px-4 rounded-lg text-xs font-semibold transition-colors ${
+                className={`h-8 sm:h-8.5 px-3.5 sm:px-4 rounded-lg text-xs font-semibold transition-colors ${
                   selectedBillingCycle === 'monthly'
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -100,7 +100,7 @@ export function MonetizationModal({
               </button>
               <button
                 onClick={() => setSelectedBillingCycle('annual')}
-                className={`h-9 px-4 rounded-lg text-xs font-semibold transition-colors ${
+                className={`h-8 sm:h-8.5 px-3.5 sm:px-4 rounded-lg text-xs font-semibold transition-colors ${
                   selectedBillingCycle === 'annual'
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -112,43 +112,43 @@ export function MonetizationModal({
           </div>
 
           {/* Pricing Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
             {/* TIER 1: COMMUNITY / FREE */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-800/40 p-5 flex flex-col justify-between space-y-4">
+            <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-4 sm:p-5 flex flex-col justify-between space-y-4">
               <div>
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Community</span>
                   {activeTier === 'free' && (
-                    <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                    <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                       Active
                     </span>
                   )}
                 </div>
 
                 <div className="mb-2">
-                  <span className="text-3xl font-extrabold text-white">{symbol}0</span>
+                  <span className="text-2xl sm:text-3xl font-extrabold text-white">{symbol}0</span>
                   <span className="text-xs text-slate-400 ml-1">/ forever</span>
                 </div>
 
-                <p className="text-xs text-slate-400 leading-normal mb-4">
+                <p className="text-xs text-slate-400 leading-normal mb-3 sm:mb-4">
                   Free browser-based live voice translation for personal and casual calls.
                 </p>
 
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center gap-2 text-slate-200">
-                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     <span>Unlimited 2-Way Calls</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-200">
-                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     <span>45+ Core Languages</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-500">
-                    <X className="w-4 h-4 shrink-0" />
+                    <X className="w-3.5 h-3.5 shrink-0" />
                     <span>AI Meeting Minutes</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-500">
-                    <X className="w-4 h-4 shrink-0" />
+                    <X className="w-3.5 h-3.5 shrink-0" />
                     <span>Domain Glossaries</span>
                   </div>
                 </div>
@@ -157,15 +157,15 @@ export function MonetizationModal({
               <button
                 onClick={() => handleActivate('free')}
                 disabled={activeTier === 'free'}
-                className="btn-secondary w-full h-11 px-5 py-2.5 rounded-xl text-sm font-medium"
+                className="btn-secondary w-full h-10 px-4 rounded-xl text-xs sm:text-sm font-medium"
               >
                 {activeTier === 'free' ? 'Current Plan' : 'Select Free'}
               </button>
             </div>
 
             {/* TIER 2: PRO */}
-            <div className="rounded-2xl border-2 border-blue-500 bg-slate-800/80 p-5 flex flex-col justify-between space-y-4 relative shadow-xl shadow-blue-950/30">
-              <div className="absolute -top-3 right-4 bg-blue-600 text-white font-bold text-[11px] px-2.5 py-0.5 rounded-full shadow-md">
+            <div className="rounded-2xl border-2 border-blue-500/80 bg-slate-900/90 p-4 sm:p-5 flex flex-col justify-between space-y-4 relative shadow-xl shadow-blue-950/40">
+              <div className="absolute -top-3 right-4 bg-blue-600 text-white font-bold text-[10px] sm:text-[11px] px-2.5 py-0.5 rounded-full shadow-md">
                 Popular
               </div>
 
@@ -173,38 +173,38 @@ export function MonetizationModal({
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Professional</span>
                   {activeTier === 'pro' && (
-                    <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                    <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                       Active
                     </span>
                   )}
                 </div>
 
                 <div className="mb-2">
-                  <span className="text-3xl font-extrabold text-white">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-white">
                     {symbol}{pricing.pro[selectedBillingCycle].toLocaleString()}
                   </span>
                   <span className="text-xs text-slate-400 ml-1">/ month</span>
                 </div>
 
-                <p className="text-xs text-slate-300 leading-normal mb-4">
+                <p className="text-xs text-slate-300 leading-normal mb-3 sm:mb-4">
                   For cross-border business calls, international clients, and negotiations.
                 </p>
 
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center gap-2 text-slate-100">
-                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                     <span>AI Executive Minutes & Summary</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-100">
-                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                     <span>Jargon Lock (6 Industry Sectors)</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-100">
-                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                     <span>+6dB Loudspeaker Volume Booster</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-100">
-                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                     <span>Priority Low-Latency Route</span>
                   </div>
                 </div>
@@ -212,50 +212,50 @@ export function MonetizationModal({
 
               <button
                 onClick={() => handleActivate('pro')}
-                className="btn-primary w-full h-11 px-5 py-2.5 rounded-xl text-sm font-semibold"
+                className="btn-primary w-full h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold"
               >
                 {activeTier === 'pro' ? 'Current Plan' : 'Upgrade to Pro'}
               </button>
             </div>
 
             {/* TIER 3: ENTERPRISE */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-800/40 p-5 flex flex-col justify-between space-y-4">
+            <div className="rounded-2xl border border-slate-800/90 bg-slate-900/60 p-4 sm:p-5 flex flex-col justify-between space-y-4">
               <div>
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs font-semibold text-purple-400 uppercase tracking-wide">Enterprise</span>
                   {activeTier === 'enterprise' && (
-                    <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                    <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                       Active
                     </span>
                   )}
                 </div>
 
                 <div className="mb-2">
-                  <span className="text-3xl font-extrabold text-white">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-white">
                     {symbol}{pricing.enterprise[selectedBillingCycle].toLocaleString()}
                   </span>
                   <span className="text-xs text-slate-400 ml-1">/ month</span>
                 </div>
 
-                <p className="text-xs text-slate-400 leading-normal mb-4">
+                <p className="text-xs text-slate-400 leading-normal mb-3 sm:mb-4">
                   Multi-seat enterprise solution with compliance, dedicated servers, and custom SLAs.
                 </p>
 
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center gap-2 text-slate-200">
-                    <Check className="w-4 h-4 text-purple-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                     <span>Unlimited Enterprise Seats</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-200">
-                    <Check className="w-4 h-4 text-purple-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                     <span>Indian GSTIN Corporate Tax Invoices</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-200">
-                    <Check className="w-4 h-4 text-purple-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                     <span>Dedicated Private WebSocket Node</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-200">
-                    <Check className="w-4 h-4 text-purple-400 shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                     <span>Custom Vocabulary Modeling</span>
                   </div>
                 </div>
@@ -263,7 +263,7 @@ export function MonetizationModal({
 
               <button
                 onClick={() => handleActivate('enterprise')}
-                className="btn-secondary w-full h-11 px-5 py-2.5 rounded-xl text-sm font-semibold"
+                className="btn-secondary w-full h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold"
               >
                 {activeTier === 'enterprise' ? 'Current Plan' : 'Select Enterprise'}
               </button>
@@ -271,7 +271,7 @@ export function MonetizationModal({
           </div>
 
           {/* Corporate GST Verification Panel */}
-          <div className="rounded-xl border border-slate-800 bg-slate-800/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="rounded-xl border border-slate-800/90 bg-slate-900/60 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold text-white flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-blue-400" />
@@ -298,7 +298,7 @@ export function MonetizationModal({
                 }}
                 placeholder="27AAAAA0000A1Z5"
                 maxLength={15}
-                className="bg-slate-800 border border-slate-700 rounded-xl px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-44 uppercase"
+                className="bg-slate-800/90 border border-slate-700/80 rounded-xl px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-36 sm:w-44 uppercase"
               />
               <button
                 type="button"
@@ -307,7 +307,7 @@ export function MonetizationModal({
                     setGstVerified(true);
                   }
                 }}
-                className={`btn-secondary h-11 px-5 py-2.5 rounded-xl text-xs font-medium shrink-0 ${gstVerified ? 'border-emerald-500 text-emerald-400' : ''}`}
+                className={`btn-secondary h-10 px-4 rounded-xl text-xs font-medium shrink-0 ${gstVerified ? 'border-emerald-500 text-emerald-400' : ''}`}
               >
                 {gstVerified ? 'Verified' : 'Verify'}
               </button>

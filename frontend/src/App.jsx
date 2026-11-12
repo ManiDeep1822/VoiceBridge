@@ -434,6 +434,7 @@ export default function App() {
                 onToggleVolumeBoost={() => setVolumeBoost(prev => !prev)}
                 audioUnlocked={audioUnlocked}
                 onUnlockAudio={unlockAudio}
+                transcript={transcript}
               />
             )}
 
