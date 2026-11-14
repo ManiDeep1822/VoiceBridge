@@ -446,3 +446,91 @@ def test_ping_check_telemetry(live_server):
 
         await sio.disconnect()
     asyncio.run(_run())
+
+def test_speech_segment_preserves_domain_and_applies_glossary(live_server):
+    async def _run():
+        server_url = f"http://127.0.0.1:{live_server}"
+        sio = socketio.AsyncClient()
+
+        delivered_event = asyncio.Event()
+        delivered_payload = {}
+
+        @sio.event
+        def speech_delivered(data):
+            delivered_payload.clear()
+            delivered_payload.update(data)
+            delivered_event.set()
+
+        await sio.connect(server_url)
+        await sio.emit("join_room", {"roomId": "room-domain-glossary", "userId": "Doctor_User", "language": "en"})
+        await asyncio.sleep(0.4)
+
+        # 1. Test medical domain: "heart attack" -> "myocardial infarction"
+        delivered_event.clear()
+        await sio.emit("speech_segment", {
+            "originalText": "The patient suffered a severe heart attack",
+            "sourceLang": "en",
+            "targetLang": "en",
+            "domain": "medical"
+        })
+        await asyncio.wait_for(delivered_event.wait(), timeout=5.0)
+        assert "myocardial infarction" in delivered_payload.get("translatedText", "").lower()
+
+        # 2. Test fintech domain: "operating profit" -> "EBITDA margin"
+        delivered_event.clear()
+        await sio.emit("speech_segment", {
+            "originalText": "We must optimize our operating profit",
+            "sourceLang": "en",
+            "targetLang": "en",
+            "domain": "fintech"
+        })
+        await asyncio.wait_for(delivered_event.wait(), timeout=5.0)
+        assert "ebitda margin" in delivered_payload.get("translatedText", "").lower()
+
+        await sio.disconnect()
+    asyncio.run(_run())
+
+def test_speech_segment_domain_default_and_fallback(live_server):
+    async def _run():
+        server_url = f"http://127.0.0.1:{live_server}"
+        sio = socketio.AsyncClient()
+
+        delivered_event = asyncio.Event()
+        delivered_payload = {}
+
+        @sio.event
+        def speech_delivered(data):
+            delivered_payload.clear()
+            delivered_payload.update(data)
+            delivered_event.set()
+
+        await sio.connect(server_url)
+        await sio.emit("join_room", {"roomId": "room-domain-fallback", "userId": "General_User", "language": "en"})
+        await asyncio.sleep(0.4)
+
+        # 1. Emit without domain (verifying default "general", no glossary replacement for medical term)
+        delivered_event.clear()
+        await sio.emit("speech_segment", {
+            "originalText": "The patient suffered a heart attack",
+            "sourceLang": "en",
+            "targetLang": "en"
+        })
+        await asyncio.wait_for(delivered_event.wait(), timeout=5.0)
+        translated_no_domain = delivered_payload.get("translatedText", "").lower()
+        assert "heart attack" in translated_no_domain
+        assert "myocardial infarction" not in translated_no_domain
+
+        # 2. Emit with unknown domain (verifying graceful fallback to standard translation without dropping)
+        delivered_event.clear()
+        await sio.emit("speech_segment", {
+            "originalText": "Standard operational report for review",
+            "sourceLang": "en",
+            "targetLang": "en",
+            "domain": "unknown_domain_xyz"
+        })
+        await asyncio.wait_for(delivered_event.wait(), timeout=5.0)
+        translated_fallback = delivered_payload.get("translatedText", "")
+        assert "Standard operational report" in translated_fallback
+
+        await sio.disconnect()
+    asyncio.run(_run())

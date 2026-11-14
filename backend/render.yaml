@@ -1,11 +1,20 @@
 services:
   - type: web
-    name: voicebridge-backend
-    runtime: python
+    name: voicebridge-production
+    runtime: docker
     region: oregon
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:socket_app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ../Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
+      - key: KEEP_ALIVE
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: RAZORPAY_KEY_ID
+        value: "rzp_test_voicebridge_sandbox"
+      - key: RAZORPAY_KEY_SECRET
+        value: "secret_voicebridge_sandbox_2026"
+      - key: STRIPE_PUBLISHABLE_KEY
+        value: "pk_test_voicebridge_sandbox"
+      - key: STRIPE_SECRET_KEY
+        value: "sk_test_voicebridge_sandbox_2026"

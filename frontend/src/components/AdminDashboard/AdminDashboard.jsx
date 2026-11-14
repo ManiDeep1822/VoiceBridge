@@ -4,13 +4,16 @@ import {
   CheckCircle2, RefreshCw, PhoneCall, ArrowRight,
   Plus, Trash2, Download, PowerOff, X, UserCheck
 } from 'lucide-react';
+import { determineBackendUrl } from '../../utils/backendUrl';
 
 export function AdminDashboard({
-  backendUrl = '',
+  backendUrl: propBackendUrl = '',
   currency = 'INR',
   onOpenPricing
 }) {
+  const backendUrl = propBackendUrl || determineBackendUrl();
   const [liveRoomsData, setLiveRoomsData] = useState({ total_rooms: 0, rooms: {} });
+  const [totalCallLogs, setTotalCallLogs] = useState(0);
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberName, setMemberName] = useState('');
@@ -47,6 +50,16 @@ export function AdminDashboard({
       if (res.ok) {
         const data = await res.json();
         setLiveRoomsData(data);
+      }
+
+      // Also fetch real call logs count from SQLite
+      const logsUrl = backendUrl ? `${backendUrl}/api/call-logs` : '/api/call-logs';
+      const logsRes = await fetch(logsUrl);
+      if (logsRes.ok) {
+        const logsData = await logsRes.json();
+        if (logsData && typeof logsData.total === 'number') {
+          setTotalCallLogs(logsData.total);
+        }
       }
     } catch (e) {
       // Graceful fallback
@@ -115,6 +128,7 @@ export function AdminDashboard({
       timestamp: new Date().toISOString(),
       fleetHealth: 'Operational (99.98%)',
       totalLiveRooms: liveRoomsData.total_rooms,
+      totalArchivedLogs: totalCallLogs,
       activeRooms: liveRoomsData.rooms,
       teamMembers: orgUsers
     };
@@ -124,24 +138,26 @@ export function AdminDashboard({
     const a = document.createElement('a');
     a.href = url;
     a.download = `VoiceBridge_Fleet_Audit_${Date.now()}.json`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#07090C] p-3 sm:p-6 overflow-y-auto w-full space-y-4 sm:space-y-5 select-none font-sans text-sm box-border">
-      {/* Header Bar */}
-      <div className="rounded-2xl bg-[#0D121F]/90 border border-slate-800/90 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+    <div className="flex-1 flex flex-col h-full bg-black p-3 sm:p-6 overflow-y-auto w-full space-y-4 sm:space-y-5 select-none font-sans text-sm box-border">
+      {/* Header Bar - Swiss Monochrome */}
+      <div className="rounded-2xl bg-zinc-950 border border-white/20 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xl">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
               Admin Console
             </h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/20 glow-emerald">
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/10 text-white font-mono uppercase tracking-wider border border-white/20">
               Fleet Operational
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
+          <p className="text-xs sm:text-sm text-zinc-400 max-w-xl">
             Real-time session monitoring, system health metrics, active room management, and enterprise seats.
           </p>
         </div>
@@ -149,90 +165,92 @@ export function AdminDashboard({
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleExportTelemetry}
-            className="btn-secondary h-10 px-3.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 shrink-0"
+            className="h-10 px-3.5 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 shrink-0 bg-zinc-900 border border-white/20 text-white hover:bg-zinc-850 hover:border-white transition-colors cursor-pointer"
             title="Download fleet audit telemetry"
           >
-            <Download className="w-3.5 h-3.5 text-slate-300" />
+            <Download className="w-3.5 h-3.5 text-zinc-300" />
             <span className="hidden sm:inline">Export Audit</span>
           </button>
 
           <button
             onClick={fetchLiveRooms}
             disabled={isLoadingRooms}
-            className="btn-secondary h-10 px-4 rounded-xl text-xs sm:text-sm font-medium shrink-0 flex items-center gap-1.5"
+            className="h-10 px-4 rounded-xl text-xs sm:text-sm font-medium shrink-0 flex items-center gap-1.5 bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer font-semibold shadow-sm"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingRooms ? 'animate-spin text-blue-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingRooms ? 'animate-spin text-black' : ''}`} />
             <span>Refresh Status</span>
           </button>
         </div>
       </div>
 
       {statusMessage && (
-        <div className="rounded-xl border border-blue-500/40 bg-blue-500/10 text-blue-400 p-3 text-xs font-semibold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div className="rounded-xl border border-white/30 bg-zinc-900 text-white p-3 text-xs font-semibold flex items-center gap-2 animate-fadeIn font-mono">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-white" />
           <span>{statusMessage}</span>
         </div>
       )}
 
-      {/* KPI Metrics */}
+      {/* KPI Metrics - Swiss Minimalist Monochrome */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="rounded-xl bg-[#0D121F]/80 border border-slate-800/80 p-3.5 sm:p-4 space-y-1">
-          <div className="flex justify-between items-center text-xs text-slate-400">
+        <div className="rounded-xl bg-zinc-950 border border-white/15 p-3.5 sm:p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-zinc-400 font-mono">
             <span>Monthly Run-Rate</span>
             <span className="font-semibold text-white">{isINR ? '₹ INR' : '$ USD'}</span>
           </div>
           <div className="text-xl sm:text-2xl font-bold text-white">
             {isINR ? '₹ 29,80,000' : '$ 35,760'}
           </div>
-          <div className="text-[11px] text-slate-400 font-medium">Enterprise licenses</div>
+          <div className="text-[11px] text-zinc-400 font-mono">Enterprise licenses</div>
         </div>
 
-        <div className="rounded-xl bg-[#0D121F]/80 border border-slate-800/80 p-3.5 sm:p-4 space-y-1">
-          <div className="flex justify-between items-center text-xs text-slate-400">
+        <div className="rounded-xl bg-zinc-950 border border-white/15 p-3.5 sm:p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-zinc-400 font-mono">
             <span>Active Live Rooms</span>
-            <Activity className="w-3.5 h-3.5 text-emerald-400" />
+            <Activity className="w-3.5 h-3.5 text-zinc-300" />
           </div>
           <div className="text-xl sm:text-2xl font-bold text-white">
             {liveRoomsData.total_rooms} Rooms
           </div>
-          <div className="text-[11px] text-emerald-400 font-medium">Real-time WebRTC channels</div>
+          <div className="text-[11px] text-zinc-400 font-mono">Real-time WebRTC channels</div>
         </div>
 
-        <div className="rounded-xl bg-[#0D121F]/80 border border-slate-800/80 p-3.5 sm:p-4 space-y-1">
-          <div className="flex justify-between items-center text-xs text-slate-400">
-            <span>Translation Engine</span>
-            <Server className="w-3.5 h-3.5 text-blue-400" />
+        <div className="rounded-xl bg-zinc-950 border border-white/15 p-3.5 sm:p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-zinc-400 font-mono">
+            <span>Database Call Logs</span>
+            <Server className="w-3.5 h-3.5 text-zinc-300" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold text-white">Google Neural</div>
-          <div className="text-[11px] text-emerald-400 font-medium">Sub-200ms processing</div>
+          <div className="text-xl sm:text-2xl font-bold text-white">
+            {totalCallLogs} Logs
+          </div>
+          <div className="text-[11px] text-zinc-400 font-mono">SQLite WAL persistence</div>
         </div>
 
-        <div className="rounded-xl bg-[#0D121F]/80 border border-slate-800/80 p-3.5 sm:p-4 space-y-1">
-          <div className="flex justify-between items-center text-xs text-slate-400">
-            <span>System Health</span>
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="rounded-xl bg-zinc-950 border border-white/15 p-3.5 sm:p-4 space-y-1">
+          <div className="flex justify-between items-center text-xs text-zinc-400 font-mono">
+            <span>Fleet Health</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-zinc-300" />
           </div>
           <div className="text-xl sm:text-2xl font-bold text-white">99.98%</div>
-          <div className="text-[11px] text-emerald-400 font-medium">All clusters healthy</div>
+          <div className="text-[11px] text-zinc-400 font-mono">All clusters healthy</div>
         </div>
       </div>
 
       {/* Main Split: Live Rooms + User Seats */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 flex-1 min-h-0">
         {/* Active Rooms */}
-        <div className="lg:col-span-6 rounded-2xl bg-[#0D121F]/90 border border-slate-800/90 p-4 sm:p-5 space-y-4 shadow-lg flex flex-col justify-between overflow-hidden">
+        <div className="lg:col-span-6 rounded-2xl bg-zinc-950 border border-white/20 p-4 sm:p-5 space-y-4 shadow-lg flex flex-col justify-between overflow-hidden">
           <div>
-            <div className="border-b border-slate-800/80 pb-3.5 mb-3.5 flex items-center justify-between">
+            <div className="border-b border-white/10 pb-3.5 mb-3.5 flex items-center justify-between">
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-white">
                   Active Call Sessions
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-zinc-400">
                   Real-time rooms currently hosting live callers
                 </p>
               </div>
 
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/10 text-white border border-white/20 font-mono">
                 {liveRoomsData.total_rooms} Live
               </span>
             </div>
@@ -240,19 +258,19 @@ export function AdminDashboard({
             {Object.keys(liveRoomsData.rooms || {}).length > 0 ? (
               <div className="space-y-3">
                 {Object.entries(liveRoomsData.rooms).map(([roomId, participants]) => (
-                  <div key={roomId} className="p-3.5 rounded-xl bg-slate-800/70 border border-slate-700/60 flex items-center justify-between">
+                  <div key={roomId} className="p-3.5 rounded-xl bg-black border border-white/20 flex items-center justify-between">
                     <div>
-                      <div className="font-semibold text-white text-sm">{roomId}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">
+                      <div className="font-semibold text-white text-sm font-mono">{roomId}</div>
+                      <div className="text-xs text-zinc-400 mt-0.5">
                         {Array.isArray(participants) ? participants.length : 1} Participant(s) • Live Voice Stream
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse glow-emerald" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
                       <button
                         onClick={() => handleTerminateRoom(roomId)}
-                        className="btn-danger h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1"
+                        className="h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1 bg-zinc-900 border border-white/20 text-white hover:bg-zinc-800 cursor-pointer"
                         title="Force terminate call room"
                       >
                         <PowerOff className="w-3.5 h-3.5" />
@@ -263,24 +281,24 @@ export function AdminDashboard({
                 ))}
               </div>
             ) : (
-              <div className="text-center py-10 text-slate-500 text-xs">
-                <PhoneCall className="w-8 h-8 mx-auto mb-2 opacity-40 text-blue-400" />
-                <p className="text-slate-400 font-medium">No active call rooms at this moment.</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">When callers join from Call Studio, they will appear here in real time.</p>
+              <div className="text-center py-10 text-zinc-500 text-xs">
+                <PhoneCall className="w-8 h-8 mx-auto mb-2 opacity-40 text-white" />
+                <p className="text-zinc-300 font-medium">No active call rooms at this moment.</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">When callers join from Call Studio, they will appear here in real time.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Organization Members */}
-        <div className="lg:col-span-6 rounded-2xl bg-[#0D121F]/90 border border-slate-800/90 p-4 sm:p-5 space-y-4 shadow-lg flex flex-col justify-between overflow-hidden">
+        <div className="lg:col-span-6 rounded-2xl bg-zinc-950 border border-white/20 p-4 sm:p-5 space-y-4 shadow-lg flex flex-col justify-between overflow-hidden">
           <div>
-            <div className="border-b border-slate-800/80 pb-3.5 mb-3.5 flex items-center justify-between">
+            <div className="border-b border-white/10 pb-3.5 mb-3.5 flex items-center justify-between">
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-white">
                   Team Members & Seats
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-zinc-400">
                   Provisioned operator licenses and access roles
                 </p>
               </div>
@@ -288,7 +306,7 @@ export function AdminDashboard({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowAddMember(prev => !prev)}
-                  className="btn-primary h-8.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1"
+                  className="h-8.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1 bg-white text-black hover:bg-zinc-200 cursor-pointer shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Member</span>
@@ -296,7 +314,7 @@ export function AdminDashboard({
 
                 <button
                   onClick={onOpenPricing}
-                  className="btn-secondary h-8.5 px-3 rounded-lg text-xs font-medium"
+                  className="h-8.5 px-3 rounded-lg text-xs font-medium bg-zinc-900 border border-white/20 text-white hover:bg-zinc-800 cursor-pointer"
                 >
                   Add Seats
                 </button>
@@ -305,10 +323,10 @@ export function AdminDashboard({
 
             {/* Inline Add Member Form */}
             {showAddMember && (
-              <form onSubmit={handleAddMember} className="p-3 bg-slate-800/90 rounded-xl border border-slate-700/80 space-y-2 mb-3">
+              <form onSubmit={handleAddMember} className="p-3 bg-black rounded-xl border border-white/20 space-y-2 mb-3">
                 <div className="flex justify-between items-center text-xs font-semibold text-white">
                   <span>Provision New Operator</span>
-                  <button type="button" onClick={() => setShowAddMember(false)} className="text-slate-400 hover:text-white">
+                  <button type="button" onClick={() => setShowAddMember(false)} className="text-zinc-400 hover:text-white cursor-pointer">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -319,7 +337,7 @@ export function AdminDashboard({
                     onChange={(e) => setMemberName(e.target.value)}
                     placeholder="Full Name"
                     required
-                    className="h-8 px-2.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    className="h-8 px-2.5 bg-zinc-950 border border-white/20 rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
                   />
                   <input
                     type="email"
@@ -327,20 +345,20 @@ export function AdminDashboard({
                     onChange={(e) => setMemberEmail(e.target.value)}
                     placeholder="operator@enterprise.com"
                     required
-                    className="h-8 px-2.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    className="h-8 px-2.5 bg-zinc-950 border border-white/20 rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
                   />
                 </div>
                 <div className="flex gap-2">
                   <select
                     value={memberRole}
                     onChange={(e) => setMemberRole(e.target.value)}
-                    className="flex-1 h-8 px-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-blue-500"
+                    className="flex-1 h-8 px-2 bg-zinc-950 border border-white/20 rounded-lg text-xs text-white focus:outline-none focus:border-white"
                   >
-                    <option value="Operator">Operator</option>
-                    <option value="Auditor">Auditor</option>
-                    <option value="Administrator">Administrator</option>
+                    <option value="Operator" className="bg-black text-white">Operator</option>
+                    <option value="Auditor" className="bg-black text-white">Auditor</option>
+                    <option value="Administrator" className="bg-black text-white">Administrator</option>
                   </select>
-                  <button type="submit" className="btn-success h-8 px-4 rounded-lg text-xs font-semibold">
+                  <button type="submit" className="h-8 px-4 rounded-lg text-xs font-semibold bg-white text-black hover:bg-zinc-200 cursor-pointer">
                     Confirm Seat
                   </button>
                 </div>
@@ -350,30 +368,30 @@ export function AdminDashboard({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800/80 text-slate-400 text-xs">
+                  <tr className="border-b border-white/10 text-zinc-400 text-xs font-mono">
                     <th className="pb-3 font-semibold">User</th>
                     <th className="pb-3 font-semibold">Role</th>
                     <th className="pb-3 font-semibold">Plan</th>
                     <th className="pb-3 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-white/10">
                   {orgUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
+                    <tr key={u.id} className="hover:bg-zinc-900/60 transition-colors">
                       <td className="py-3">
                         <div className="font-semibold text-white">{u.name}</div>
-                        <div className="text-xs text-slate-400">{u.email}</div>
+                        <div className="text-xs text-zinc-400 font-mono">{u.email}</div>
                       </td>
-                      <td className="py-3 text-slate-300">{u.role}</td>
-                      <td className="py-3 text-slate-300">{u.tier}</td>
+                      <td className="py-3 text-zinc-300 font-mono">{u.role}</td>
+                      <td className="py-3 text-zinc-300 font-mono">{u.tier}</td>
                       <td className="py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleToggleMemberStatus(u.id)}
-                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors ${
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors font-mono cursor-pointer ${
                               u.status === 'Active'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-amber-500/10 hover:text-amber-400'
-                                : 'bg-slate-800 text-slate-400 hover:text-emerald-400'
+                                ? 'bg-white/15 text-white border border-white/30 hover:bg-white/25'
+                                : 'bg-zinc-900 text-zinc-400 hover:text-white border border-white/10'
                             }`}
                             title="Click to toggle status"
                           >
@@ -381,7 +399,7 @@ export function AdminDashboard({
                           </button>
                           <button
                             onClick={() => handleRemoveMember(u.id)}
-                            className="text-slate-500 hover:text-red-400 p-1"
+                            className="text-zinc-500 hover:text-white p-1 cursor-pointer"
                             title="Remove operator"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

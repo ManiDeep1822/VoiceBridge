@@ -3,9 +3,26 @@ import logging
 import re
 import time
 from typing import Dict, Any, List
-from services.translator import translate_text
-from services.tts import synthesize_speech
-from services.prosody_engine import enhance_conversational_text, classify_and_punctuate_intent, deduplicate_phrase_loops
+try:
+    from services.translator import translate_text
+    from services.tts import synthesize_speech
+    from services.prosody_engine import (
+        enhance_conversational_text,
+        classify_and_punctuate_intent,
+        deduplicate_phrase_loops,
+    )
+    from services.glossary import apply_glossary_protection, restore_glossary_terms
+    from database import upsert_room, close_room_in_db, create_call_log
+except ImportError:
+    from backend.services.translator import translate_text
+    from backend.services.tts import synthesize_speech
+    from backend.services.prosody_engine import (
+        enhance_conversational_text,
+        classify_and_punctuate_intent,
+        deduplicate_phrase_loops,
+    )
+    from backend.services.glossary import apply_glossary_protection, restore_glossary_terms
+    from backend.database import upsert_room, close_room_in_db, create_call_log
 
 logger = logging.getLogger("socket_handlers")
 
@@ -17,6 +34,30 @@ ROOM_ID_REGEX = re.compile(r"^[a-zA-Z0-9_-]{3,32}$")
 rooms: Dict[str, Dict[str, Any]] = {}
 sid_to_room: Dict[str, str] = {}
 socket_activity: Dict[str, List[float]] = {}
+room_start_times: Dict[str, float] = {}
+room_transcripts: Dict[str, List[Dict[str, Any]]] = {}
+room_callers: Dict[str, List[str]] = {}
+
+def finalize_room_log(room_id: str):
+    """Closes room in DB and archives call transcript and duration to call_logs table."""
+    try:
+        close_room_in_db(room_id)
+        start_time = room_start_times.pop(room_id, None)
+        duration = int(time.time() - start_time) if start_time else 0
+        transcripts = room_transcripts.pop(room_id, [])
+        callers = room_callers.pop(room_id, [])
+        caller_id = callers[0] if len(callers) > 0 else "user_caller"
+        peer_id = callers[1] if len(callers) > 1 else None
+        create_call_log(
+            room_id=room_id,
+            caller_id=caller_id,
+            peer_id=peer_id,
+            duration_seconds=duration,
+            transcript_json=transcripts
+        )
+        logger.info(f"Persisted call log for room '{room_id}' (duration: {duration}s, utterances: {len(transcripts)})")
+    except Exception as e:
+        logger.warning(f"Failed to persist call log for room '{room_id}': {e}")
 
 def register_socket_events(sio):
     @sio.event
@@ -37,6 +78,7 @@ def register_socket_events(sio):
                 await sio.emit("peer_disconnected", {"peerId": user_data.get("userId") if user_data else "peer"}, to=peer_sid)
             else:
                 rooms.pop(room_id, None)
+                finalize_room_log(room_id)
 
     @sio.event
     async def leave_room(sid, data=None):
@@ -51,6 +93,7 @@ def register_socket_events(sio):
                 await sio.emit("peer_disconnected", {"peerId": user_data.get("userId") if user_data else "peer"}, to=peer_sid)
             else:
                 rooms.pop(room_id, None)
+                finalize_room_log(room_id)
             try:
                 await sio.leave_room(sid, room_id)
             except Exception:
@@ -61,8 +104,8 @@ def register_socket_events(sio):
     async def join_room(sid, data=None):
         if not isinstance(data, dict):
             data = {}
-        room_id = str(data.get("roomId", "")).strip()
-        user_id = str(data.get("userId", f"user_{sid[:5]}")).strip()
+        room_id = str(data.get("roomId") or "").strip()
+        user_id = str(data.get("userId") or "").strip() or f"user_{sid[:5]}"
         user_name = str(data.get("userName", f"Caller {user_id[-4:]}")).strip()
         language = str(data.get("language", "te")).strip()
         voice_gender = str(data.get("voiceGender", "female")).strip()
@@ -122,6 +165,21 @@ def register_socket_events(sio):
         }
         sid_to_room[sid] = room_id
         await sio.enter_room(sid, room_id)
+
+        # Sync with persistent room tracking & DB
+        if room_id not in room_start_times:
+            room_start_times[room_id] = time.time()
+        if room_id not in room_transcripts:
+            room_transcripts[room_id] = []
+        if room_id not in room_callers:
+            room_callers[room_id] = []
+        if user_id not in room_callers[room_id]:
+            room_callers[room_id].append(user_id)
+
+        try:
+            upsert_room(room_id, created_by=user_id, status="active", max_participants=2)
+        except Exception as e:
+            logger.warning(f"Failed to upsert room in db: {e}")
 
         participants = list(rooms[room_id].values())
         logger.info(f"User '{user_id}' ({language}) joined room '{room_id}'. Total participants: {len(participants)}")
@@ -303,12 +361,12 @@ def register_socket_events(sio):
 
             # Stage 1: Fast translation (< 200ms) with glossary terminology protection
             try:
-                from services.glossary import apply_glossary_protection, restore_glossary_terms
                 domain = str(data.get("domain") or "general").strip().lower()
                 protected_text, _ = apply_glossary_protection(enhanced_original, domain)
                 translated_raw = await translate_text(protected_text, source_lang, target_lang)
                 translated_text = restore_glossary_terms(translated_raw)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Glossary-protected translation failed, falling back: {e}")
                 translated_text = await translate_text(enhanced_original, source_lang, target_lang)
 
             # Strip any phrase or word loops that might emerge from translation or mobile STT
@@ -361,6 +419,17 @@ def register_socket_events(sio):
                 "translatedText": punctuated_translated,
                 "isSolo": is_solo
             }, to=sid)
+
+            # Record into transcript history for room
+            if room_id in room_transcripts:
+                room_transcripts[room_id].append({
+                    "timestamp": time.time(),
+                    "speaker": sender.get("userId", "peer"),
+                    "originalText": enhanced_original,
+                    "translatedText": punctuated_translated,
+                    "sourceLang": source_lang,
+                    "targetLang": target_lang
+                })
 
             # Stage 3: Studio neural voice synthesis (Natural human conversational cadence +3%, steady baseline pitch with expressive tail inflection)
             audio_bytes = await synthesize_speech(

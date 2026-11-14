@@ -65,22 +65,45 @@ npm run dev
 
 ## 🧪 Verification & Test Suite
 
-### Backend Test Suite (Pytest):
+### 1. Backend Test Suite (Pytest):
+Execute from workspace root:
 ```powershell
-python -m pytest backend/tests
+pytest
 ```
-*(All 29 tests pass with 100% success rate)*
+*Or from the `backend/` directory:*
+```powershell
+cd backend
+pytest
+```
+*(All 77 tests pass with 100% success rate across 8 test files)*
 
-### Frontend Unit Tests (Node Test Runner):
+### 2. Frontend Unit Tests (Node Test Runner):
+Execute from workspace root:
+```powershell
+npm --prefix frontend test
+```
+*Or from the `frontend/` directory:*
 ```powershell
 cd frontend
 npm test
 ```
-*(All 12 unit tests pass)*
+*(All 71 unit tests pass across 11 test suites with 0 failures)*
 
-### Production Build:
+### 3. Frontend Tooling & Compliance:
+```powershell
+npm --prefix frontend run lint
+npm --prefix frontend run format
+npm --prefix frontend run typecheck
+```
+
+### 4. Production Build:
+Execute from workspace root:
+```powershell
+npm --prefix frontend run build
+```
+*Or from the `frontend/` directory:*
 ```powershell
 cd frontend
 npm run build
 ```
-*(Bundles cleanly into `frontend/dist` in ~3 seconds)*
+*(Bundles cleanly into `frontend/dist` in ~2.5 seconds)*

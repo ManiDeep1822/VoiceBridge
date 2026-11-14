@@ -1,13 +1,50 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const ICE_SERVERS = {
+export const DEFAULT_ICE_SERVERS = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' }
+    {
+      urls: [
+        'stun:stun.l.google.com:19302',
+        'stun:stun1.l.google.com:19302',
+        'stun:stun2.l.google.com:19302',
+        'stun:stun3.l.google.com:19302',
+        'stun:stun4.l.google.com:19302'
+      ]
+    },
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:80?transport=tcp',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+        'turn:openrelay.metered.ca:3478',
+        'turn:openrelay.metered.ca:3478?transport=tcp'
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
   ]
 };
+
+export async function fetchIceServers(baseUrl = '') {
+  try {
+    const url = baseUrl ? `${baseUrl.replace(/\/$/, '')}/api/ice-servers` : '/api/ice-servers';
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 3500) : null;
+    const res = await fetch(url, controller ? { signal: controller.signal } : {});
+    if (timer) clearTimeout(timer);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.iceServers) && data.iceServers.length > 0) {
+        return data;
+      }
+    }
+  } catch (err) {
+    console.warn('[WebRTC] Dynamic ICE server fetch failed, using built-in STUN/OpenRelay fallback:', err);
+  }
+  return DEFAULT_ICE_SERVERS;
+}
 
 export function useWebRTC({
   backendUrl = '',
@@ -31,6 +68,7 @@ export function useWebRTC({
   const pcRef = useRef(null);
   const dataChannelRef = useRef(null);
   const pingIntervalRef = useRef(null);
+  const iceServersRef = useRef(DEFAULT_ICE_SERVERS);
 
   // Initialize Socket.IO connection
   const connect = useCallback((targetRoomId) => {
@@ -57,6 +95,13 @@ export function useWebRTC({
 
     setConnectionState('connecting');
     setErrorMsg(null);
+
+    // Asynchronously resolve dynamic ICE servers with STUN/OpenRelay fallback
+    fetchIceServers(backendUrl).then((resolvedIce) => {
+      if (resolvedIce && resolvedIce.iceServers) {
+        iceServersRef.current = resolvedIce;
+      }
+    }).catch(() => {});
 
     const socket = io(backendUrl || undefined, {
       transports: ['websocket', 'polling'],
@@ -99,8 +144,15 @@ export function useWebRTC({
       setConnectionState('connected');
       setRemotePeer(data.peer);
 
+      // Resolve ICE servers (use pre-fetched config or fallback)
+      let iceConfig = iceServersRef.current || DEFAULT_ICE_SERVERS;
+      if (!iceConfig || !iceConfig.iceServers || iceConfig.iceServers.length === 0) {
+        iceConfig = await fetchIceServers(backendUrl);
+        iceServersRef.current = iceConfig;
+      }
+
       // Create WebRTC PeerConnection for ultra-low latency signaling & data
-      const pc = new RTCPeerConnection(ICE_SERVERS);
+      const pc = new RTCPeerConnection(iceConfig);
       pcRef.current = pc;
 
       // Handle ICE Candidates
@@ -295,12 +347,13 @@ export function useWebRTC({
   }, []);
 
   // Send speech segment to peer
-  const emitSpeechSegment = useCallback((originalText, sourceLang, targetLang) => {
+  const emitSpeechSegment = useCallback((originalText, sourceLang, targetLang, domain = 'general') => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('speech_segment', {
         originalText,
         sourceLang,
-        targetLang
+        targetLang,
+        domain
       });
     }
   }, []);

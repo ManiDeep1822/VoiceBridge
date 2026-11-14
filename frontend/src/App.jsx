@@ -8,8 +8,7 @@ import { SettingsModal } from './components/Settings/SettingsModal';
 import { MonetizationModal } from './components/MonetizationModal';
 import { MinutesDrawer } from './components/MinutesDrawer';
 import { GlossaryDrawer } from './components/GlossaryDrawer';
-import { UserLogin } from './components/Auth/UserLogin';
-import { AdminLogin } from './components/Auth/AdminLogin';
+import { EnterpriseAuth } from './components/Auth/EnterpriseAuth';
 
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
@@ -53,7 +52,7 @@ export default function App() {
   const [activeTier, setActiveTier] = useState('free'); // 'free' | 'pro' | 'enterprise'
   const [currency, setCurrency] = useState('INR'); // Default Indian Rupee (₹ INR)
 
-  // Authentication & Role Separation State
+  // Authentication & Role Separation State (Enterprise IAM)
   const [currentUser, setCurrentUser] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -64,16 +63,7 @@ export default function App() {
     return null;
   });
 
-  const [authView, setAuthView] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('auth') === 'admin') return 'admin-login';
-      if (params.get('auth') === 'login') return 'user-login';
-    }
-    return 'app';
-  });
-
-  const [isGuestJoin] = useState(() => {
+  const [isGuestJoin, setIsGuestJoin] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       return params.get('mode') === 'join';
@@ -81,26 +71,40 @@ export default function App() {
     return false;
   });
 
-  const handleUserLoginSuccess = (user) => {
+  const [isInsecureOrigin, setIsInsecureOrigin] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const { protocol, hostname } = window.location;
+      const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+      return protocol === 'http:' && !isLocal;
+    }
+    return false;
+  });
+
+  const handleLoginSuccess = (user) => {
     setCurrentUser(user);
-    setUserName(user.name);
-    setAuthView('app');
+    if (user.name) setUserName(user.name);
+    if (user.role === 'Administrator') {
+      setActiveTab('admin-dashboard');
+    } else {
+      setActiveTab('studio');
+    }
   };
 
-  const handleAdminLoginSuccess = (admin) => {
-    setCurrentUser(admin);
-    setUserName(admin.name);
-    setActiveTab('admin-dashboard');
-    setAuthView('app');
+  const handleGuestJoin = ({ roomId: guestRoom, guestName }) => {
+    if (guestRoom) setRoomId(guestRoom);
+    if (guestName) setUserName(guestName);
+    setIsGuestJoin(true);
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setIsGuestJoin(false);
     try {
+      localStorage.removeItem('voicebridge_token');
       localStorage.removeItem('voicebridge_user');
       localStorage.removeItem('voicebridge_admin');
     } catch (e) {}
-    setAuthView('user-login');
+    setActiveTab('studio');
   };
 
   const handleSelectTab = (tab) => {
@@ -108,12 +112,19 @@ export default function App() {
       if (currentUser?.role === 'Administrator') {
         setActiveTab('admin-dashboard');
       } else {
-        setAuthView('admin-login');
+        console.warn('Unauthorized access attempt to Admin Fleet Console. Access denied.');
       }
       return;
     }
     setActiveTab(tab);
   };
+
+  // RBAC safety enforcement: non-admins cannot access admin-dashboard
+  useEffect(() => {
+    if (activeTab === 'admin-dashboard' && currentUser?.role !== 'Administrator') {
+      setActiveTab('studio');
+    }
+  }, [activeTab, currentUser]);
 
   // Modals Visibility
   const [isPricingOpen, setIsPricingOpen] = useState(false);
@@ -158,6 +169,47 @@ export default function App() {
 
   // Backend Origin (Localhost dev, 127.0.0.1, LAN IPs, same-origin FastAPI, or Render cloud backend)
   const backendUrl = determineBackendUrl();
+
+  // Auto-restore active session and user tier from backend via GET /api/auth/me
+  useEffect(() => {
+    const restoreSession = async () => {
+      if (typeof window === 'undefined') return;
+      try {
+        const token = localStorage.getItem('voicebridge_token');
+        if (!token) return;
+
+        const res = await fetch(`${backendUrl}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.user) {
+            const restoredUser = {
+              ...data.user,
+              token
+            };
+            setCurrentUser(restoredUser);
+            if (restoredUser.name) setUserName(restoredUser.name);
+            if (restoredUser.tier) setActiveTier(restoredUser.tier.toLowerCase());
+            if (restoredUser.role === 'Administrator') {
+              localStorage.setItem('voicebridge_admin', JSON.stringify(restoredUser));
+            } else {
+              localStorage.setItem('voicebridge_user', JSON.stringify(restoredUser));
+            }
+          }
+        } else if (res.status === 401) {
+          localStorage.removeItem('voicebridge_token');
+        }
+      } catch (err) {
+        // Graceful offline fallback
+      }
+    };
+
+    restoreSession();
+  }, [backendUrl]);
 
   // 1. Loudspeaker Speech Synthesis Hook (TTS Out Loud with Hybrid Engine)
   const {
@@ -244,7 +296,7 @@ export default function App() {
     const targetLang = remotePeer?.language || remoteLanguage;
 
     // 1. Dispatch speech segment across socket (0ms non-blocking; supports 2-peer and solo simulator)
-    emitSpeechSegment(cleanText, localLanguage, targetLang);
+    emitSpeechSegment(cleanText, localLanguage, targetLang, activeDomain);
 
     // 2. Perform local translation in parallel for local transcript display
     translateTextFast(cleanText, localLanguage, targetLang, activeDomain, backendUrl).then((translated) => {
@@ -298,16 +350,17 @@ export default function App() {
 
   // Handle Incoming Base64 Audio from Connected Peer (Authoritative Studio Neural Voice)
   const handleRemoteAudioReceived = useCallback((data) => {
+    const targetLang = data?.targetLang || localLanguage;
     if (data.audioBase64) {
       lastRemoteAudioBase64Ref.current = data.audioBase64;
       lastRemoteTranslatedTextRef.current = data.translatedText || '';
-      speak(data.translatedText, localLanguage, data.audioBase64);
+      speak(data.translatedText, targetLang, data.audioBase64);
       // Zero-latency buffer capture for call recording
       callRecorder.addBase64AudioChunk(data.audioBase64, remotePeer?.userName || 'Remote Caller', data.translatedText);
     } else if (data.translatedText) {
       lastRemoteAudioBase64Ref.current = null;
       lastRemoteTranslatedTextRef.current = data.translatedText;
-      speak(data.translatedText, localLanguage);
+      speak(data.translatedText, targetLang);
     }
   }, [localLanguage, remotePeer, speak]);
 
@@ -351,34 +404,33 @@ export default function App() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0B0F17] text-white select-none relative overflow-hidden font-sans">
-      {authView === 'user-login' ? (
-        <UserLogin
-          onLoginSuccess={handleUserLoginSuccess}
-          onSwitchToAdmin={() => setAuthView('admin-login')}
-          onJoinGuestRoom={() => setAuthView('app')}
-        />
-      ) : authView === 'admin-login' ? (
-        <AdminLogin
-          onAdminLoginSuccess={handleAdminLoginSuccess}
-          onSwitchToUser={() => setAuthView('user-login')}
-        />
-      ) : !hasJoinedMeeting ? (
-        /* Pre-Join Meeting Lobby (Zoom / Google Meet Style) */
-        <PreJoinLobby
-          roomId={roomId}
-          onRoomIdChange={setRoomId}
-          userName={userName}
-          onUserNameChange={setUserName}
-          selectedLanguage={localLanguage}
-          onLanguageChange={setLocalLanguage}
-          onJoinMeeting={handleJoinMeeting}
-          audioLevel={localAudioLevel}
-          onTestAudio={playTestSound}
-          isGuestJoin={isGuestJoin}
+    <div className="w-full h-full flex flex-col bg-black text-white select-none relative overflow-hidden font-sans">
+      {/* HTTPS Origin Security Guard Top Banner */}
+      {isInsecureOrigin && (
+        <div className="bg-black border-b border-white/20 text-white px-4 py-2 text-xs flex items-center justify-between gap-3 z-50 shrink-0 animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-white shrink-0 animate-pulse" />
+            <span className="font-sans font-medium text-zinc-300">
+              <strong className="text-white">HTTPS Security Warning:</strong> Non-localhost HTTP detected. Mobile browsers (iOS Safari, Android Chrome) require HTTPS or localhost for WebRTC and microphone permissions.
+            </span>
+          </div>
+          <button
+            onClick={() => setIsInsecureOrigin(false)}
+            className="text-zinc-400 hover:text-white text-xs underline font-mono shrink-0 cursor-pointer ml-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {!currentUser && !isGuestJoin ? (
+        <EnterpriseAuth
+          onLoginSuccess={handleLoginSuccess}
+          onGuestJoin={handleGuestJoin}
+          initialRoomId={roomId}
+          backendUrl={backendUrl}
         />
       ) : (
-        /* In-Meeting Experience */
         <>
           {/* 1. Global Navigation Bar */}
           <Navbar
@@ -391,51 +443,69 @@ export default function App() {
             onOpenSettings={() => setIsSettingsOpen(true)}
             currentUser={currentUser}
             onLogout={handleLogout}
-            onOpenLogin={() => setAuthView('user-login')}
+            onOpenLogin={() => {
+              setCurrentUser(null);
+              setIsGuestJoin(false);
+            }}
             roomParticipantCount={remotePeer ? 2 : 1}
           />
 
           {/* 2. Main Portal Routing Stage */}
           <main className="flex-1 flex flex-col overflow-hidden min-h-0">
             {activeTab === 'studio' && (
-              <CallStudio
-                roomId={roomId}
-                userName={userName}
-                onRoomIdChange={setRoomId}
-                connectionState={connectionState}
-                remotePeer={remotePeer}
-                onConnect={() => connectWebRTC(roomId)}
-                onDisconnect={handleLeaveRoom}
-                localLanguage={localLanguage}
-                remoteLanguage={remotePeer?.language || remoteLanguage}
-                onLocalLanguageChange={handleLocalLanguageChange}
-                onRemoteLanguageChange={handleRemoteLanguageChange}
-                isListening={isListening}
-                onStartListening={startListening}
-                onStopListening={stopListening}
-                onToggleMic={toggleListening}
-                onFinalizeTurn={finalizeTurn}
-                localAudioLevel={localAudioLevel}
-                isPeerSpeaking={isPeerSpeaking}
-                isRemoteSpeaking={isTTSActive}
-                isLocalSpeakingTTS={isTTSActive}
-                localInterim={localInterim}
-                latestLocalOriginal={latestLocalOriginal}
-                latestLocalTranslated={latestLocalTranslated}
-                latestRemoteOriginal={latestRemoteOriginal}
-                latestRemoteTranslated={latestRemoteTranslated}
-                onSendTextUtterance={handleDispatchUtterance}
-                onReplayAudio={handleReplayAudio}
-                onTestSpeaker={playTestSound}
-                onOpenMinutes={() => setIsMinutesOpen(true)}
-                onOpenGlossary={() => setIsGlossaryOpen(true)}
-                activeDomain={activeDomain}
-                volumeBoost={volumeBoost}
-                onToggleVolumeBoost={() => setVolumeBoost(prev => !prev)}
-                audioUnlocked={audioUnlocked}
-                onUnlockAudio={unlockAudio}
-                transcript={transcript}
-              />
+              !hasJoinedMeeting ? (
+                <PreJoinLobby
+                  roomId={roomId}
+                  onRoomIdChange={setRoomId}
+                  userName={userName}
+                  onUserNameChange={setUserName}
+                  selectedLanguage={localLanguage}
+                  onLanguageChange={handleLocalLanguageChange}
+                  onJoinMeeting={handleJoinMeeting}
+                  audioLevel={localAudioLevel}
+                  onTestAudio={playTestSound}
+                  isGuestJoin={isGuestJoin && !currentUser}
+                />
+              ) : (
+                <CallStudio
+                  roomId={roomId}
+                  userName={userName}
+                  onRoomIdChange={setRoomId}
+                  connectionState={connectionState}
+                  remotePeer={remotePeer}
+                  onConnect={() => connectWebRTC(roomId)}
+                  onDisconnect={handleLeaveRoom}
+                  localLanguage={localLanguage}
+                  remoteLanguage={remotePeer?.language || remoteLanguage}
+                  onLocalLanguageChange={handleLocalLanguageChange}
+                  onRemoteLanguageChange={handleRemoteLanguageChange}
+                  isListening={isListening}
+                  onStartListening={startListening}
+                  onStopListening={stopListening}
+                  onToggleMic={toggleListening}
+                  onFinalizeTurn={finalizeTurn}
+                  localAudioLevel={localAudioLevel}
+                  isPeerSpeaking={isPeerSpeaking}
+                  isRemoteSpeaking={isTTSActive}
+                  isLocalSpeakingTTS={isTTSActive}
+                  localInterim={localInterim}
+                  latestLocalOriginal={latestLocalOriginal}
+                  latestLocalTranslated={latestLocalTranslated}
+                  latestRemoteOriginal={latestRemoteOriginal}
+                  latestRemoteTranslated={latestRemoteTranslated}
+                  onSendTextUtterance={handleDispatchUtterance}
+                  onReplayAudio={handleReplayAudio}
+                  onTestSpeaker={playTestSound}
+                  onOpenMinutes={() => setIsMinutesOpen(true)}
+                  onOpenGlossary={() => setIsGlossaryOpen(true)}
+                  activeDomain={activeDomain}
+                  volumeBoost={volumeBoost}
+                  onToggleVolumeBoost={() => setVolumeBoost(prev => !prev)}
+                  audioUnlocked={audioUnlocked}
+                  onUnlockAudio={unlockAudio}
+                  transcript={transcript}
+                />
+              )
             )}
 
             {activeTab === 'user-dashboard' && (
@@ -449,10 +519,11 @@ export default function App() {
                 onOpenPricing={() => setIsPricingOpen(true)}
                 activeTier={activeTier}
                 currency={currency}
+                backendUrl={backendUrl}
               />
             )}
 
-            {activeTab === 'admin-dashboard' && (
+            {activeTab === 'admin-dashboard' && currentUser?.role === 'Administrator' && (
               <AdminDashboard
                 backendUrl={backendUrl}
                 currency={currency}
@@ -487,6 +558,8 @@ export default function App() {
             onSelectTier={(tier) => setActiveTier(tier)}
             currency={currency}
             onToggleCurrency={() => setCurrency(prev => prev === 'INR' ? 'USD' : 'INR')}
+            backendUrl={backendUrl}
+            currentUser={currentUser}
           />
 
           {/* 5. Feature 01: AI Corporate Executive Meeting Minutes Drawer */}

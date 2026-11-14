@@ -4,6 +4,8 @@ import { getLocaleStrings, LOCALE_STRINGS } from '../src/utils/languages.js';
 import {
   MIN_PTT_HOLD_MS,
   PTT_RELEASE_GRACE_MS,
+  TOUCH_SLOP_PX,
+  isWithinTouchSlop,
   evaluatePttRelease,
   evaluatePttCancel,
   evaluateSpaceKeyUp
@@ -79,5 +81,83 @@ describe('Strict Push-to-Talk (PTT) & Floor Lock Strings', () => {
 
   it('defines 500ms post-release trailing grace buffer constant', () => {
     assert.strictEqual(PTT_RELEASE_GRACE_MS, 500);
+  });
+
+  it('calculates touch-slop buffer accurately for mobile touchscreens', () => {
+    assert.strictEqual(TOUCH_SLOP_PX, 20);
+
+    // Exact center hold (0px movement)
+    assert.strictEqual(isWithinTouchSlop(100, 100, 100, 100), true);
+
+    // Minor finger jitter/roll (10px, 14.14px, 20px)
+    assert.strictEqual(isWithinTouchSlop(100, 100, 100, 110), true);
+    assert.strictEqual(isWithinTouchSlop(0, 0, 10, 10), true);
+    assert.strictEqual(isWithinTouchSlop(50, 50, 70, 50), true);
+
+    // Movement exceeding touch slop threshold (> 20px)
+    assert.strictEqual(isWithinTouchSlop(0, 0, 21, 0), false);
+    assert.strictEqual(isWithinTouchSlop(50, 50, 75, 50), false);
+    assert.strictEqual(isWithinTouchSlop(0, 0, 20, 20), false); // ~28.28px
+
+    // Safe fallback for null/undefined coordinates
+    assert.strictEqual(isWithinTouchSlop(null, undefined, 5, 5), true);
+  });
+
+  it('prevents accidental pointercancel drops when within touch-slop buffer', () => {
+    // Within touch-slop buffer during hold: ignore accidental touch cancel
+    assert.deepStrictEqual(
+      evaluatePttCancel(120, { withinSlop: true, wasHolding: true }),
+      { action: 'IGNORE', dispatch: false }
+    );
+    assert.deepStrictEqual(
+      evaluatePttCancel(50, { withinSlop: true, wasHolding: true }),
+      { action: 'IGNORE', dispatch: false }
+    );
+
+    // Beyond touch-slop buffer: abort recording cleanly
+    assert.deepStrictEqual(
+      evaluatePttCancel(120, { withinSlop: false, wasHolding: true }),
+      { action: 'CANCEL', dispatch: false }
+    );
+
+    // Held >= 200ms: always finalizes regardless of slop
+    assert.deepStrictEqual(
+      evaluatePttCancel(250, { withinSlop: true, wasHolding: true }),
+      { action: 'FINALIZE', dispatch: true, waitMs: 500 }
+    );
+  });
+
+  it('supports seamless single-tap and hold-to-talk parity', () => {
+    // 1. Single-tap to talk (< 200ms) when not listening: keeps mic active
+    assert.deepStrictEqual(
+      evaluatePttRelease(80, { tapToTalk: true, isListening: false }),
+      { action: 'KEEP_LISTENING', dispatch: false }
+    );
+
+    // 2. Single-tap to finish (< 200ms) when already listening: finalizes and sends
+    assert.deepStrictEqual(
+      evaluatePttRelease(80, { tapToTalk: true, isListening: true }),
+      { action: 'FINALIZE', dispatch: true, waitMs: 500 }
+    );
+
+    // 3. Hold-to-Talk (>= 200ms): finalizes and dispatches after trailing grace period
+    assert.deepStrictEqual(
+      evaluatePttRelease(350, { tapToTalk: true, isListening: false }),
+      { action: 'FINALIZE', dispatch: true, waitMs: 500 }
+    );
+    assert.deepStrictEqual(
+      evaluatePttRelease(1200, { tapToTalk: true, isListening: false }),
+      { action: 'FINALIZE', dispatch: true, waitMs: 500 }
+    );
+
+    // 4. Keyboard Spacebar single-tap parity
+    assert.deepStrictEqual(
+      evaluateSpaceKeyUp(90, { tapToTalk: true, isListening: false }),
+      { action: 'KEEP_LISTENING', dispatch: false }
+    );
+    assert.deepStrictEqual(
+      evaluateSpaceKeyUp(90, { tapToTalk: true, isListening: true }),
+      { action: 'FINALIZE', dispatch: true, waitMs: 500 }
+    );
   });
 });

@@ -12,7 +12,7 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[CineSync ErrorBoundary] Caught unhandled exception:', error, errorInfo);
+    console.error('[VoiceBridge ErrorBoundary] Caught unhandled exception:', error, errorInfo);
     this.setState({ errorInfo });
   }
 
@@ -35,7 +35,7 @@ export default class ErrorBoundary extends React.Component {
             </div>
 
             <h2 className="text-sm font-mono font-bold uppercase tracking-wider text-white mb-2">
-              CineSync Interface Exception
+              VoiceBridge Interface Exception
             </h2>
 
             <p className="text-xs text-gray-400 mb-4 leading-relaxed font-sans">

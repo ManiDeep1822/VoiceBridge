@@ -82,6 +82,17 @@ def test_classify_and_punctuate_exclamations():
     assert intent2 == "exclamation"
     assert punctuated2.endswith("!")
 
+def test_classify_and_punctuate_hindi_exclamations():
+    hindi_urgent_keywords = ["जल्दी", "तुरंत", "रुको", "बचाओ", "मदद", "शाबाश"]
+    for word in hindi_urgent_keywords:
+        punctuated, intent = classify_and_punctuate_intent(word, "hi")
+        assert intent == "exclamation", f"Expected 'exclamation' for '{word}', got '{intent}'"
+        assert punctuated.endswith("!"), f"Expected terminal '!' for '{word}', got '{punctuated}'"
+
+    phrase_punct, phrase_intent = classify_and_punctuate_intent("जल्दी आओ", "hi")
+    assert phrase_intent == "exclamation"
+    assert phrase_punct.endswith("!")
+
 def test_classify_and_punctuate_statements():
     punctuated, intent = classify_and_punctuate_intent("I am working on the project", "en")
     assert intent == "statement"

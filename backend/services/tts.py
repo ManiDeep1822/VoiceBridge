@@ -8,6 +8,7 @@ logger = logging.getLogger("tts")
 
 # High-fidelity Microsoft Azure Neural Voices (Authentic Human Tone)
 VOICE_MAP = {
+    # --- Indian Languages ---
     "te": {
         "female": "te-IN-ShrutiNeural",
         "male": "te-IN-MohanNeural",
@@ -44,17 +45,100 @@ VOICE_MAP = {
         "female": "gu-IN-DhwaniNeural",
         "male": "gu-IN-NiranjanNeural",
     },
+    "pa": {
+        "female": "pa-IN-OjasNeural",
+        "male": "pa-IN-GurpreetNeural",
+    },
+
+    # --- Global Languages ---
+    "es": {
+        "female": "es-ES-ElviraNeural",
+        "male": "es-ES-AlvaroNeural",
+    },
+    "de": {
+        "female": "de-DE-KatjaNeural",
+        "male": "de-DE-KillianNeural",
+    },
+    "fr": {
+        "female": "fr-FR-DeniseNeural",
+        "male": "fr-FR-HenriNeural",
+    },
+    "ja": {
+        "female": "ja-JP-NanamiNeural",
+        "male": "ja-JP-KeitaNeural",
+    },
+    "zh": {
+        "female": "zh-CN-XiaoxiaoNeural",
+        "male": "zh-CN-YunjianNeural",
+    },
+    "ar": {
+        "female": "ar-SA-ZariyahNeural",
+        "male": "ar-SA-HamedNeural",
+    },
+    "ru": {
+        "female": "ru-RU-SvetlanaNeural",
+        "male": "ru-RU-DmitryNeural",
+    },
+    "pt": {
+        "female": "pt-BR-FranciscaNeural",
+        "male": "pt-BR-AntonioNeural",
+    },
+    "it": {
+        "female": "it-IT-ElsaNeural",
+        "male": "it-IT-DiegoNeural",
+    },
+    "ko": {
+        "female": "ko-KR-SunHiNeural",
+        "male": "ko-KR-InJoonNeural",
+    },
+    "nl": {
+        "female": "nl-NL-ColetteNeural",
+        "male": "nl-NL-MaartenNeural",
+    },
+    "tr": {
+        "female": "tr-TR-EmelNeural",
+        "male": "tr-TR-AhmetNeural",
+    },
+    "id": {
+        "female": "id-ID-GadisNeural",
+        "male": "id-ID-ArdiNeural",
+    },
+    "vi": {
+        "female": "vi-VN-HoaiMyNeural",
+        "male": "vi-VN-NamMinhNeural",
+    },
+    "th": {
+        "female": "th-TH-PremwadeeNeural",
+        "male": "th-TH-NiwatNeural",
+    },
+    "pl": {
+        "female": "pl-PL-ZofiaNeural",
+        "male": "pl-PL-MarekNeural",
+    },
+    "sv": {
+        "female": "sv-SE-SofieNeural",
+        "male": "sv-SE-MattiasNeural",
+    },
 }
 
 # Ultra-fast in-memory audio LRU cache for frequent conversational utterances
 _TTS_AUDIO_CACHE = {}
 
 def get_voice(lang: str, gender: str = "female") -> str:
-    clean_lang = (str(lang).split("-")[0].strip().lower() if lang else "") or "en"
+    raw_lang = (str(lang).strip().replace("_", "-").lower() if lang else "") or "en"
+    clean_lang = raw_lang.split("-")[0]
     clean_gender = str(gender).strip().lower() if gender else "female"
     gender_key = clean_gender if clean_gender in ("female", "male") else "female"
+
+    # 1. Exact match on full BCP-47 tag (e.g., "en-us") if defined
+    if raw_lang in VOICE_MAP:
+        return VOICE_MAP[raw_lang].get(gender_key, VOICE_MAP[raw_lang]["female"])
+
+    # 2. Base 2-letter language code lookup (e.g., "es", "de", "hi")
     if clean_lang in VOICE_MAP:
         return VOICE_MAP[clean_lang].get(gender_key, VOICE_MAP[clean_lang]["female"])
+
+    # 3. Default fallback to authoritative Indian English female neural voice
     return "en-IN-NeerjaNeural"
 
 async def synthesize_speech(
@@ -120,8 +204,8 @@ async def synthesize_speech(
     # 4. Catastrophic Fallback: Google gTTS (only when external cloud network is entirely unreachable)
     try:
         from gtts import gTTS
-        code = (str(target_lang).split("-")[0].strip().lower() if target_lang else "") or "en"
-        if code not in ("te", "hi", "en", "ta", "kn", "ml", "mr", "bn", "gu"):
+        code = (str(target_lang).replace("_", "-").split("-")[0].strip().lower() if target_lang else "") or "en"
+        if code not in VOICE_MAP:
             code = "en"
 
         def _gtts_task():

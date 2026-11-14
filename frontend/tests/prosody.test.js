@@ -39,6 +39,36 @@ describe('Prosody & Zero-Latency Intent Engine (Client-Side)', () => {
     assert.ok(ex1.punctuatedText.endsWith('!'));
   });
 
+  it('detects Hindi exclamations and urgent phrases without trailing space defects', () => {
+    const hindiUrgentWords = ['जल्दी', 'तुरंत', 'रुको', 'मदद', 'बचाओ', 'सावधान'];
+    for (const word of hindiUrgentWords) {
+      const res = classifyAndPunctuateIntent(word, 'hi');
+      assert.strictEqual(res.intent, 'exclamation', `Expected "${word}" to be classified as exclamation`);
+      assert.strictEqual(res.punctuatedText, `${word}!`, `Expected "${word}!"`);
+    }
+
+    const phraseRes = classifyAndPunctuateIntent('जल्दी आओ', 'hi');
+    assert.strictEqual(phraseRes.intent, 'exclamation');
+    assert.strictEqual(phraseRes.punctuatedText, 'जल्दी आओ!');
+  });
+
+  it('detects Hindi urgency with BCP-47 locale hi-IN and sentence-embedded urgent terms', () => {
+    const embeddedPhrases = [
+      { text: 'कृपया जल्दी आइए', expected: 'कृपया जल्दी आइए!' },
+      { text: 'वहाँ तुरंत जाओ', expected: 'वहाँ तुरंत जाओ!' },
+      { text: 'कृपया रुको', expected: 'कृपया रुको!' },
+      { text: 'मेरी मदद करो', expected: 'मेरी मदद करो!' },
+      { text: 'उसे बचाओ', expected: 'उसे बचाओ!' },
+      { text: 'शाबाश मेरे दोस्त', expected: 'शाबाश मेरे दोस्त!' }
+    ];
+
+    for (const { text, expected } of embeddedPhrases) {
+      const res = classifyAndPunctuateIntent(text, 'hi-IN');
+      assert.strictEqual(res.intent, 'exclamation', `Expected "${text}" to be classified as exclamation with hi-IN`);
+      assert.strictEqual(res.punctuatedText, expected, `Expected "${expected}"`);
+    }
+  });
+
   it('preserves declarative statements with standard period', () => {
     const st1 = classifyAndPunctuateIntent('The conference has commenced', 'en');
     assert.strictEqual(st1.intent, 'statement');
